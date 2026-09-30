@@ -8,20 +8,21 @@ import { BACKEND_VERSION, executeSandbox, requirePlatform, type BackendContext }
 import { snapshot, hash, within, noSymlinks, resolveAlias, manifest, diffFiles, saveJson, type Roots } from './filesystem.js';
 import { checkAssertions, type Check } from './assertions.js';
 import { startEndpoint, closeEndpoint, boundaryChecks, type Fixtures } from './probes.js';
-import { searchPolicy, type SearchStep, type TrialVerdict } from './search.js';
+import { searchPolicy, type SearchReuse, type SearchStep, type TrialVerdict } from './search.js';
 import { directoryInventory, discover, type Discovery, type Observation } from './discovery.js';
 import { diagnose, type Diagnosis } from './diagnostics.js';
 import { readInventory, discoverReads, type ReadDiscovery, type ReadObservation } from './read-discovery.js';
 
-export const VERSION = '0.3.0';
+export const VERSION = '0.3.1';
 export type Trial = { id: string; scenario: string; phase: string; grants: string[]; read_grants: string[]; read_mode: 'explicit' | 'legacy'; verdict: TrialVerdict; duration_ms: number; evidence: string; reason?: string; diagnosis?: Diagnosis };
+type SearchSummary = { stop: string; steps: SearchStep[]; rounds: number; reuses: SearchReuse[] };
 export type Report = {
   schema_version: 1; id: string; mode: string; started_at: string; finished_at?: string;
   status: 'running' | 'verified' | 'failed' | 'incomplete';
   environment: Record<string, string>; inputs: Record<string, unknown>; scope: string[];
-  trials: Trial[]; searches: Record<string, { stop: string; steps: SearchStep[] }>;
+  trials: Trial[]; searches: Record<string, SearchSummary>;
   discovery: Record<string, Discovery>;
-  read_discovery: Record<string, ReadDiscovery>; read_searches: Record<string, { stop: string; steps: SearchStep[] }>;
+  read_discovery: Record<string, ReadDiscovery>; read_searches: Record<string, SearchSummary>;
   read_policies: Record<string, string[]>; read_modes: Record<string, 'explicit' | 'legacy'>;
   policies: Record<string, string[]>; baseline_verified: boolean; final_verified: boolean;
   search_complete: boolean; output: string; workspaces?: string; error?: string;
@@ -58,8 +59,12 @@ export function markdownReport(report: Report) {
       ...d.limitations.map(s => `  - ${s}`),
     ]), '',
     '## Policy changes', '',
-    '| Task | Permission | Operation | Source | Decision | Actual scope change | Evidence |', '| --- | --- | --- | --- | --- | --- | --- |',
-    ...[report.searches, report.read_searches].flatMap(searches => Object.entries(searches).flatMap(([id, search]) => search.steps.map(s => `| ${id} | ${s.permission} | ${markdownEscape(s.operation)} | ${s.source} | ${s.decision} | ${s.semantic_change ? 'yes' : 'no (overlapping grants)'} | [trial](evidence/${s.trial_id}.json)${s.recovery_id ? ` / [recovery](evidence/${s.recovery_id}.json)` : ''} |`))), '',
+    '| Task | Permission | Round | Operation | Source | Decision | Actual scope change | Evidence |', '| --- | --- | --- | --- | --- | --- | --- | --- |',
+    ...[report.searches, report.read_searches].flatMap(searches => Object.entries(searches).flatMap(([id, search]) => search.steps.map(s => `| ${id} | ${s.permission} | ${s.round} | ${markdownEscape(s.operation)} | ${s.source} | ${s.decision} | ${s.semantic_change ? 'yes' : 'no (overlapping grants)'} | [trial](evidence/${s.trial_id}.json)${s.recovery_id ? ` / [recovery](evidence/${s.recovery_id}.json)` : ''} |`))), '',
+    '## Reused failure hints', '',
+    'Identical failed candidate policies may guide splitting within one search round. These entries are not new trials or permanent necessity claims; the next round discards these hints.', '',
+    '| Task | Permission | Round | Deferred comparison | Earlier failure |', '| --- | --- | --- | --- | --- |',
+    ...[report.searches, report.read_searches].flatMap(searches => Object.entries(searches).flatMap(([id, search]) => search.reuses.map(r => `| ${id} | ${r.permission} | ${r.round} | ${markdownEscape(r.operation)} | [trial](evidence/${r.failed_trial_id}.json) |`))), '',
     '## Failure explanations', '',
     ...report.trials.filter(t => t.verdict !== 'pass').flatMap(t => {
       const step = [report.searches, report.read_searches].flatMap(searches => Object.values(searches).flatMap(s => s.steps)).find(s => s.trial_id === t.id);
@@ -313,28 +318,44 @@ export async function runExperiment(options: {
         const runSearch = async (permission: 'write' | 'read') => {
           const searches = permission === 'write' ? report.searches : report.read_searches;
           const policies = permission === 'write' ? report.policies : report.read_policies;
+          const roundOffset = searches[scenario.id]?.rounds ?? 0;
           const search = await searchPolicy(scenario, {
             permission, initialGrants: policies[scenario.id],
             automatic: permission === 'write' ? report.discovery[scenario.id]?.rules : report.read_discovery[scenario.id]?.rules,
             evaluate: (grants, phase) => permission === 'write' ? evaluate(scenario, grants, phase) : evaluate(scenario, report.policies[scenario.id], phase, grants),
             canContinue: () => hasTime() && candidateCount < limits.max_candidates && Date.now() + finalReserve < deadline,
             onStep: async step => {
-              (searches[scenario.id] ??= { stop: 'running', steps: [] }).steps.push(step);
+              const summary = searches[scenario.id] ??= { stop: 'running', steps: [], rounds: 0, reuses: [] };
+              summary.steps.push({ ...step, round: roundOffset + step.round });
+              summary.rounds = roundOffset + step.round;
               if (step.decision === 'accepted') policies[scenario.id] = step.after;
               await checkpoint();
             },
+            onReuse: async reuse => {
+              const summary = searches[scenario.id] ??= { stop: 'running', steps: [], rounds: 0, reuses: [] };
+              summary.reuses.push({ ...reuse, round: roundOffset + reuse.round });
+              summary.rounds = roundOffset + reuse.round;
+              await checkpoint();
+            },
           });
-          (searches[scenario.id] ??= { stop: 'running', steps: [] }).stop = search.stop;
+          const summary = searches[scenario.id] ??= { stop: 'running', steps: [], rounds: 0, reuses: [] };
+          summary.stop = search.stop;
+          summary.rounds = roundOffset + search.rounds;
           policies[scenario.id] = search.grants;
           return search;
         };
         // Reads can change task behavior and write requirements. Revisit writes
         // after a read change; stop only at a joint fixed point or a search limit.
+        let readSearched = false;
         while (true) {
           const write = await runSearch('write');
           if (write.stop === 'unstable') break;
           if (report.read_modes[scenario.id] === 'legacy') break;
+          // The preceding read search exhausted its operators under these writes.
+          // If writes did not change, rerunning that same search adds no new comparison.
+          if (readSearched && !write.steps.some(s => s.decision === 'accepted')) break;
           const read = await runSearch('read');
+          readSearched = true;
           if (read.stop !== 'exhausted' || write.stop !== 'exhausted' || !read.steps.some(s => s.decision === 'accepted')) break;
         }
         if ([report.searches[scenario.id], report.read_searches[scenario.id]].some(s => s?.stop === 'unstable')) break;

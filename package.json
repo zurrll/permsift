@@ -1,6 +1,6 @@
 {
   "name": "permsift",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Test tasks. Trim permissions. Evidence-driven sandbox policy experiments.",
   "type": "module",
   "private": true,

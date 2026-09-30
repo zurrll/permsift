@@ -1,5 +1,49 @@
 # 实测记录
 
+## v0.3.1 — 2026-09-30
+
+环境仍为 macOS 15.8、arm64、Node.js 24.21.0、SRT 0.0.77。此轮只优化搜索调度，没有减少基线和最终重复次数、失败恢复或每次实际运行的前后边界检查。
+
+| 检查 | 本机实际结果 |
+| --- | --- |
+| npm test | 60 项通过，0 失败、0 跳过 |
+| npm run test:integration | 19 项真实沙箱测试通过，0 失败、0 跳过 |
+| npm run check / build | 成功 |
+| 读取演示 | 50 个搜索 trial，verified，search_complete=true；另重放 3 次，输入哈希相同 |
+| 固定提交第三方 clsx | 89 个搜索 trial，verified，search_complete=true；另重放 3 次，输入哈希相同 |
+| 原有三个代表项目 | 45 个搜索 trial + 9 个重放 trial，全通过，最终写规则与旧版相同 |
+
+与 v0.3.0 的 clsx 报告比较：
+
+| 指标 | v0.3.0 | v0.3.1 |
+| --- | --- | --- |
+| 搜索总 trial，含基线与最终验证 | 190 | 89 |
+| 实际候选 | 105 | 49 |
+| 失败后的恢复复测 | 76 | 31 |
+| 基线、准备确认、最终验证 | 9 | 9 |
+| 独立导出重放 | 3 | 3 |
+| 搜索加重放耗时 | 66,442 ms | 30,833 ms |
+
+减少 101 个 trial，约 53.2%。对比脚本确认输入快照、配置、limits、系统/Node/SRT 版本和最终读写权限一致，两次搜索均 verified 且 search_complete=true。耗时仅为本机各一次观察，包含重放，受系统负载和缓存影响，不是性能基准，也不保证其他项目同样加速。
+
+最终 clsx 写权限仍只有 @workspace/dist；项目读取仍是 bin/index.js、dist、node_modules/source-map、node_modules/terser、package.json、src/index.js、src/lite.js。上游提交仍为 925494cf31bcd97d3337aacd34e659e80cae7fe2，构建及 smoke 范围与旧版相同，没有扩大验证范围。
+
+clsx 实际执行 16 次读权限分组候选，读取搜索共 2 轮；5 次相同失败组合仅作为本轮拆分线索，单独关联旧证据，不计为新 trial。31 次实际候选失败各有通过的恢复，最终实验没有 unknown。依赖枚举仍 truncated=true，有限搜索完成不表示全局最小。
+
+新增测试覆盖分组成功及失败拆分、关联权限共同撤销、权限变化后延后复查、候选预算、不稳定恢复、unknown 不作复用线索，以及最后一次修改之后已经完成比较时省略重复收尾轮。真实测试验证大量未用输入的批量收缩、必要文件在最终规则下重新撤销失败并恢复，及读→写→读连续变化仍触发复查。
+
+读取演示的最终范围也与旧版相同，搜索从 70 个 trial 降到 50 个；原有 slug-kit、bundle-kit、cached-build 分别仍为 13、14、18 个 trial，小项目此轮没有减少次数。
+
+最终源码的本机证据保存在忽略目录：
+
+- .permsift/clsx-read-aHNMNf/summary.json、comparison.json，以及 search/replay 报告；比较基线是 .permsift/clsx-read-l8wpQh/summary.json。
+- .permsift/delivery-v0.3.1-read-final/ 与 .permsift/delivery-v0.3.1-read-replay-final/。
+- .permsift/representative-projects-ESgT7j/summary.json。
+
+复现和比较命令见 [搜索效率](search-efficiency.md)。原始报告和第三方副本未纳入 Git；远端 CI 未作为本机通过项。
+
+---
+
 ## v0.3 — 2026-09-30
 
 环境为 macOS 15.8、arm64、Node.js 24.21.0、SRT 0.0.77。以下均为本机实际运行；未将远端 CI 算作通过。

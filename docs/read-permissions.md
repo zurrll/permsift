@@ -46,7 +46,7 @@ Node 的 process.cwd() 需要工作区目录访问。执行器固定授予工作
 
 输入结构在基线任务启动前枚举，区分普通文件和目录，不跟随符号链接。max_read_discovery_entries 默认 128，max_read_discovery_depth 默认 3。只有完整列出的直接子项才生成父目录替换规则，每个候选不超过 32 项。无法安全列举的目录保留较粗授权，报告标注 truncated。
 
-读取搜索先尝试删除整项授权，再展开仍需保留的目录。这样可以直接删除无关测试树或依赖包，避免逐个尝试其文档文件。自动结构只提供候选，不说明哪些输入“已经被证明必需”。每项修改都执行真实任务、产物断言和边界检查。
+读取搜索先尝试成组或逐项删除授权，再展开仍需保留的目录。这样可以直接删除无关测试树或依赖包，避免逐个尝试其文档文件。自动结构只提供候选，不说明哪些输入“已经被证明必需”。每项修改都执行真实任务、产物断言和边界检查。
 
 手工补充规则可写为：
 
@@ -57,7 +57,7 @@ narrower_read_candidates:
     to: ['@workspace/package.json', '@workspace/scripts/build.mjs', '@workspace/src', '@workspace/dist']
 ```
 
-失败或 unknown 后恢复之前的读取规则，在新的干净副本中复测。恢复失败会停止搜索并记为不稳定。
+失败或 unknown 后恢复之前的读取规则，在新的干净副本中复测。恢复失败会停止搜索并记为不稳定。v0.3.1 将同级授权成组撤销、失败拆分，已尝试操作延后到下一轮复查；同一轮的相同已恢复失败可作为拆分线索，关联原证据，下一轮清空。详见 [搜索效率](search-efficiency.md)。
 
 每个场景先搜索写权限，再搜索读权限。读取发生变化后重新搜索写权限，直到读写候选都不再接受、预算耗尽或恢复不稳定。因为程序可能在读取失败后走另一条分支，不能假设读写需求互不影响。最终组合独立重复验证，再导出 recommended.yaml。
 
@@ -71,7 +71,7 @@ explicit 模式在每轮副本根目录，以及冻结输入中存在的 src、b
 
 ## 阅读报告
 
-report.json 的 policies/searches 保持记录写权限，read_policies/read_searches 记录读取权限，read_modes 区分 explicit 与 legacy。每个 trial 保存两种授权和组合哈希。read_discovery 保存输入结构规则、观察证据 ID、枚举截断和限制说明。
+report.json 的 policies/searches 保持记录写权限，read_policies/read_searches 记录读取权限，read_modes 区分 explicit 与 legacy。每个 trial 保存两种授权和组合哈希。搜索记录增加 rounds、step 的 round 与 removed_grants，以及单独的 reuses；复用线索不算新执行。read_discovery 保存输入结构规则、观察证据 ID、枚举截断和限制说明。
 
 report.md 并列展示读写范围，失败解释注明规则类型、被拒绝路径、断言和恢复结果。recommended.yaml 保留 initial_read_grants 和统一的目录准备状态；使用 run 重放即可重新验证当前输入。
 

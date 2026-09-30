@@ -6,7 +6,7 @@ Test tasks. Trim permissions.
 
 Permsift 是一个面向项目任务的沙箱权限调试器。你提供可工作的初始策略和测试、构建等任务，它在干净副本中反复执行，尝试缩小读写权限，用任务断言和边界探针判断是否接受修改，并保留每一步的证据。
 
-当前为 **v0.3，macOS 本地 CLI**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。默认自动缩小目录写权限；声明 initial_read_grants 后，还能将项目读取范围缩到目录或具体文件。读写组合会一起复验。系统运行时、缓存和临时目录读取仍固定开放，网络保持关闭；结果限定于本次环境和测试集合，不代表全局最小权限。
+当前为 **v0.3.1，macOS 本地 CLI**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。默认自动缩小目录写权限；声明 initial_read_grants 后，还能将项目读取范围缩到目录或具体文件。同级授权成组尝试，失败操作按轮复查，读写组合一起复验。系统运行时、缓存和临时目录读取仍固定开放，网络保持关闭；结果限定于本次环境和测试集合，不代表全局最小权限。
 
 ## 快速开始
 
@@ -138,6 +138,7 @@ npm run check
 
 - [配置参考](docs/configuration.md)：全部字段、成功断言与 limits。
 - [架构与搜索流程](docs/architecture.md)：模块、候选修改、结果状态和证据。
+- [搜索效率](docs/search-efficiency.md)：成组撤销、延后复查和同项目次数对比。
 - [安全边界](docs/security.md)：固定权限、支持的工作负载和已知限制。
 - [开发与测试](docs/development.md)：修改代码、测试分层和 CI。
 - [实测记录](docs/validation.md)：本机实际运行结果与验收映射。

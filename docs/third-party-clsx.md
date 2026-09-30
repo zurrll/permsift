@@ -22,7 +22,7 @@ verify 在 macOS 的真实沙箱里运行，任务阶段始终断网。场景配
 
 初始读写范围覆盖工作区，另允许写缓存和临时目录。未填写手工候选。读取枚举深度设为 2，使项目源码可细分到文件、依赖可细分到包目录；更深的依赖输入暂不展开，报告会标注 truncated。这个设置减少重复复制依赖和试验文档文件的成本。
 
-verify 要求搜索及最终复验通过，并确认写权限只剩 dist、读取不再覆盖整个工作区和测试树。随后从干净输入重放导出的策略 3 次，并比较输入哈希。每次生成独立 clsx-read-* 目录，summary.json 记录提交、次数、耗时、权限、哈希和报告位置。具体本机结果见 [validation.md](validation.md)。
+verify 要求搜索及最终复验通过，并确认写权限只剩 dist、读取不再覆盖整个工作区和测试树。随后从干净输入重放导出的策略 3 次，并比较输入哈希。每次生成独立 clsx-read-* 目录，summary.json 记录提交、次数、耗时、权限、哈希和报告位置。已有旧版本 summary.json 时，可用 `npm run third-party:verify -- --baseline PATH` 保存 comparison.json，核对输入、环境、规则和次数。具体本机结果见 [validation.md](validation.md)。
 
 ## 能从这次实验学到什么
 

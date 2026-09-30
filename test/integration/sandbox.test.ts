@@ -244,3 +244,54 @@ test('a granted file replaced by a directory never becomes recursive read permis
   assert.deepEqual(evidence.before.execution.policy.filesystem.allowRead, evidence.task.policy.filesystem.allowRead);
   assert.deepEqual(evidence.after.execution.policy.filesystem.allowRead, evidence.task.policy.filesystem.allowRead);
 });
+
+test('real sandbox batches unused inputs, restores rejected groups and checks the final exact file scope', macOnly, async t => {
+  const f = await fixture(t, writer);
+  for (let i = 0; i < 16; i++) await fs.writeFile(path.join(f.project, `unused-${String(i).padStart(2, '0')}.txt`), 'fake unused input');
+  await enableReads(f);
+  const report = await runExperiment({ ...f, mode: 'tighten', output: path.join(f.root, 'result') });
+  assert.equal(report.status, 'verified', JSON.stringify(report.trials.at(-1)?.diagnosis));
+  assert.equal(report.search_complete, true);
+  assert.deepEqual(report.read_policies.build, ['@workspace/task.cjs']);
+  const groups = report.read_searches.build.steps.filter(s => s.source === 'group_removal');
+  assert.ok(groups.some(s => s.decision === 'accepted' && s.removed_grants!.length > 1));
+  assert.ok(groups.some(s => s.decision === 'rejected' && report.trials.find(t => t.id === s.recovery_id)?.verdict === 'pass'));
+  assert.ok(report.trials.filter(t => t.phase === 'candidate_read').length < 20);
+  const search = report.read_searches.build;
+  assert.ok(search.reuses.length);
+  for (const reuse of search.reuses) {
+    const previous = report.trials.find(t => t.id === reuse.failed_trial_id)!;
+    assert.equal(previous.verdict, 'fail'); assert.deepEqual(previous.read_grants, reuse.after);
+    const failure = search.steps.find(s => s.trial_id === previous.id)!;
+    assert.equal(report.trials.find(t => t.id === failure.recovery_id)?.verdict, 'pass');
+  }
+  const necessary = search.steps.find(s => s.round === search.rounds && s.operation === 'remove @workspace/task.cjs')!;
+  assert.equal(necessary.decision, 'rejected'); assert.deepEqual(necessary.before, report.read_policies.build);
+  const final = report.trials.find(t => t.phase === 'final')!;
+  const evidence = JSON.parse(await fs.readFile(path.join(report.output, final.evidence), 'utf8'));
+  assert.ok(evidence.before.checks.every((c: {status:string}) => c.status === 'pass'));
+  assert.ok(evidence.after.checks.every((c: {status:string}) => c.status === 'pass'));
+  const replay = await runExperiment({ mode: 'run', configPath: path.join(report.output, 'recommended.yaml'), limitsPath: f.limitsPath, output: path.join(f.root, 'replay') });
+  assert.equal(replay.status, 'verified');
+});
+
+test('joint search revisits reads when a subsequent write change makes another input optional', macOnly, async t => {
+  const f = await fixture(t, `${writer}
+const cache=require('node:path').join(process.env.XDG_CACHE_HOME,'state');
+let feature=false;try{feature=fs.readFileSync('a-feature.txt','utf8')==='enabled'}catch(e){if(!['EPERM','EACCES'].includes(e.code))throw e;}
+if(feature){fs.writeFileSync(cache,'required');}else{
+  let writable=false;try{fs.writeFileSync(cache,'probe');writable=true}catch(e){if(!['EPERM','EACCES'].includes(e.code))throw e;}
+  if(writable && fs.readFileSync('z-cache-info.txt','utf8')!=='valid')process.exit(8);
+}`);
+  await fs.writeFile(path.join(f.project, 'a-feature.txt'), 'enabled');
+  await fs.writeFile(path.join(f.project, 'z-cache-info.txt'), 'valid');
+  await enableReads(f, ['@workspace/a-feature.txt', '@workspace/task.cjs', '@workspace/z-cache-info.txt']);
+  const report = await runExperiment({ ...f, mode: 'tighten', output: path.join(f.root, 'result') });
+  assert.equal(report.status, 'verified', JSON.stringify(report.trials.at(-1)?.diagnosis));
+  assert.equal(report.search_complete, true);
+  assert.deepEqual(report.policies.build, ['@workspace/dist']);
+  assert.deepEqual(report.read_policies.build, ['@workspace/task.cjs']);
+  const input = report.read_searches.build.steps.filter(s => s.operation === 'remove @workspace/z-cache-info.txt');
+  assert.ok(input.some(s => s.decision === 'rejected')); assert.equal(input.at(-1)?.decision, 'accepted');
+  assert.ok(input[0].round < input.at(-1)!.round);
+});

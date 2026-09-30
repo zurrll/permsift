@@ -154,7 +154,7 @@ Node 的 [JUnit reporter](https://nodejs.org/docs/latest-v24.x/api/test.html#tes
 | --- | --- | --- |
 | allowed_write_roots | 必填 | 可变写权限上限，包含其子目录；不控制后端固定设备权限 |
 | allowed_read_roots | 省略 | 开启显式读取模式时必填，只接受 @workspace 及其子路径，允许空数组；不约束固定基础读取 |
-| max_candidates | 30 | 整个实验读写合计最多尝试的搜索候选，允许 0；基线、恢复和最终验证不计入 |
+| max_candidates | 30 | 整个实验读写合计最多实际尝试的搜索候选（包括分组和拆分子组），允许 0；基线、恢复和最终验证不计入 |
 | budget_seconds | 900 | 实验时间预算，范围 1–7200 秒 |
 | repetitions | 3 | 每个任务的基线和最终验证重复次数，范围 1–10 |
 | max_output_bytes | 262144 | 每个进程 stdout 与 stderr 的合计原始字节限制，超出即停止 |
@@ -170,7 +170,7 @@ Node 的 [JUnit reporter](https://nodejs.org/docs/latest-v24.x/api/test.html#tes
 
 `--output` 指定一个尚不存在的目录。目录位于原项目内部时，必须处于 exclude 列出的顶层目录中，避免快照递归包含自身。
 
-- report.json：机器可读汇总和证据索引；policies/searches 记录写规则，read_policies/read_searches 记录读规则，read_modes 区分 explicit/legacy，read_discovery 记录候选来源。
+- report.json：机器可读汇总和证据索引；搜索记录的 rounds/round 为复查轮次，removed_grants 为分组成员，reuses 单独关联复用的失败证据；policies/searches 记录写规则，read_policies/read_searches 记录读规则，read_modes 区分 explicit/legacy，read_discovery 记录候选来源。
 - report.md：适合人工审阅的摘要。
 - inputs.json：规范化配置、limits、版本和输入哈希。
 - evidence/*.json：每次运行的任务、探针、断言和日志。
