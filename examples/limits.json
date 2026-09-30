@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "allowed_write_roots": ["@workspace", "@cache", "@tmp"],
+  "max_candidates": 30,
+  "budget_seconds": 900,
+  "repetitions": 3
+}
