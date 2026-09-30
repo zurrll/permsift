@@ -1,7 +1,9 @@
 import * as fs from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { constants } from 'node:fs';
 import path from 'node:path';
 import { aliasSchema } from './config.js';
+import { runProcess } from './process.js';
 
 export type Roots = { workspace: string; cache: string; tmp: string };
 export const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -11,6 +13,37 @@ export function resolveAlias(alias: string, roots: Roots): string {
   return path.join(roots[name as keyof Roots], ...parts);
 }
 export const within = (parent: string, child: string) => child === parent || child.startsWith(parent + path.sep);
+
+/** Independent files, never hard links. cp -c uses clonefile on macOS and
+ * safely copies bytes when the filesystem cannot clone. Node/libuv's forced
+ * reflink API returns ENOSYS on macOS, even on APFS. */
+export async function forkSnapshot(source: string, destination: string, options: { timeoutMs?: number; signal?: AbortSignal } = {}) {
+  const started = Date.now();
+  const base = await fs.realpath(source);
+  await fs.mkdir(path.dirname(destination), { recursive: true });
+  const target = path.join(await fs.realpath(path.dirname(destination)), path.basename(destination));
+  if (within(base, target) || within(target, base)) throw new Error('Snapshot fork paths must be separate');
+  try { await fs.lstat(target); throw new Error('Snapshot fork destination already exists'); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+  if (options.signal?.aborted) throw new Error('Snapshot fork interrupted');
+  const strategy = process.platform === 'darwin' ? 'macos-clone-preferred' : 'node-reflink-preferred';
+  try {
+    if (process.platform === 'darwin') {
+      const result = await runProcess(['/bin/cp', '-cRpPN', base, target], {
+        cwd: path.dirname(target), env: { PATH: '/usr/bin:/bin' },
+        timeoutMs: options.timeoutMs ?? 120_000, maxOutputBytes: 16384, signal: options.signal,
+      });
+      if (result.status !== 'completed' || result.exit_code !== 0) throw new Error(`Snapshot fork ${result.status}: ${result.stderr || result.error || result.exit_code}`);
+    } else {
+      await fs.cp(base, target, { recursive: true, verbatimSymlinks: true, mode: constants.COPYFILE_FICLONE });
+    }
+    if (options.signal?.aborted) throw new Error('Snapshot fork interrupted');
+    return { strategy, duration_ms: Date.now() - started, fallback: 'Byte copy on filesystems without clone support; clone preference is not proof of physical block sharing' };
+  } catch (error) {
+    await fs.rm(target, { recursive: true, force: true });
+    throw error;
+  }
+}
 
 export async function noSymlinks(root: string, target: string): Promise<void> {
   if (!within(root, target)) throw new Error('Path escapes root');

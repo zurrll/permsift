@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { stringify } from 'yaml';
 import { contains, loadConfiguration, validatePolicy, type Config, type Limits, type Scenario } from './config.js';
 import { BACKEND_VERSION, executeSandbox, requirePlatform, type BackendContext } from './backend.js';
-import { snapshot, hash, within, noSymlinks, resolveAlias, manifest, diffFiles, saveJson, type Roots } from './filesystem.js';
+import { snapshot, forkSnapshot, hash, within, noSymlinks, resolveAlias, manifest, diffFiles, saveJson, type Roots } from './filesystem.js';
 import { checkAssertions, type Check } from './assertions.js';
 import { startEndpoint, closeEndpoint, boundaryChecks, type Fixtures } from './probes.js';
 import { searchPolicy, type SearchReuse, type SearchStep, type TrialVerdict } from './search.js';
@@ -182,7 +182,7 @@ export async function runExperiment(options: {
         const runRoot = path.join(scratch, 'runs', trialId);
         roots = { workspace: path.join(runRoot, 'workspace'), cache: path.join(runRoot, 'cache'), tmp: path.join(runRoot, 'tmp') };
         await fs.mkdir(runRoot, { recursive: true });
-        await fs.cp(inputRoot, roots.workspace, { recursive: true, verbatimSymlinks: true });
+        evidence.workspace_fork = await forkSnapshot(inputRoot, roots.workspace, { timeoutMs: Math.max(1, deadline - Date.now()), signal: options.signal });
         for (const directory of [roots.cache, roots.tmp]) await fs.mkdir(directory);
         const allPaths = prepared.get(scenario.id)!;
         evidence.prepared_directories = allPaths;
