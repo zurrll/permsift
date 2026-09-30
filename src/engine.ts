@@ -5,16 +5,17 @@ import { randomUUID } from 'node:crypto';
 import { stringify } from 'yaml';
 import { contains, loadConfiguration, validatePolicy, type Config, type Limits, type Scenario } from './config.js';
 import { BACKEND_VERSION, executeSandbox, requirePlatform, type BackendContext } from './backend.js';
-import { snapshot, forkSnapshot, hash, within, noSymlinks, resolveAlias, manifest, diffFiles, saveJson, type Roots } from './filesystem.js';
+import { snapshot, snapshotHash, forkSnapshot, hash, within, noSymlinks, resolveAlias, manifest, diffFiles, saveJson, type Roots } from './filesystem.js';
 import { checkAssertions, type Check } from './assertions.js';
 import { startEndpoint, closeEndpoint, boundaryChecks, type Fixtures } from './probes.js';
-import { searchPolicy, type SearchReuse, type SearchStep, type TrialVerdict } from './search.js';
+import { searchPolicy, type SearchReuse, type SearchStep, type TrialVerdict, type Permission } from './search.js';
 import { directoryInventory, discover, type Discovery, type Observation } from './discovery.js';
 import { diagnose, type Diagnosis } from './diagnostics.js';
 import { readInventory, discoverReads, type ReadDiscovery, type ReadObservation } from './read-discovery.js';
+import { inspectInstall, executeInstall, prepareInstallCache, npmVersion, type InstallInput } from './install.js';
 
-export const VERSION = '0.4.0';
-export type Trial = { id: string; scenario: string; phase: string; grants: string[]; read_grants: string[]; read_mode: 'explicit' | 'legacy'; verdict: TrialVerdict; duration_ms: number; evidence: string; reason?: string; diagnosis?: Diagnosis };
+export const VERSION = '0.5.0';
+export type Trial = { id: string; scenario: string; phase: string; grants: string[]; read_grants: string[]; read_mode: 'explicit' | 'legacy'; network_grants: string[]; verdict: TrialVerdict; duration_ms: number; evidence: string; reason?: string; diagnosis?: Diagnosis };
 type SearchSummary = { stop: string; steps: SearchStep[]; rounds: number; reuses: SearchReuse[] };
 export type Report = {
   schema_version: 1; id: string; mode: string; started_at: string; finished_at?: string;
@@ -25,6 +26,7 @@ export type Report = {
   read_discovery: Record<string, ReadDiscovery>; read_searches: Record<string, SearchSummary>;
   read_policies: Record<string, string[]>; read_modes: Record<string, 'explicit' | 'legacy'>;
   policies: Record<string, string[]>; baseline_verified: boolean; final_verified: boolean;
+  network_policies: Record<string, string[]>; network_searches: Record<string, SearchSummary>;
   search_complete: boolean; output: string; workspaces?: string; error?: string;
 };
 export function classifyTrial(taskStatus: string, exitCode: number | null, assertions: Check[], boundaries: Check[]): TrialVerdict {
@@ -39,14 +41,24 @@ export function markdownReport(report: Report) {
     `- Status: **${report.status}**`, `- Experiment: ${report.id}`, `- Mode: ${report.mode}`,
     `- Baseline verified: ${report.baseline_verified}`, `- Final verified: ${report.final_verified}`, `- Search completed: ${report.search_complete}`,
     `- Platform: ${report.environment.platform} ${report.environment.release} ${report.environment.arch}`,
-    `- Node: ${report.environment.node}; SRT: ${BACKEND_VERSION}`, '',
+    `- Node: ${report.environment.node}; SRT: ${BACKEND_VERSION}${report.environment.npm ? `; npm: ${report.environment.npm}` : ''}`, '',
     ...(report.error ? [`Error: ${markdownEscape(report.error)}`, ''] : []),
     '## Scope and limitations', '', ...report.scope.map(s => `- ${s}`), '',
     '## Current candidate policies', '',
     ...Object.entries(report.policies).flatMap(([id, grants]) => [
       `- **${id} write**: ${grants.length ? grants.join(', ') : '(no variable write grants)'}`,
       `- **${id} read** (${report.read_modes[id]}): ${report.read_policies[id].join(', ') || '(no project file/data read grants)'}`,
+      `- **${id} install network**: ${report.network_policies[id].join(', ') || '(offline)'}`,
     ]), '',
+    ...report.inputs.installations ? [
+      '## Installation inputs', '',
+      ...Object.entries(report.inputs.installations as Record<string, InstallInput>).flatMap(([id, data]) => [
+        `- **${id}**: npm ci --ignore-scripts; cache: ${data.cache}; subsequent task command: offline`,
+        `  - Lock SHA-256: ${data.lock_hash}; package SHA-256: ${data.package_hash}`,
+        `  - Locked download hosts: ${data.resolved_domains.join(', ') || '(none)'} (observations do not add grants)`,
+        ...(data.cache_seed_hash ? [`  - Fixed warm seed manifest SHA-256: ${data.cache_seed_hash}; npm uses --offline`] : ['  - Every trial starts with an empty npm cache.']),
+      ]), '',
+    ] : [],
     '## Candidate discovery', '',
     ...Object.entries(report.discovery).flatMap(([id, d]) => [
       `- **${id}**: ${d.enabled ? `${d.rules.length} automatic rules; inventory truncated: ${d.truncated}` : 'disabled (manual rules only)'}`,
@@ -60,14 +72,14 @@ export function markdownReport(report: Report) {
     ]), '',
     '## Policy changes', '',
     '| Task | Permission | Round | Operation | Source | Decision | Actual scope change | Evidence |', '| --- | --- | --- | --- | --- | --- | --- | --- |',
-    ...[report.searches, report.read_searches].flatMap(searches => Object.entries(searches).flatMap(([id, search]) => search.steps.map(s => `| ${id} | ${s.permission} | ${s.round} | ${markdownEscape(s.operation)} | ${s.source} | ${s.decision} | ${s.semantic_change ? 'yes' : 'no (overlapping grants)'} | [trial](evidence/${s.trial_id}.json)${s.recovery_id ? ` / [recovery](evidence/${s.recovery_id}.json)` : ''} |`))), '',
+    ...[report.searches, report.read_searches, report.network_searches].flatMap(searches => Object.entries(searches).flatMap(([id, search]) => search.steps.map(s => `| ${id} | ${s.permission} | ${s.round} | ${markdownEscape(s.operation)} | ${s.source} | ${s.decision} | ${s.semantic_change ? 'yes' : 'no (overlapping grants)'} | [trial](evidence/${s.trial_id}.json)${s.recovery_id ? ` / [recovery](evidence/${s.recovery_id}.json)` : ''} |`))), '',
     '## Reused failure hints', '',
     'Identical failed candidate policies may guide splitting within one search round. These entries are not new trials or permanent necessity claims; the next round discards these hints.', '',
     '| Task | Permission | Round | Deferred comparison | Earlier failure |', '| --- | --- | --- | --- | --- |',
-    ...[report.searches, report.read_searches].flatMap(searches => Object.entries(searches).flatMap(([id, search]) => search.reuses.map(r => `| ${id} | ${r.permission} | ${r.round} | ${markdownEscape(r.operation)} | [trial](evidence/${r.failed_trial_id}.json) |`))), '',
+    ...[report.searches, report.read_searches, report.network_searches].flatMap(searches => Object.entries(searches).flatMap(([id, search]) => search.reuses.map(r => `| ${id} | ${r.permission} | ${r.round} | ${markdownEscape(r.operation)} | [trial](evidence/${r.failed_trial_id}.json) |`))), '',
     '## Failure explanations', '',
     ...report.trials.filter(t => t.verdict !== 'pass').flatMap(t => {
-      const step = [report.searches, report.read_searches].flatMap(searches => Object.values(searches).flatMap(s => s.steps)).find(s => s.trial_id === t.id);
+      const step = [report.searches, report.read_searches, report.network_searches].flatMap(searches => Object.values(searches).flatMap(s => s.steps)).find(s => s.trial_id === t.id);
       const recovery = step?.recovery_id ? report.trials.find(r => r.id === step.recovery_id) : undefined;
       const d = t.diagnosis;
       return [
@@ -117,17 +129,18 @@ export async function runExperiment(options: {
     environment: { platform: process.platform, release: os.release(), arch: process.arch, node: process.version, permsift: VERSION, sandbox_runtime: BACKEND_VERSION },
     inputs: { project, config_file: input.configFile, limits_file: input.limitsFile, config_hash: hash(config), limits_hash: hash(limits) },
     scope: [
-      'Directory write grants and opt-in project file/directory read grants are searched jointly; network policy remains fixed. Legacy tasks without initial_read_grants retain full workspace reads.',
+      'Directory writes, opt-in project reads and npm install domain grants are searched jointly. Task commands always run offline. Install currently retains legacy workspace reads.',
       'Explicit read mode retains workspace-root directory listing/access, system/runtime, cache and temp reads. It does not hide project names or minimize those fixed grants.',
       'Fake project read fixtures test both allowed and denied expectations against the actual policy; they are write-protected, not explicitly read-denied.',
       'Home directories, the original project and experiment evidence are denied, except explicit run directories and a home-installed Node runtime tree; system/runtime read access remains broad.',
       'SRT device/stdio grants are fixed; its /tmp/claude write exceptions are explicitly denied. Inspect effective policy in evidence.',
-      'Network tests cover a controlled loopback TCP endpoint, not every possible network channel.',
+      'Network probes cover direct loopback denial and an authenticated proxy request to a reserved denied domain; they do not test every network channel.',
       'Trusted/reviewed project scripts only. Task-produced test reports are not proof against a malicious project.',
       'No global minimum or sandbox escape-resistance claim. Results apply to recorded inputs, assertions and environment.',
       'Process-group cleanup handles normal descendants; deliberately detached/daemonized processes are outside the supported workload contract.',
     ],
     trials: [], searches: {}, discovery: {}, read_discovery: {}, read_searches: {},
+    network_searches: {}, network_policies: Object.fromEntries(config.scenarios.map(s => [s.id, s.initial_network_grants ?? []])),
     policies: Object.fromEntries(config.scenarios.map(s => [s.id, s.initial_write_grants])),
     read_policies: Object.fromEntries(config.scenarios.map(s => [s.id, s.initial_read_grants ?? ['@workspace']])),
     read_modes: Object.fromEntries(config.scenarios.map(s => [s.id, s.initial_read_grants === undefined ? 'legacy' : 'explicit'])),
@@ -148,8 +161,14 @@ export async function runExperiment(options: {
   try {
     await checkpoint();
     const inputRoot = path.join(scratch, 'input');
-    report.inputs.snapshot_hash = await snapshot(options.frozenInput?.path ?? project, inputRoot, options.frozenInput ? [] : config.exclude, limits.max_snapshot_bytes);
+    if (options.frozenInput) {
+      report.inputs.snapshot_fork = await forkSnapshot(options.frozenInput.path, inputRoot, { timeoutMs: Math.max(1, deadline - Date.now()), signal: options.signal });
+      report.inputs.snapshot_hash = await snapshotHash(inputRoot, limits.max_snapshot_bytes);
+    } else report.inputs.snapshot_hash = await snapshot(project, inputRoot, config.exclude, limits.max_snapshot_bytes);
     if (options.frozenInput && report.inputs.snapshot_hash !== options.frozenInput.hash) throw new Error('Frozen regression input changed between comparisons');
+    const installations = new Map<string, InstallInput>();
+    for (const scenario of config.scenarios) if (scenario.install) installations.set(scenario.id, await inspectInstall(scenario, inputRoot));
+    if (installations.size) { report.inputs.installations = Object.fromEntries(installations); report.environment.npm = await npmVersion(); }
     // Stable locations based only on frozen input, never on candidate grants or outputs.
     const readProbeDirectories = [''];
     for (const name of ['src', 'bin', 'test']) {
@@ -165,14 +184,14 @@ export async function runExperiment(options: {
     const fixtures: Fixtures = { secret: path.join(fixtureRoot, 'fake-secret'), outside: path.join(fixtureRoot, 'outside-marker'), report: path.join(canonicalOutput, 'report-guard'), marker, port: endpoint.port };
     for (const file of [fixtures.secret, fixtures.outside, fixtures.report]) await fs.writeFile(file, marker, { mode: 0o600 });
 
-    const evaluate = async (scenario: Scenario, grants: string[], phase: string, readGrants = report.read_policies[scenario.id]) => {
+    const evaluate = async (scenario: Scenario, grants: string[], phase: string, readGrants = report.read_policies[scenario.id], networkGrants = report.network_policies[scenario.id]) => {
       const trialId = randomUUID();
       const started = Date.now();
       const readMode = report.read_modes[scenario.id];
-      const trial: Trial = { id: trialId, scenario: scenario.id, phase, grants, read_grants: readGrants, read_mode: readMode, verdict: 'unknown', duration_ms: 0, evidence: `evidence/${trialId}.json` };
-      const evidence: Record<string, unknown> = { id: trialId, scenario: scenario.id, phase, grants, read_grants: readGrants, read_mode: readMode, policy_hash: hash({ write: grants, read: readGrants, readMode }) };
+      const trial: Trial = { id: trialId, scenario: scenario.id, phase, grants, read_grants: readGrants, read_mode: readMode, network_grants: networkGrants, verdict: 'unknown', duration_ms: 0, evidence: `evidence/${trialId}.json` };
+      const evidence: Record<string, unknown> = { id: trialId, scenario: scenario.id, phase, grants, read_grants: readGrants, read_mode: readMode, network_grants: networkGrants, policy_hash: hash({ write: grants, read: readGrants, readMode, network: networkGrants }) };
       if (phase.startsWith('candidate')) candidateCount++;
-      options.onProgress?.(`${scenario.id} · ${phase} · write: ${grants.join(', ') || '(none)'}${readMode === 'explicit' ? ` · read: ${readGrants.join(', ') || '(none)'}` : ''}`);
+      options.onProgress?.(`${scenario.id} · ${phase} · write: ${grants.join(', ') || '(none)'}${readMode === 'explicit' ? ` · read: ${readGrants.join(', ') || '(none)'}` : ''}${scenario.install ? ` · network: ${networkGrants.join(', ') || '(offline)'}` : ''}`);
       let roots: Roots | undefined;
       let task: Awaited<ReturnType<typeof executeSandbox>> | undefined;
       let assertions: Check[] = [];
@@ -184,6 +203,7 @@ export async function runExperiment(options: {
         await fs.mkdir(runRoot, { recursive: true });
         evidence.workspace_fork = await forkSnapshot(inputRoot, roots.workspace, { timeoutMs: Math.max(1, deadline - Date.now()), signal: options.signal });
         for (const directory of [roots.cache, roots.tmp]) await fs.mkdir(directory);
+        if (scenario.install) evidence.install_cache = await prepareInstallCache(scenario, inputRoot, roots, { timeoutMs: Math.max(1, deadline - Date.now()), signal: options.signal });
         const allPaths = prepared.get(scenario.id)!;
         evidence.prepared_directories = allPaths;
         for (const alias of new Set(allPaths)) {
@@ -212,7 +232,7 @@ export async function runExperiment(options: {
             trialFixtures.reads.push({ path: target, alias, expected: readGrants.some(grant => contains(grant, alias)) ? 'allowed' : 'denied' });
           }
         }
-        const context: BackendContext = { roots, experimentRoot: scratch, protectedPaths: [project, input.configFile, input.limitsFile, canonicalOutput, options.frozenInput?.path ?? '', ...options.frozenInput?.protectedPaths ?? []].filter(Boolean), protectedWritePaths: trialFixtures.reads?.map(f => path.dirname(f.path)), grants, readGrants: readMode === 'explicit' ? readGrants : undefined, invocationId: trialId, timeoutMs: Math.max(1, Math.min(scenario.timeout_seconds * 1000, deadline - Date.now())), maxOutputBytes: limits.max_output_bytes, signal: options.signal };
+        const context: BackendContext = { roots, experimentRoot: scratch, protectedPaths: [project, input.configFile, input.limitsFile, canonicalOutput, options.frozenInput?.path ?? '', ...options.frozenInput?.protectedPaths ?? []].filter(Boolean), protectedWritePaths: trialFixtures.reads?.map(f => path.dirname(f.path)), grants, readGrants: readMode === 'explicit' ? readGrants : undefined, networkGrants, invocationId: trialId, timeoutMs: Math.max(1, Math.min(scenario.timeout_seconds * 1000, deadline - Date.now())), maxOutputBytes: limits.max_output_bytes, signal: options.signal };
         if (readMode === 'explicit') {
           context.readKinds = {};
           for (const alias of readGrants) {
@@ -224,7 +244,7 @@ export async function runExperiment(options: {
           }
           evidence.read_grant_kinds = context.readKinds;
         }
-        evidence.policy_hash = hash({ write: grants, read: readGrants, readMode, readKinds: context.readKinds, prepared: allPaths });
+        evidence.policy_hash = hash({ write: grants, read: readGrants, readMode, readKinds: context.readKinds, network: networkGrants, install: scenario.install, prepared: allPaths });
         evidence.roots = roots;
         const before = Object.fromEntries(await Promise.all(Object.entries(roots).map(async ([name, root]) => [name, await manifest(root)] as const)));
         const inventoryBefore = phase === 'baseline' && scenario.auto_discover ? await directoryInventory(roots, limits) : undefined;
@@ -237,17 +257,41 @@ export async function runExperiment(options: {
           trial.reason = 'Pre-execution boundary check did not pass';
         } else {
           if (!hasTime()) throw new Error('Budget exhausted before task execution');
-          task = await executeSandbox(scenario.command, { ...context, timeoutMs: Math.max(1, Math.min(context.timeoutMs, deadline - Date.now())) });
-          evidence.task = task;
+          const taskDeadline = Math.min(deadline, Date.now() + scenario.timeout_seconds * 1000);
+          let installVerdict: TrialVerdict = 'pass';
+          if (scenario.install) {
+            const install = await executeInstall(scenario, { ...context, invocationId: trialId + '-install', timeoutMs: Math.max(1, taskDeadline - Date.now()) }, installations.get(scenario.id)!);
+            evidence.installation = install; installVerdict = install.verdict;
+            if (install.verdict === 'unknown') trial.reason = install.inputs_unchanged ? 'Installation did not complete reliably (timeout, transport, DNS, TLS or registry failure)' : 'Installation changed its package manifest or lockfile';
+            task = install.execution;
+            const afterInstall = await boundaryChecks(trialFixtures, { ...context, invocationId: trialId + '-install-after', timeoutMs: Math.max(1, taskDeadline - Date.now()) });
+            evidence.after_installation = afterInstall; boundaries = [...boundaries, ...afterInstall.checks];
+            if (boundaries.some(c => c.status !== 'pass')) installVerdict = 'unknown';
+          }
+          // The installation and the command share files, but the command gets
+          // a fresh backend policy with no domain grants.
+          const offlineContext = { ...context, networkGrants: [] };
+          if (installVerdict === 'pass') {
+            if (scenario.install) {
+              const offline = await boundaryChecks(trialFixtures, { ...offlineContext, invocationId: trialId + '-offline-before', timeoutMs: Math.max(1, taskDeadline - Date.now()) });
+              evidence.before_offline_task = offline; boundaries = [...boundaries, ...offline.checks];
+              if (offline.checks.some(c => c.status !== 'pass')) throw new Error('Offline task boundary checks did not pass');
+            }
+            task = await executeSandbox(scenario.command, { ...offlineContext, timeoutMs: Math.max(1, taskDeadline - Date.now()) });
+            evidence.task = task;
+          } else evidence.task_skipped = 'Install did not pass; offline command was not executed';
           assertions = await checkAssertions(scenario.assertions, roots);
           evidence.assertions = assertions;
-          const post = await boundaryChecks(trialFixtures, { ...context, invocationId: trialId + '-after', timeoutMs: Math.max(1, Math.min(context.timeoutMs, deadline - Date.now())) });
+          const post = await boundaryChecks(trialFixtures, { ...(scenario.install && installVerdict !== 'pass' ? context : offlineContext), invocationId: trialId + '-after', timeoutMs: Math.max(1, Math.min(context.timeoutMs, deadline - Date.now())) });
           evidence.after = post;
-          boundaries = [...pre.checks, ...post.checks];
+          boundaries = [...boundaries, ...post.checks];
           const changes = Object.fromEntries(await Promise.all(Object.entries(roots).map(async ([name, root]) => [name, diffFiles(before[name], await manifest(root))] as const)));
           evidence.file_changes = changes.workspace; // Preserve the v0.1 evidence field.
           evidence.file_changes_by_root = changes;
-          trial.verdict = classifyTrial(task.process.status, task.process.exit_code, assertions, post.checks);
+          trial.verdict = installVerdict === 'unknown' ? 'unknown' : classifyTrial(task!.process.status, task!.process.exit_code, assertions, boundaries);
+          if (phase === 'candidate_network' && installVerdict === 'fail' && !task!.violations.some(v => /deny network-outbound /.test(v.line))) {
+            trial.verdict = 'unknown'; trial.reason = 'Install failed without independently captured domain denial; network removal is inconclusive';
+          }
           if (!hasTime()) { trial.verdict = 'unknown'; trial.reason = 'Budget exhausted or interrupted before trial completion'; }
           if (readInventoryBefore && trial.verdict === 'pass') {
             const observation: ReadObservation = { ...readInventoryBefore, id: trialId };
@@ -317,14 +361,14 @@ export async function runExperiment(options: {
       const baselineMs = report.trials.reduce((sum, trial) => sum + trial.duration_ms, 0);
       const finalReserve = Math.max(5000, baselineMs * 2);
       for (const scenario of config.scenarios) {
-        const runSearch = async (permission: 'write' | 'read') => {
-          const searches = permission === 'write' ? report.searches : report.read_searches;
-          const policies = permission === 'write' ? report.policies : report.read_policies;
+        const runSearch = async (permission: Permission) => {
+          const searches = permission === 'network' ? report.network_searches : permission === 'write' ? report.searches : report.read_searches;
+          const policies = permission === 'network' ? report.network_policies : permission === 'write' ? report.policies : report.read_policies;
           const roundOffset = searches[scenario.id]?.rounds ?? 0;
           const search = await searchPolicy(scenario, {
             permission, initialGrants: policies[scenario.id],
-            automatic: permission === 'write' ? report.discovery[scenario.id]?.rules : report.read_discovery[scenario.id]?.rules,
-            evaluate: (grants, phase) => permission === 'write' ? evaluate(scenario, grants, phase) : evaluate(scenario, report.policies[scenario.id], phase, grants),
+            automatic: permission === 'network' ? [] : permission === 'write' ? report.discovery[scenario.id]?.rules : report.read_discovery[scenario.id]?.rules,
+            evaluate: (grants, phase) => permission === 'network' ? evaluate(scenario, report.policies[scenario.id], phase, report.read_policies[scenario.id], grants) : permission === 'write' ? evaluate(scenario, grants, phase) : evaluate(scenario, report.policies[scenario.id], phase, grants),
             canContinue: () => hasTime() && candidateCount < limits.max_candidates && Date.now() + finalReserve < deadline,
             onStep: async step => {
               const summary = searches[scenario.id] ??= { stop: 'running', steps: [], rounds: 0, reuses: [] };
@@ -349,7 +393,19 @@ export async function runExperiment(options: {
         // Reads can change task behavior and write requirements. Revisit writes
         // after a read change; stop only at a joint fixed point or a search limit.
         let readSearched = false;
+        let installWritesSearched = false;
         while (true) {
+          if (scenario.install) {
+            // Network first: slow cold installs must not spend the entire
+            // candidate budget on filesystem changes before checking domains.
+            const network = await runSearch('network');
+            if (network.stop === 'unstable') break;
+            if (installWritesSearched && !network.steps.some(s => s.decision === 'accepted')) break;
+            const write = await runSearch('write');
+            installWritesSearched = true;
+            if (network.stop !== 'exhausted' || write.stop !== 'exhausted' || !write.steps.some(s => s.decision === 'accepted')) break;
+            continue;
+          }
           const write = await runSearch('write');
           if (write.stop === 'unstable') break;
           if (report.read_modes[scenario.id] === 'legacy') break;
@@ -360,10 +416,10 @@ export async function runExperiment(options: {
           readSearched = true;
           if (read.stop !== 'exhausted' || write.stop !== 'exhausted' || !read.steps.some(s => s.decision === 'accepted')) break;
         }
-        if ([report.searches[scenario.id], report.read_searches[scenario.id]].some(s => s?.stop === 'unstable')) break;
+        if ([report.searches[scenario.id], report.read_searches[scenario.id], report.network_searches[scenario.id]].some(s => s?.stop === 'unstable')) break;
       }
-      const allSearches = [...Object.values(report.searches), ...Object.values(report.read_searches)];
-      report.search_complete = Object.keys(report.searches).length === config.scenarios.length && Object.keys(report.read_searches).length === config.scenarios.filter(s => s.initial_read_grants !== undefined).length && allSearches.every(s => s.stop === 'exhausted' && s.steps.every(step => step.decision !== 'unknown'));
+      const allSearches = [...Object.values(report.searches), ...Object.values(report.read_searches), ...Object.values(report.network_searches)];
+      report.search_complete = Object.keys(report.searches).length === config.scenarios.length && Object.keys(report.read_searches).length === config.scenarios.filter(s => s.initial_read_grants !== undefined).length && Object.keys(report.network_searches).length === config.scenarios.filter(s => s.install).length && allSearches.every(s => s.stop === 'exhausted' && s.steps.every(step => step.decision !== 'unknown'));
       let finalPass = true;
       final: for (const scenario of config.scenarios) for (let i = 0; i < limits.repetitions; i++) {
         const result = await evaluate(scenario, report.policies[scenario.id], 'final');
@@ -382,7 +438,7 @@ export async function runExperiment(options: {
     if (options.signal?.aborted) { report.status = 'incomplete'; report.error = 'Experiment interrupted'; }
     report.finished_at = new Date().toISOString();
     const name = report.status === 'verified' ? 'recommended.yaml' : 'unverified-candidate.yaml';
-    if (options.mode !== 'doctor') await fs.writeFile(path.join(output, name), stringify({ ...config, project, scenarios: config.scenarios.map(s => ({ ...s, initial_write_grants: report.policies[s.id], ...(s.initial_read_grants === undefined ? {} : { initial_read_grants: report.read_policies[s.id] }), prepare_directories: prepared.get(s.id) })) }), { mode: 0o600 });
+    if (options.mode !== 'doctor') await fs.writeFile(path.join(output, name), stringify({ ...config, project, scenarios: config.scenarios.map(s => ({ ...s, initial_write_grants: report.policies[s.id], ...(s.initial_read_grants === undefined ? {} : { initial_read_grants: report.read_policies[s.id] }), ...(s.install ? { initial_network_grants: report.network_policies[s.id] } : {}), prepare_directories: prepared.get(s.id) })) }), { mode: 0o600 });
     await checkpoint();
   }
   return report;

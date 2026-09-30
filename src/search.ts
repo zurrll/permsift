@@ -2,9 +2,10 @@ import { contains, type Scenario } from './config.js';
 
 export type Rule = { from: string; to: string[]; source: 'manual' | 'file_changes' | 'directory_structure' | 'denial_hint' | 'input_structure'; evidence_ids: string[] };
 export type Candidate = { grants: string[]; operation: string; semantic_change: boolean; source: Rule['source'] | 'removal' | 'group_removal'; evidence_ids: string[]; removed_grants?: string[] };
-export function candidates(scenario: Scenario, current: string[], automatic: Rule[] = [], permission: 'read' | 'write' = 'write'): Candidate[] {
+export type Permission = 'read' | 'write' | 'network';
+export function candidates(scenario: Scenario, current: string[], automatic: Rule[] = [], permission: Permission = 'write'): Candidate[] {
   const result: Candidate[] = [];
-  const manual = permission === 'read' ? scenario.narrower_read_candidates : scenario.narrower_candidates;
+  const manual = permission === 'network' ? [] : permission === 'read' ? scenario.narrower_read_candidates : scenario.narrower_candidates;
   for (const rule of [...manual.map(r => ({ ...r, source: 'manual' as const, evidence_ids: [] as string[] })), ...automatic]) {
     if (current.includes(rule.from)) result.push({
       grants: [...new Set([...current.filter(p => p !== rule.from), ...rule.to])].sort(),
@@ -20,8 +21,8 @@ export function candidates(scenario: Scenario, current: string[], automatic: Rul
   return permission === 'read' ? [...unique.filter(r => r.source === 'removal'), ...unique.filter(r => r.source !== 'removal')] : unique;
 }
 export type TrialVerdict = 'pass' | 'fail' | 'unknown';
-export type SearchStep = { permission: 'read' | 'write'; round: number; operation: string; before: string[]; after: string[]; semantic_change: boolean; source: Candidate['source']; evidence_ids: string[]; decision: 'accepted' | 'rejected' | 'unknown'; trial_id: string; recovery_id?: string; removed_grants?: string[] };
-export type SearchReuse = { permission: 'read' | 'write'; round: number; operation: string; before: string[]; after: string[]; failed_trial_id: string };
+export type SearchStep = { permission: Permission; round: number; operation: string; before: string[]; after: string[]; semantic_change: boolean; source: Candidate['source']; evidence_ids: string[]; decision: 'accepted' | 'rejected' | 'unknown'; trial_id: string; recovery_id?: string; removed_grants?: string[] };
+export type SearchReuse = { permission: Permission; round: number; operation: string; before: string[]; after: string[]; failed_trial_id: string };
 
 function removal(current: string[], removed: string[]): Candidate {
   const grants = current.filter(p => !removed.includes(p));
@@ -52,11 +53,11 @@ export async function searchPolicy(scenario: Scenario, options: {
   onStep?: (step: SearchStep) => Promise<void>;
   onReuse?: (reuse: SearchReuse) => Promise<void>;
   automatic?: Rule[];
-  permission?: 'read' | 'write';
+  permission?: Permission;
   initialGrants?: string[];
 }) {
   const permission = options.permission ?? 'write';
-  const initial = options.initialGrants ?? (permission === 'read' ? scenario.initial_read_grants : scenario.initial_write_grants);
+  const initial = options.initialGrants ?? (permission === 'network' ? scenario.initial_network_grants ?? [] : permission === 'read' ? scenario.initial_read_grants : scenario.initial_write_grants);
   if (initial === undefined) throw new Error('Read search requires initial_read_grants');
   let current = [...initial].sort();
   const steps: SearchStep[] = [];
@@ -104,10 +105,10 @@ export async function searchPolicy(scenario: Scenario, options: {
         }
         continue;
       }
-      const result = await options.evaluate(candidate.grants, permission === 'read' ? 'candidate_read' : 'candidate');
+      const result = await options.evaluate(candidate.grants, permission === 'network' ? 'candidate_network' : permission === 'read' ? 'candidate_read' : 'candidate');
       const step: SearchStep = { permission, round, operation: candidate.operation, before: current, after: candidate.grants, semantic_change: candidate.semantic_change, source: candidate.source, evidence_ids: candidate.evidence_ids, removed_grants: candidate.removed_grants, decision: result.verdict === 'pass' ? 'accepted' : result.verdict === 'fail' ? 'rejected' : 'unknown', trial_id: result.id };
       if (result.verdict !== 'pass') {
-        const recovery = await options.evaluate(current, permission === 'read' ? 'recovery_read' : 'recovery');
+        const recovery = await options.evaluate(current, permission === 'network' ? 'recovery_network' : permission === 'read' ? 'recovery_read' : 'recovery');
         step.recovery_id = recovery.id;
         if (recovery.verdict !== 'pass') { step.decision = 'unknown'; stop = 'unstable'; }
       }

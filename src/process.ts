@@ -10,11 +10,13 @@ export function shellQuote(value: string) {
 }
 export async function runProcess(argv: string[], options: {
   cwd: string; env: NodeJS.ProcessEnv; timeoutMs: number; maxOutputBytes: number; signal?: AbortSignal;
+  onStart?: (pid: number) => void;
 }): Promise<ProcessResult> {
   const started = Date.now();
   if (options.signal?.aborted) return { exit_code: null, signal: null, stdout: '', stderr: '', status: 'aborted', duration_ms: 0 };
   return new Promise(resolve => {
     const child = spawn(argv[0], argv.slice(1), { cwd: options.cwd, env: options.env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    if (child.pid) options.onStart?.(child.pid);
     let status: ProcessResult['status'] = 'completed';
     const chunks = { stdout: [] as Buffer[], stderr: [] as Buffer[] };
     let bytes = 0;

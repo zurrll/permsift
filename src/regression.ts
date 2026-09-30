@@ -4,27 +4,31 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { stringify } from 'yaml';
 import { z } from 'zod';
-import { aliasSchema, readAliasSchema, configSchema, contains, loadConfiguration, validatePolicy, type Config, type Limits, type Scenario } from './config.js';
+import { aliasSchema, readAliasSchema, domainSchema, configSchema, contains, loadConfiguration, validatePolicy, type Config, type Limits, type Scenario } from './config.js';
 import { runExperiment, VERSION, type Report } from './engine.js';
 import { BACKEND_VERSION, requirePlatform } from './backend.js';
 import { hash, noSymlinks, resolveAlias, saveJson, snapshot, within } from './filesystem.js';
 import type { Diagnosis } from './diagnostics.js';
+import { npmVersion } from './install.js';
 
 const grants = z.array(aliasSchema).max(32).refine(a => new Set(a).size === a.length, 'Duplicate baseline grant');
 const reads = z.array(readAliasSchema).max(32).refine(a => new Set(a).size === a.length, 'Duplicate baseline read grant');
+const domains = z.array(domainSchema).max(32).refine(a => new Set(a).size === a.length, 'Duplicate baseline network grant');
 const digest = z.string().regex(/^[a-f0-9]{64}$/);
 const baselineSchema = z.object({
   schema_version: z.literal(1), mode: z.enum(['run', 'tighten']), status: z.literal('verified'),
   baseline_verified: z.literal(true), final_verified: z.literal(true),
   environment: z.record(z.string()), inputs: z.object({ snapshot_hash: digest, config_hash: digest, limits_hash: digest }),
   policies: z.record(grants), read_policies: z.record(reads), read_modes: z.record(z.enum(['explicit', 'legacy'])),
+  network_policies: z.record(domains).optional(),
   trials: z.array(z.object({ scenario: z.string(), verdict: z.enum(['pass', 'fail', 'unknown']), grants, read_grants: reads,
-    evidence: z.string().regex(/^evidence\/[a-f0-9-]+\.json$/) })).min(1),
+    network_grants: domains.optional(), evidence: z.string().regex(/^evidence\/[a-f0-9-]+\.json$/) })).min(1),
 });
 export type Baseline = {
   file: string; config: Config; environment: Record<string, string>; snapshot_hash: string; limits_hash: string;
   policies: Record<string, string[]>; read_policies: Record<string, string[]>; read_modes: Record<string, 'explicit' | 'legacy'>;
   prepared: Record<string, string[]>; read_kinds: Record<string, Record<string, 'file' | 'directory'>>;
+  network_policies: Record<string, string[]>;
 };
 async function jsonFile(file: string) {
   if ((await fs.stat(file)).size > 25_000_000) throw new Error('Baseline JSON exceeds 25 MB');
@@ -38,40 +42,46 @@ export async function loadBaseline(file: string): Promise<Baseline> {
   const input = z.object({ config: configSchema }).parse(await jsonFile(path.join(directory, 'inputs.json')));
   if (hash(input.config) !== report.inputs.config_hash) throw new Error('Baseline config does not match its recorded hash');
   const ids = input.config.scenarios.map(s => s.id).sort();
-  for (const record of [report.policies, report.read_policies, report.read_modes]) {
+  for (const record of [report.policies, report.read_policies, report.read_modes, ...report.network_policies ? [report.network_policies] : []]) {
     if (!same(Object.keys(record), ids)) throw new Error('Baseline scenario records do not match inputs.json');
   }
   const prepared: Baseline['prepared'] = {}, read_kinds: Baseline['read_kinds'] = {};
+  const network_policies = report.network_policies ?? Object.fromEntries(ids.map(id => [id, []]));
   for (const scenario of input.config.scenarios) {
     const id = scenario.id;
+    if (scenario.install && !report.network_policies) throw new Error('Install baseline is missing network policies');
     if (report.read_modes[id] !== (scenario.initial_read_grants === undefined ? 'legacy' : 'explicit')) throw new Error('Baseline read mode does not match its config');
     if (report.read_modes[id] === 'legacy' && !same(report.read_policies[id], ['@workspace'])) throw new Error('Invalid legacy read policy');
-    const trial = [...report.trials].reverse().find(t => t.scenario === id && t.verdict === 'pass' && same(t.grants, report.policies[id]) && same(t.read_grants, report.read_policies[id]));
+    const trial = [...report.trials].reverse().find(t => t.scenario === id && t.verdict === 'pass' && same(t.grants, report.policies[id]) && same(t.read_grants, report.read_policies[id]) && same(t.network_grants ?? [], network_policies[id]));
     if (!trial) throw new Error(`Baseline has no passing evidence for ${id}`);
     const evidenceFile = await fs.realpath(path.join(directory, trial.evidence));
     if (!within(directory, evidenceFile)) throw new Error('Baseline evidence escapes its report directory');
     const evidence = z.object({ scenario: z.literal(id), grants, read_grants: reads, prepared_directories: z.array(aliasSchema).max(2048),
-      read_grant_kinds: z.record(z.enum(['file', 'directory'])).optional() }).parse(await jsonFile(evidenceFile));
+      network_grants: domains.optional(), read_grant_kinds: z.record(z.enum(['file', 'directory'])).optional() }).parse(await jsonFile(evidenceFile));
     if (!same(evidence.grants, report.policies[id]) || !same(evidence.read_grants, report.read_policies[id])) throw new Error('Baseline evidence policy mismatch');
+    if (!same(evidence.network_grants ?? [], network_policies[id])) throw new Error('Baseline evidence network policy mismatch');
     prepared[id] = evidence.prepared_directories;
     read_kinds[id] = evidence.read_grant_kinds ?? {};
     if (report.read_modes[id] === 'explicit' && !same(Object.keys(read_kinds[id]), report.read_policies[id])) throw new Error('Baseline is missing exact read target kinds');
   }
   return { file: canonical, config: input.config, environment: report.environment, snapshot_hash: report.inputs.snapshot_hash, limits_hash: report.inputs.limits_hash,
-    policies: report.policies, read_policies: report.read_policies, read_modes: report.read_modes, prepared, read_kinds };
+    policies: report.policies, read_policies: report.read_policies, read_modes: report.read_modes, prepared, read_kinds, network_policies };
 }
 
 export function regressionConfigs(config: Config, baseline: Baseline, limits: Limits) {
   if (!same(config.scenarios.map(s => s.id), baseline.config.scenarios.map(s => s.id))) throw new Error('Task IDs changed; create a new verified baseline for added or removed tasks');
   const old: Config = { ...config, scenarios: config.scenarios.map(s => {
     if (baseline.read_modes[s.id] !== (s.initial_read_grants === undefined ? 'legacy' : 'explicit')) throw new Error('Read mode changed; create a new verified baseline');
+    const previous = baseline.config.scenarios.find(p => p.id === s.id)!;
+    if (!!s.install !== !!previous.install || s.install?.cache !== previous.install?.cache) throw new Error('Install/cache mode changed; create a new verified baseline');
+    if (baseline.network_policies[s.id].some(d => !s.initial_network_grants?.includes(d))) throw new Error(`Control domains must cover the old policy: ${s.id}`);
     if (baseline.policies[s.id].some(p => !s.initial_write_grants.some(root => contains(root, p)))) throw new Error(`Control writes must cover the old policy: ${s.id}`);
     if (s.initial_read_grants && baseline.read_policies[s.id].some(p => !s.initial_read_grants!.some(root => contains(root, p)))) throw new Error(`Control reads must cover the old policy: ${s.id}`);
-    return { ...s, initial_write_grants: baseline.policies[s.id], ...(s.initial_read_grants === undefined ? {} : { initial_read_grants: baseline.read_policies[s.id] }),
+    return { ...s, initial_write_grants: baseline.policies[s.id], ...(s.install ? { initial_network_grants: baseline.network_policies[s.id] } : {}), ...(s.initial_read_grants === undefined ? {} : { initial_read_grants: baseline.read_policies[s.id] }),
       auto_discover: false, auto_read_discover: false, narrower_candidates: [], narrower_read_candidates: [],
       prepare_directories: [...new Set([...baseline.prepared[s.id], ...s.prepare_directories, ...s.initial_write_grants, ...s.narrower_candidates.flatMap(r => [r.from, ...r.to])])].sort() };
   }) };
-  const control: Config = { ...old, scenarios: old.scenarios.map((s, i) => ({ ...s, initial_write_grants: config.scenarios[i].initial_write_grants,
+  const control: Config = { ...old, scenarios: old.scenarios.map((s, i) => ({ ...s, initial_write_grants: config.scenarios[i].initial_write_grants, ...(s.install ? { initial_network_grants: config.scenarios[i].initial_network_grants ?? [] } : {}),
     ...(s.initial_read_grants === undefined ? {} : { initial_read_grants: config.scenarios[i].initial_read_grants }) })) };
   validatePolicy(old, limits); validatePolicy(control, limits);
   return { old, control };
@@ -112,19 +122,24 @@ export async function repairCandidates(old: Scenario, control: Scenario, diagnos
     if (writeOperation && aliasSchema.safeParse(write).success && control.initial_write_grants.some(p => contains(p, write)) && !old.initial_write_grants.some(p => contains(p, write))) writeHints.push(write);
   }
   const candidates: Scenario[] = [];
+  const networkHints = [...new Set(diagnoses.flatMap(d => d.denials.filter(v => v.source === 'sandbox_log' && v.operation === 'network-outbound').flatMap(v => {
+    const host = v.path?.split(':')[0];
+    return host && domainSchema.safeParse(host).success && control.initial_network_grants?.includes(host) && !old.initial_network_grants?.includes(host) ? [host] : [];
+  })))];
+  if (old.install && networkHints.length) candidates.push({ ...old, initial_network_grants: [...new Set([...old.initial_network_grants ?? [], ...networkHints])].sort() });
   if (readHints.length) candidates.push({ ...old, initial_read_grants: compact([...old.initial_read_grants!, ...readHints]) });
   for (const write of [...new Set(writeHints)].sort((a, b) => b.split('/').length - a.split('/').length || a.localeCompare(b))) {
     candidates.push({ ...old, initial_write_grants: compact([...old.initial_write_grants, write]) });
   }
   if (readHints.length && writeHints.length) candidates.push({ ...old, initial_read_grants: compact([...old.initial_read_grants!, ...readHints]), initial_write_grants: compact([...old.initial_write_grants, ...writeHints]) });
-  return candidates.filter(s => s.initial_write_grants.length <= 32 && (s.initial_read_grants?.length ?? 0) <= 32);
+  return candidates.filter(s => s.initial_write_grants.length <= 32 && (s.initial_read_grants?.length ?? 0) <= 32 && (s.initial_network_grants?.length ?? 0) <= 32);
 }
 
 type Stage = { phase: string; verdict: 'pass' | 'fail' | 'unknown'; report: string; trials: number; prepared_directories: string[] };
 export type RegressionTask = {
   id: string; status: 'pending' | 'compatible' | 'permission_change' | 'unresolved_failure' | 'inconclusive'; reason?: string;
   task_definition_changed: boolean; stages: Stage[]; repair_stop?: 'verified' | 'no_hints' | 'budget' | 'unstable' | 'inconclusive';
-  suggestion?: { write: string[]; read?: string[]; added_write: string[]; added_read: string[]; verified: true };
+  suggestion?: { write: string[]; read?: string[]; network?: string[]; added_network?: string[]; added_write: string[]; added_read: string[]; verified: true };
 };
 export type RegressionReport = {
   schema_version: 1; kind: 'regression'; id: string; status: 'running' | 'compatible' | 'regressed' | 'inconclusive';
@@ -145,6 +160,7 @@ export function markdownRegression(report: RegressionReport) {
       '| Stage | Verdict | Trials | Evidence |', '| --- | --- | --- | --- |',
       ...t.stages.map(s => `| ${s.phase} | ${s.verdict} | ${s.trials} | [report](${s.report}) |`), '',
       ...(t.suggestion ? [`- Suggested writes: ${t.suggestion.write.join(', ') || '(none)'}`, `- Suggested reads: ${t.suggestion.read?.join(', ') || '(legacy or no project file grants)'}`,
+        ...(t.suggestion.network ? [`- Suggested install domains: ${t.suggestion.network.join(', ') || '(offline)'}`, `- Added domains: ${t.suggestion.added_network?.join(', ') || '(none)'}`] : []),
         `- Added write scope: ${t.suggestion.added_write.join(', ') || '(none)'}`, `- Added read scope: ${t.suggestion.added_read.join(', ') || '(none)'}`, ''] : [])]),
     '## Interpretation', '',
     'A compatible result verifies the recorded policy against current frozen inputs and current task assertions; it does not repeat permission minimization.',
@@ -169,7 +185,8 @@ export async function runRegression(options: {
   const output = path.join(await fs.realpath(path.dirname(requested)), path.basename(requested));
   if (within(input.project, output) && !input.config.exclude.includes(path.relative(input.project, output).split(path.sep)[0])) throw new Error('Check output inside the project must be under an excluded top-level directory');
   await fs.mkdir(output, { mode: 0o700 });
-  const environment = { platform: process.platform, release: os.release(), arch: process.arch, node: process.version, permsift: VERSION, sandbox_runtime: BACKEND_VERSION };
+  const environment = { platform: process.platform, release: os.release(), arch: process.arch, node: process.version, permsift: VERSION, sandbox_runtime: BACKEND_VERSION,
+    ...(input.config.scenarios.some(s => s.install) ? { npm: await npmVersion() } : {}) };
   const report: RegressionReport = { schema_version: 1, kind: 'regression', id, status: 'running', started_at: new Date().toISOString(), output, baseline: baseline.file, project: input.project,
     environment, environment_changes: Object.fromEntries(Object.entries(environment).filter(([key, value]) => baseline.environment[key] !== value).map(([key, value]) => [key, { before: baseline.environment[key], after: value }])),
     inputs: { previous_snapshot_hash: baseline.snapshot_hash, config_hash: hash(input.config), limits_hash: hash(input.limits), limits_changed: hash(input.limits) !== baseline.limits_hash,
@@ -222,7 +239,7 @@ export async function runRegression(options: {
         if (wider.verdict === 'unknown') { row.status = 'inconclusive'; continue; }
         if (wider.verdict === 'fail') { row.status = 'unresolved_failure'; row.reason = 'Both old and wider policies failed; permissions are not established as the cause'; continue; }
         const confirmation = await execute(row, old, 'old-confirm', 1);
-        if (confirmation.verdict !== 'fail' || (same(old.initial_write_grants, control.initial_write_grants) && same(old.initial_read_grants ?? ['@workspace'], control.initial_read_grants ?? ['@workspace']))) {
+        if (confirmation.verdict !== 'fail' || (same(old.initial_write_grants, control.initial_write_grants) && same(old.initial_read_grants ?? ['@workspace'], control.initial_read_grants ?? ['@workspace']) && same(old.initial_network_grants ?? [], control.initial_network_grants ?? []))) {
           row.status = 'inconclusive'; row.reason = 'The old-policy failure was not stable under a distinct passing control'; continue;
         }
         const restored = await execute(row, control, 'control-confirm', 1);
@@ -234,7 +251,7 @@ export async function runRegression(options: {
         while (available()) {
           if (report.candidate_count >= input.limits.max_candidates) { row.repair_stop = 'budget'; break; }
           const candidates = await repairCandidates(current, control, diagnoses, frozen.path);
-          let candidate = candidates.find(s => !attempted.has(hash([s.initial_write_grants, s.initial_read_grants])));
+          let candidate = candidates.find(s => !attempted.has(hash([s.initial_write_grants, s.initial_read_grants, s.initial_network_grants])));
           if (!candidate) { row.repair_stop = 'no_hints'; break; }
           if (candidate.initial_write_grants.some(p => !old.prepare_directories.includes(p))) {
             const prepared = [...new Set([...old.prepare_directories, ...candidate.initial_write_grants])].sort();
@@ -248,7 +265,7 @@ export async function runRegression(options: {
               row.status = 'inconclusive'; row.repair_stop = 'inconclusive'; row.reason = 'Revised preparation did not preserve the old failure and passing control'; break;
             }
           }
-          const key = hash([candidate.initial_write_grants, candidate.initial_read_grants]); attempted.add(key);
+          const key = hash([candidate.initial_write_grants, candidate.initial_read_grants, candidate.initial_network_grants]); attempted.add(key);
           const number = ++report.candidate_count;
           const result = await execute(row, candidate, `repair-${number}`, 1);
           if (result.verdict === 'pass') {
@@ -256,6 +273,7 @@ export async function runRegression(options: {
             if (verified.verdict === 'pass') {
               row.repair_stop = 'verified';
               row.suggestion = { write: candidate.initial_write_grants, read: candidate.initial_read_grants, verified: true,
+                ...(candidate.install ? { network: candidate.initial_network_grants ?? [], added_network: (candidate.initial_network_grants ?? []).filter(d => !old.initial_network_grants?.includes(d)) } : {}),
                 added_write: candidate.initial_write_grants.filter(p => !old.initial_write_grants.some(root => contains(root, p))),
                 added_read: (candidate.initial_read_grants ?? []).filter(p => !(old.initial_read_grants ?? []).some(root => contains(root, p))) };
               suggested.set(row.id, candidate); break;
@@ -290,4 +308,4 @@ export async function runRegression(options: {
   }
   return report;
 }
-function taskHash(s: Scenario) { return hash({ command: s.command, timeout_seconds: s.timeout_seconds, assertions: s.assertions }); }
+function taskHash(s: Scenario) { return hash({ command: s.command, timeout_seconds: s.timeout_seconds, assertions: s.assertions, install: s.install }); }

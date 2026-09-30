@@ -114,3 +114,29 @@ test('mkdir evidence resolves ambiguous create logs and tries precise write dire
   assert.deepEqual(candidates[0].initial_write_grants,['@workspace/dist','@workspace/extra']);
   assert.ok(candidates.some(s=>s.initial_write_grants.includes('@workspace')));
 });
+
+test('historical network evidence, control ceilings and cache conditions are checked independently', async t => {
+  const f=await fixture(t);delete f.config.scenarios[0].initial_read_grants;
+  f.config.exclude.push('node_modules');f.config.scenarios[0].install={manager:'npm',cache:'cold',registry:'https://registry.npmjs.org/'};
+  f.config.scenarios[0].initial_network_grants=['registry.npmjs.org','other.example'];f.limits.allowed_network_domains=['registry.npmjs.org','other.example'];
+  const report={...f.report,network_policies:{build:['registry.npmjs.org']},read_modes:{build:'legacy'},read_policies:{build:['@workspace']},
+    inputs:{...f.report.inputs,config_hash:hash(configSchema.parse(f.config))},trials:[{...f.report.trials[0],read_grants:['@workspace'],network_grants:['registry.npmjs.org']}]};
+  const evidence={...f.evidence,read_grants:['@workspace'],read_grant_kinds:{},network_grants:['registry.npmjs.org']};
+  await fs.writeFile(path.join(f.root,'inputs.json'),JSON.stringify({config:f.config}));await fs.writeFile(f.reportFile,JSON.stringify(report));await fs.writeFile(path.join(f.root,'evidence/abc.json'),JSON.stringify(evidence));
+  const baseline=await loadBaseline(f.reportFile),configs=regressionConfigs(f.config,baseline,f.limits);
+  assert.deepEqual(configs.old.scenarios[0].initial_network_grants,['registry.npmjs.org']);assert.deepEqual(configs.control.scenarios[0].initial_network_grants,['registry.npmjs.org','other.example']);
+  const changed=structuredClone(f.config);changed.scenarios[0].initial_network_grants=[];assert.throws(()=>regressionConfigs(changed,baseline,f.limits),/Control domains/);
+  changed.scenarios[0].initial_network_grants=['registry.npmjs.org'];changed.scenarios[0].install!.cache='warm';assert.throws(()=>regressionConfigs(changed,baseline,f.limits),/cache mode/);
+  assert.throws(()=>regressionConfigs(f.config,baseline,{...f.limits,allowed_network_domains:[]}),/exceeds trusted/);
+  await fs.writeFile(path.join(f.root,'evidence/abc.json'),JSON.stringify({...evidence,network_grants:['other.example']}));await assert.rejects(loadBaseline(f.reportFile),/network policy mismatch/);
+});
+
+test('only captured exact network hosts inside the wider control generate domain repair hypotheses',async t=>{
+  const f=await fixture(t);const old={...f.config.scenarios[0],initial_read_grants:undefined,install:{manager:'npm' as const,cache:'cold' as const,registry:'https://registry.npmjs.org/'},initial_network_grants:['registry.npmjs.org']};
+  const control={...old,initial_network_grants:['registry.npmjs.org','cdn.example']};
+  const hints=[{source:'sandbox_log' as const,operation:'network-outbound',path:'cdn.example:443',detail:'deny'},
+    {source:'sandbox_log' as const,operation:'network-outbound',path:'outside.example:443',detail:'deny'},
+    {source:'stderr' as const,operation:'unspecified',path:'untrusted.example',detail:'fake'}];
+  const candidates=await repairCandidates(old,control,[diagnosis(hints)],f.root);
+  assert.deepEqual(candidates.map(s=>s.initial_network_grants),[['cdn.example','registry.npmjs.org']]);
+});

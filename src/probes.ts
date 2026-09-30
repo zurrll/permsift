@@ -63,10 +63,24 @@ for (const fixture of f.reads ?? []) {
 }
 const s = net.createConnection({host:'127.0.0.1',port:f.port});
 let done = false;
-function finish(status,detail) { if(done)return;done=true;s.destroy();checks.push({name:'network_blocked',status,detail});console.log(JSON.stringify(checks)); }
+let tcpDone; const tcp = new Promise(resolve=>tcpDone=resolve);
+function finish(status,detail) { if(done)return;done=true;s.destroy();tcpDone({name:'network_blocked',status,detail}); }
 s.once('connect',()=>finish('fail','Connection succeeded'));
 s.once('error',e=>finish(['EPERM','EACCES'].includes(e.code)?'pass':'unknown',String(e.code)));
 s.setTimeout(1000,()=>finish('unknown','Probe timed out'));
+const proxy = new Promise(resolve=>{
+  let settled=false; const end=(status,detail)=>{if(settled)return;settled=true;resolve({name:'proxy_domain_blocked',status,detail});};
+  try {
+    const u=new URL(process.env.HTTP_PROXY);
+    const request=require('node:http').request({hostname:u.hostname,port:u.port,method:'GET',path:'http://permsift-denied.invalid/',
+      headers:{'Proxy-Authorization':'Basic '+Buffer.from(decodeURIComponent(u.username)+':'+decodeURIComponent(u.password)).toString('base64')}},response=>{
+        response.resume();end(response.statusCode===403?'pass':'fail','Proxy returned '+response.statusCode+' for reserved denied domain');
+      });
+    request.on('error',e=>end('unknown',String(e.code)));
+    request.setTimeout(1000,()=>{request.destroy();end('unknown','Domain probe timed out');});request.end();
+  } catch(e) {end('unknown',String(e));}
+});
+Promise.all([tcp,proxy]).then(results=>console.log(JSON.stringify([...checks,...results])));
 `;
 }
 export async function boundaryChecks(fixtures: Fixtures, context: BackendContext) {
@@ -77,7 +91,7 @@ export async function boundaryChecks(fixtures: Fixtures, context: BackendContext
   try {
     if (execution.process.status !== 'completed' || execution.process.exit_code !== 0) throw new Error('Probe process did not complete');
     checks = JSON.parse(execution.process.stdout);
-    const expected = ['secret_unreadable', 'outside_unwritable', 'report_unwritable', ...fixtures.reads?.map(f => 'read_scope:' + f.alias) ?? [], 'network_blocked'];
+    const expected = ['secret_unreadable', 'outside_unwritable', 'report_unwritable', ...fixtures.reads?.map(f => 'read_scope:' + f.alias) ?? [], 'network_blocked', 'proxy_domain_blocked'];
     if (!Array.isArray(checks) || checks.length !== expected.length || checks.some((c, i) => c.name !== expected[i] || !['pass','fail','unknown'].includes(c.status))) throw new Error('Invalid probe response');
   } catch (e) { checks = [{ name: 'probe_execution', status: 'unknown', detail: String(e) }]; }
   const after = await controlChecks(fixtures);

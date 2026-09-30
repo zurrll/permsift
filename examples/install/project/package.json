@@ -1,0 +1,6 @@
+{
+  "name": "permsift-install-example",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": { "clsx": "2.1.1" }
+}

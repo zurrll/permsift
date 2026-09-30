@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "allowed_write_roots": ["@workspace", "@cache", "@tmp"],
+  "allowed_network_domains": ["registry.npmjs.org", "example.org"],
+  "max_candidates": 40,
+  "repetitions": 3,
+  "budget_seconds": 600
+}

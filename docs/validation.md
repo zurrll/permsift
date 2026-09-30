@@ -1,5 +1,55 @@
 # 实测记录
 
+## v0.5 — 2026-09-30
+
+环境为 macOS 15.8 / arm64、Node.js 24.21.0、npm 11.19.0、SRT 0.0.77、TypeScript 7.0.2。新增依赖安装仍复用这个固定后端，没有自行实现新的沙箱。
+
+### 快照副本创建
+
+运行 `node scripts/benchmark-forks.mjs`，使用 2,048 个模拟依赖文件及一个大文件，总逻辑大小 256 MiB，轮换先后顺序各测三次。旧 fs.cp 为 2,027 / 1,227 / 1,209 ms，macOS 克隆优先为 347 / 300 / 302 ms；中位数 1,227 → 302 ms，约减少 75.4%。每次创建后原地写大文件、删除 node_modules，源内容检查全部通过。
+
+这只测创建副本，不含哈希、任务或清理，也不证明所有文件的物理块实际共享。独立 inode、模式、内部链接、跨轮修改/删除、嵌套/既有目标保护及取消另由文件组件测试覆盖。输入第一次冻结仍读内容；回归阶段克隆共同快照并核对相同哈希。
+
+### 真实公开 npm 安装
+
+`npm run install:verify` 在 `.permsift/install-workflow-g5Lwis/` 完成固定 clsx 2.1.1 的真实 HTTPS 下载、四项行为断言和产物验证。
+
+| 阶段 | 状态 | Trial | 候选 | 最终安装域名 |
+| --- | --- | --- | --- | --- |
+| 冷缓存搜索 | verified，search_complete=true | 38 | 18 | registry.npmjs.org |
+| 冷缓存独立重放 | verified | 3 | 0 | registry.npmjs.org |
+| 旧规则回归 | compatible | 3 | 0 | registry.npmjs.org |
+| 固定暖缓存搜索 | verified，search_complete=true | 32 | 16 | 无 |
+| 暖缓存独立重放 | verified | 3 | 0 | 无 |
+
+合计 79 个 trial。冷缓存最终写范围为 @workspace/node_modules、@workspace/dist、@workspace/reports 和 @cache/npm；暖缓存可进一步撤销缓存写授权。example.org 被实际撤销并通过；撤销下载主机时保留独立代理拒绝和成功恢复。每个真正的 task 生效域名列表为空，暖缓存安装命令带 --offline。两种独立重放分别与各自搜索的输入哈希一致，源项目没有产生 node_modules 或构建目录。
+
+冷缓存输入 SHA-256 为 5a74e97176c1289834e99b3d34cfd739bffc56a8c13511d5156027f2912efe56。暖缓存包含固定种子，输入哈希不同，不将两者合并为相同条件。完整哈希和种子来源记录于 summary.json 及各阶段报告。
+
+本机冷搜索约 91.1 秒，暖搜索约 41.3 秒，仅为一次观察，未包含各自重放和回归时间。每次都保留实际探针和安装；写时复制没有跳过冷下载。
+
+后端私有 socket 目录清理接入后，又使用最终代码独立重放两种规则，各 3 次全部 verified，输入哈希仍相同。另导入 v0.3.1 固定提交第三方 clsx 的历史基线，3 次 compatible，输入哈希未变；旧读取范围和写授权保持有效。
+
+### 代理清理与失败案例
+
+公开 HTTPS 试验曾出现命令已退出、SRT reset 仍等待 CONNECT 半关闭连接的问题。未完成的报告已明确改记 incomplete，不作为基线。后端改为每次调用独立 worker，真实结果发送后清理最多等待 1 秒；父进程终止卡住的 worker、等待其退出并删除独立 socket 目录。命令结果缺失、超时、取消或清理错误仍为 unknown。
+
+真实本地 CONNECT 夹具故意保留对端半连接，验证命令完成、forced 清理、管理目录消失以及下一次后端调用正常完成。另有 worker 组件测试覆盖正常退出、缺少结果、挂住清理和取消。
+
+本地 npm 注册表真实测试覆盖：冷缓存实际下载、未授权主机拒绝与恢复、生命周期脚本未运行、安装后断网、暖缓存独立副本及注册表停机重放、锁文件不匹配与旧产物、5xx、瞬时故障恢复、新下载主机的对照/补充/重放，以及安装超时和取消。未知候选不会直接接受；后续条件变化可以通过新的真实试验再撤销。
+
+### 留存与使用范围
+
+最终 `npm run check`、构建、85 项单元/组件测试及 40 项真实 macOS 沙箱测试全部通过，合计 125 项，0 失败、0 跳过。日志为 `.permsift/v0.5-unit-delivery.log` 和 `.permsift/v0.5-integration-delivery.log`；包含全部既有读写、回归、预算、超时和中断用例。
+
+- `.permsift/fork-benchmark.json` 保存副本创建对照。
+- `.permsift/install-workflow-g5Lwis/summary.json` 保存 79 次安装流程的汇总与各阶段入口。
+- `.permsift/delivery-v0.5-install-cold-replay-final/`、`delivery-v0.5-install-warm-replay-final/` 保存最终代码复验。
+- `.permsift/delivery-v0.5-historical-clsx-check/` 保存历史基线兼容复验。
+- `.permsift/v0.5-install-worker-delivery.log` 保存完整公开演示输出。
+
+报告、缓存种子与实验项目位于 Git 忽略目录。CI 已加入安装演示并调整时间上限；未将未运行的远端 CI 算作通过。安装场景暂时保留工作区读取、共用安装和后续命令的文件写策略，支持 npm 注册表 tarball；私有凭据、生命周期脚本、workspaces 和其他包管理器不在此次范围。见 [安装说明](dependency-install.md) 和 [快照工作区](snapshot-workspaces.md)。
+
 ## v0.4 — 2026-09-30
 
 环境为 macOS 15.8、arm64、Node.js 24.21.0、SRT 0.0.77。新增 check 的回归编排，复用真实执行器和原有边界探针。

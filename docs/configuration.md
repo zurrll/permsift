@@ -26,7 +26,7 @@ project 相对场景文件所在目录解析；也可以是绝对路径。导出
 
 exclude 是**顶层名称**列表，默认 `.git`、`.permsift`、`dist`、`reports`。不会按这个列表删除 node_modules 中的同名子目录。列表是整体替换；如果希望包含原有 dist 输入，应从列表去掉 dist，并确保输出断言不会把需要的输入删除。
 
-快照包括已准备好的依赖。输入中的普通文件按字节复制，不与原项目共享可写硬链接。内部符号链接转换成指向副本内部的相对链接；指向项目外部的链接、祖先循环链接和特殊文件会被拒绝。
+普通场景快照包括已准备好的依赖；install 场景必须显式排除顶层 node_modules，并在沙箱中安装。输入冻结后，各轮优先创建写时复制副本，不与原项目共享可写硬链接。内部符号链接转换成指向副本内部的相对链接；指向项目外部的链接、祖先循环链接和特殊文件会被拒绝。
 
 | 场景字段 | 约束 |
 | --- | --- |
@@ -35,6 +35,8 @@ exclude 是**顶层名称**列表，默认 `.git`、`.permsift`、`dist`、`repo
 | timeout_seconds | 1–600 秒，默认 120；超时结果为 unknown |
 | initial_write_grants | 最多 32 个目录授权，允许空数组；不得重复或超过 limits |
 | initial_read_grants | 可选，最多 32 个 @workspace 文件或目录授权；省略时工作区可读，空数组不授予项目文件内容读取 |
+| install | 可选 npm 安装前置阶段；manager: npm，cache: cold/warm，registry 默认 https://registry.npmjs.org/，暖缓存须声明 cache_seed |
+| initial_network_grants | 仅用于 install，最多 32 个精确小写域名；省略或空数组时安装断网，须处于独立可信上限；command 始终断网 |
 | auto_read_discover | 默认 true；显式读取模式下生成输入结构候选，false 时只使用手工规则及撤销操作 |
 | narrower_read_candidates | 默认空数组，最多 32 组；to 是 from 严格子路径，每组最多 32 项；须先声明 initial_read_grants |
 | auto_discover | 默认 true；生成自动候选，false 时只搜索手工候选与删除操作 |
@@ -55,6 +57,8 @@ command 中的可执行程序由受控 PATH 查找，或使用明确的绝对路
 子路径的每个分量只允许字母、数字、下划线、点、@ 和连字符，支持 node_modules/@scope/package。拒绝 `.`、`..`、通配符、空分量、环境变量展开和绝对路径；以 .permsift-read- 开头的分量保留给探针。授权及祖先不能是符号链接。写候选目录会在运行前创建；读候选必须对应现有普通文件或目录，不会自动创建输入文件。
 
 写授权不自动授予读取。省略 initial_read_grants 时读取保持旧行为；声明后按独立读取规则执行。删除写授权不会自动删除读取授权。详细语义见 [读取规则说明](read-permissions.md)。
+
+install.cache 为 warm 时，将冻结输入中 cache_seed 指向的目录独立克隆到 @cache/npm；其余缓存与临时目录仍为空。种子必须是 @workspace 下的现有目录且内部不能含符号链接。记录种子内容哈希并使用 npm --offline；无法从缺失种子自动切换联网。安装场景暂不接受 initial_read_grants。registry 只接受 HTTPS origin；HTTP 的 localhost/127.0.0.1 origin 专供本地夹具。域名规则不带协议、通配符、端口或 URL 路径，授权匹配该精确主机的所有端口；保留域名 permsift-denied.invalid 禁止配置。见 [安装说明](dependency-install.md)。
 
 ## 自动发现候选
 
@@ -154,6 +158,7 @@ Node 的 [JUnit reporter](https://nodejs.org/docs/latest-v24.x/api/test.html#tes
 | --- | --- | --- |
 | allowed_write_roots | 必填 | 可变写权限上限，包含其子目录；不控制后端固定设备权限 |
 | allowed_read_roots | 省略 | 开启显式读取模式时必填，只接受 @workspace 及其子路径，允许空数组；不约束固定基础读取 |
+| allowed_network_domains | 省略 | install 场景必填，最多 64 个精确域名，允许空数组；仅安装可使用，任务命令始终断网 |
 | max_candidates | 30 | 整个实验读写合计最多实际尝试的搜索候选（包括分组和拆分子组），允许 0；基线、恢复和最终验证不计入 |
 | budget_seconds | 900 | 实验时间预算，范围 1–7200 秒 |
 | repetitions | 3 | 每个任务的基线和最终验证重复次数，范围 1–10 |

@@ -1,0 +1,26 @@
+schema_version: 1
+project: ./project
+exclude: [.git, .permsift, dist, reports, node_modules]
+scenarios:
+  - id: install-build
+    install:
+      manager: npm
+      cache: cold
+    initial_network_grants: [registry.npmjs.org, example.org]
+    command: [node, verify.cjs]
+    timeout_seconds: 45
+    initial_write_grants: ['@workspace', '@cache', '@tmp']
+    auto_discover: false
+    narrower_candidates:
+      - from: '@workspace'
+        to: ['@workspace/node_modules', '@workspace/dist', '@workspace/reports']
+      - from: '@cache'
+        to: ['@cache/npm']
+    assertions:
+      - type: json_equals
+        path: '@workspace/dist/classes.json'
+        pointer: /classes
+        value: button active
+      - type: test_results
+        path: '@workspace/reports/tests.json'
+        expected_tests: [strings, conditional, arrays, empty]

@@ -4,9 +4,9 @@
 
 Test tasks. Trim permissions.
 
-Permsift 是一个面向项目任务的沙箱权限调试器。你提供可工作的初始策略和测试、构建等任务，它在干净副本中反复执行，尝试缩小读写权限，用任务断言和边界探针判断是否接受修改，并保留每一步的证据。
+Permsift 是一个面向项目任务的沙箱权限调试器。你提供可工作的初始策略和安装、测试、构建等任务，它在干净副本中反复执行，尝试缩小文件和安装网络权限，用任务断言和边界探针判断是否接受修改，并保留每一步的证据。
 
-当前为 **v0.4，macOS 本地 CLI**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。默认自动缩小目录写权限；声明 initial_read_grants 后，还能将项目读取范围缩到目录或具体文件。同级授权成组尝试，失败操作按轮复查，读写组合一起复验。改代码、改依赖后，可用 check 验证旧规则，失败时做宽规则对照并尝试补充建议。系统运行时、缓存和临时目录读取仍固定开放，网络保持关闭；结果限定于本次环境和测试集合，不代表全局最小权限。
+当前为 **v0.5，macOS 本地 CLI**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。支持目录写权限、可选的项目文件读取收缩，以及 npm 安装阶段的精确域名撤销。安装后在同一工作区断网测试和构建，冷缓存与固定暖缓存分别验证。工作区优先使用写时复制，保持各轮文件独立。改代码、锁文件或依赖后，可用 check 验证旧规则并尝试受限补充。系统运行时、缓存和临时目录读取仍固定开放；结果限定于本次环境和测试集合，不代表全局最小权限。
 
 ## 快速开始
 
@@ -131,6 +131,22 @@ npm run examples:verify
 
 失败后先阅读 report.md 的 **Failure explanations**，再按链接检查完整证据。拒绝日志可能缺失；报告区分“捕获到权限拒绝”和“已证明失败原因”。
 
+## 沙箱内安装依赖
+
+```sh
+# 真实 npm ci、域名收缩、断网测试/构建、冷暖缓存和导出重放
+npm run install:verify
+
+# 只运行冷缓存的收缩任务
+node dist/cli.js tighten \
+  --config examples/install/permsift.yaml \
+  --limits examples/install/limits.json
+```
+
+例子固定 clsx 2.1.1。安装阶段运行 npm ci --ignore-scripts，尝试撤销 example.org 和 registry.npmjs.org；冷缓存保留实际需要的下载域名。已有缓存从明确的固定种子独立克隆，npm --offline 安装，得到的无网络规则只适用于该缓存条件。随后执行 4 项依赖行为检查并生成构建产物，任务命令始终断网。
+
+首版支持 npm、v2/v3 锁文件和注册表 tarball；安装场景使用完整工作区读取。暂不支持私有凭据、项目 .npmrc、Git/file 依赖、npm workspaces 或依赖生命周期脚本。详见 [安装与网络权限](docs/dependency-install.md)。
+
 ## 验证代码
 
 改代码或改依赖后的检查详见 [回归检查](docs/regression-checks.md)。旧规则通过时只做配置要求的重复验证；权限变化、普通任务失败和未知结果分别记录。经过复验的补充建议保存为 suggested.yaml，便于审阅和重放。
@@ -154,6 +170,8 @@ npm run check
 - [配置参考](docs/configuration.md)：全部字段、成功断言与 limits。
 - [架构与搜索流程](docs/architecture.md)：模块、候选修改、结果状态和证据。
 - [搜索效率](docs/search-efficiency.md)：成组撤销、延后复查和同项目次数对比。
+- [快照工作区](docs/snapshot-workspaces.md)：写时复制、跨轮隔离、回退与本机对照。
+- [安装与网络权限](docs/dependency-install.md)：安装阶段、冷暖缓存、域名上限和断网验证。
 - [规则回归检查](docs/regression-checks.md)：代码与依赖变化后的验证、对照和建议采用。
 - [安全边界](docs/security.md)：固定权限、支持的工作负载和已知限制。
 - [开发与测试](docs/development.md)：修改代码、测试分层和 CI。

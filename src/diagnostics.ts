@@ -21,7 +21,7 @@ export function extractDenials(stderr: string, violations: { line: string }[], r
   const found: Denial[] = [];
   for (const event of violations) {
     const match = /\bdeny(?:\(\d+\))?\s+([a-z][a-z0-9-]*)(?:\s+([^\s{]+))?/i.exec(event.line);
-    if (match) found.push({ source: 'sandbox_log', operation: match[1], ...(match[2]?.startsWith('/') ? { path: aliasForPath(match[2], roots) } : {}), detail: event.line.slice(0, 500) });
+    if (match) found.push({ source: 'sandbox_log', operation: match[1], ...(match[2] ? { path: match[1] === 'network-outbound' ? match[2] : match[2].startsWith('/') ? aliasForPath(match[2], roots) : undefined } : {}), detail: event.line.slice(0, 500) });
   }
   for (const line of stderr.split('\n')) {
     if (!/\b(EPERM|EACCES)\b|operation not permitted|permission denied/i.test(line)) continue;

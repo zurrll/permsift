@@ -23,7 +23,8 @@ Options:
   --help             Show help
   --version          Print version
 
-macOS only. No unsandboxed fallback. Project commands run offline.
+macOS only. No unsandboxed fallback. Task commands run offline;
+optional npm install stages use explicit trusted domain grants.
 Limits must be explicitly supplied from a location you trust.
 Exit: 0 verified/compatible, 1 failure/regression, 2 invalid setup/inconclusive, 130 interrupted.
 `;
@@ -55,6 +56,7 @@ async function main() {
           console.log(`  ${task.id}: ${task.status}${task.repair_stop ? ` · repair ${task.repair_stop}` : ''}`);
           if (task.reason) console.log(`    ${task.reason}`);
           if (task.suggestion) console.log(`    added reads: ${task.suggestion.added_read.join(', ') || '(none)'}; added writes: ${task.suggestion.added_write.join(', ') || '(none)'}`);
+          if (task.suggestion?.added_network) console.log(`    added install domains: ${task.suggestion.added_network.join(', ') || '(none)'}`);
         }
         if (report.error) console.error(report.error);
         console.log(`Report: ${path.join(report.output, 'report.md')}`);
@@ -79,6 +81,7 @@ async function main() {
       for (const [id, grants] of Object.entries(report.policies)) {
         console.log(`  ${id} write: ${grants.join(', ') || '(no variable write grants)'}`);
         if (report.read_modes[id] === 'explicit') console.log(`  ${id} read: ${report.read_policies[id].join(', ') || '(no project file/data read grants)'}`);
+        if (report.network_searches[id] || report.network_policies[id].length) console.log(`  ${id} install network: ${report.network_policies[id].join(', ') || '(offline)'}`);
       }
       if (report.error) console.error(report.error);
       const unsuccessful = report.trials.filter(t => t.verdict !== 'pass');

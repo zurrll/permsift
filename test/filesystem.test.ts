@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { snapshot, forkSnapshot, noSymlinks, manifest, diffFiles } from '../src/filesystem.js';
+import { snapshot, snapshotHash, forkSnapshot, noSymlinks, manifest, diffFiles } from '../src/filesystem.js';
 
 async function fixture(t: TestContext) {
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'permsift-fs-')));
@@ -65,7 +65,10 @@ test('snapshot forks isolate in-place writes, modes, links and dependency remova
   await fs.symlink('node_modules/pkg/index.js', path.join(source, 'link'));
   const before = await manifest(source);
   const first = path.join(root, 'first'), second = path.join(root, 'second');
+  const digest = await snapshot(source, path.join(root, 'normalized'), [], 10000);
+  assert.equal(await snapshotHash(path.join(root, 'normalized'), 10000), digest);
   const stats = await forkSnapshot(source, first);
+  assert.equal(await snapshotHash(first, 10000), await snapshotHash(source, 10000));
   assert.match(stats.strategy, /preferred$/);
   assert.deepEqual(await manifest(first), before);
   assert.equal((await fs.stat(path.join(first, 'tool'))).mode & 0o777, 0o755);
@@ -84,6 +87,11 @@ test('snapshot fork refuses existing/nested paths and an aborted fork leaves no 
   const root = await fixture(t), source = path.join(root, 'src');
   await assert.rejects(forkSnapshot(source, source), /separate/);
   await assert.rejects(forkSnapshot(source, path.join(source, 'nested')), /separate/);
+  await assert.rejects(forkSnapshot(source, path.join(source, 'new', 'nested')), /separate/);
+  await assert.rejects(fs.access(path.join(source, 'new')));
+  await fs.symlink('src', path.join(root, 'alias'));
+  await assert.rejects(forkSnapshot(source, path.join(root, 'alias', 'new', 'nested')), /separate/);
+  await assert.rejects(fs.access(path.join(source, 'new')));
   await assert.rejects(forkSnapshot(source, root), /separate/);
   const target = path.join(root, 'existing'); await fs.mkdir(target);
   await fs.writeFile(path.join(target, 'keep'), 'untouched');

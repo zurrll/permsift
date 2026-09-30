@@ -20,12 +20,22 @@ export const within = (parent: string, child: string) => child === parent || chi
 export async function forkSnapshot(source: string, destination: string, options: { timeoutMs?: number; signal?: AbortSignal } = {}) {
   const started = Date.now();
   const base = await fs.realpath(source);
-  await fs.mkdir(path.dirname(destination), { recursive: true });
-  const target = path.join(await fs.realpath(path.dirname(destination)), path.basename(destination));
+  const requested = path.resolve(destination);
+  let parent = path.dirname(requested);
+  const missing: string[] = [];
+  while (true) {
+    try { parent = await fs.realpath(parent); break; }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      missing.unshift(path.basename(parent)); parent = path.dirname(parent);
+    }
+  }
+  const target = path.join(parent, ...missing, path.basename(requested));
   if (within(base, target) || within(target, base)) throw new Error('Snapshot fork paths must be separate');
   try { await fs.lstat(target); throw new Error('Snapshot fork destination already exists'); }
   catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   if (options.signal?.aborted) throw new Error('Snapshot fork interrupted');
+  await fs.mkdir(path.dirname(target), { recursive: true });
   const strategy = process.platform === 'darwin' ? 'macos-clone-preferred' : 'node-reflink-preferred';
   try {
     if (process.platform === 'darwin') {
@@ -61,6 +71,13 @@ export async function noSymlinks(root: string, target: string): Promise<void> {
 
 /** Copies bytes, preserves internal links as relative links, rejects external links. */
 export async function snapshot(source: string, destination: string, excludes: string[], maxBytes: number): Promise<string> {
+  return snapshotTree(source, destination, excludes, maxBytes);
+}
+/** Same digest as snapshot, without materializing a second copy. */
+export async function snapshotHash(source: string, maxBytes: number): Promise<string> {
+  return snapshotTree(source, undefined, [], maxBytes);
+}
+async function snapshotTree(source: string, destination: string | undefined, excludes: string[], maxBytes: number): Promise<string> {
   const base = await fs.realpath(source);
   let bytes = 0;
   const digest = createHash('sha256');
@@ -69,9 +86,9 @@ export async function snapshot(source: string, destination: string, excludes: st
     if (!within(base, resolved)) throw new Error(`External symlink in input: ${relative}`);
     if ((await fs.lstat(from)).isSymbolicLink()) {
       if (ancestors.has(resolved)) throw new Error(`Symlink cycle in input: ${relative}`);
-      const target = path.relative(path.dirname(to), path.join(destination, path.relative(base, resolved)));
+      const target = path.relative(path.dirname(to), path.join(destination ?? base, path.relative(base, resolved)));
       digest.update(JSON.stringify([relative, 'symlink', target]));
-      await fs.symlink(target, to);
+      if (destination) await fs.symlink(target, to);
       return;
     }
     const stat = await fs.stat(resolved);
@@ -79,7 +96,7 @@ export async function snapshot(source: string, destination: string, excludes: st
       if (ancestors.has(resolved)) throw new Error(`Symlink cycle in input: ${relative}`);
       const next = new Set(ancestors).add(resolved);
       digest.update(JSON.stringify([relative, 'directory']));
-      await fs.mkdir(to, { recursive: true, mode: 0o700 });
+      if (destination) await fs.mkdir(to, { recursive: true, mode: 0o700 });
       const entries = (await fs.readdir(resolved)).sort();
       for (const entry of entries) {
         if (!relative && excludes.includes(entry)) continue;
@@ -90,10 +107,10 @@ export async function snapshot(source: string, destination: string, excludes: st
       if (bytes > maxBytes) throw new Error('Snapshot exceeds max_snapshot_bytes');
       const content = await fs.readFile(resolved);
       digest.update(JSON.stringify([relative, stat.mode & 0o777, content.length])).update(content);
-      await fs.writeFile(to, content, { mode: stat.mode & 0o777 });
+      if (destination) await fs.writeFile(to, content, { mode: stat.mode & 0o777 });
     } else throw new Error(`Unsupported input file type: ${relative}`);
   }
-  await visit(base, destination, '', new Set());
+  await visit(base, destination ?? base, '', new Set());
   return digest.digest('hex');
 }
 

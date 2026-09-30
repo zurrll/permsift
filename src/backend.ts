@@ -5,6 +5,7 @@ import { access, lstat, realpath } from 'node:fs/promises';
 import { readAliasSchema } from './config.js';
 import { noSymlinks, resolveAlias, within, type Roots } from './filesystem.js';
 import { runProcess, shellQuote } from './process.js';
+import { superviseSandbox } from './sandbox-supervisor.js';
 
 export const BACKEND_VERSION = '0.0.77';
 export function requirePlatform() {
@@ -15,6 +16,7 @@ export type BackendContext = {
   grants: string[]; invocationId: string; timeoutMs: number; maxOutputBytes: number; signal?: AbortSignal;
   readGrants?: string[]; protectedWritePaths?: string[];
   readKinds?: Record<string, 'file' | 'directory'>;
+  networkGrants?: string[];
 };
 
 // SRT treats plain paths as recursive subpaths. A one-character glob compiles
@@ -52,7 +54,7 @@ export async function policyFor(context: BackendContext): Promise<SandboxRuntime
     read.push(kind === 'file' ? exactReadPattern(resolved) : resolved);
   }
   return {
-    network: { allowedDomains: [], deniedDomains: [], allowLocalBinding: false, allowAllUnixSockets: false, allowUnixSockets: [] },
+    network: { allowedDomains: context.networkGrants ?? [], deniedDomains: [], allowLocalBinding: false, allowAllUnixSockets: false, allowUnixSockets: [] },
     filesystem: {
       denyRead: [...new Set(['/Users', homedir(), context.experimentRoot, ...context.protectedPaths])],
       allowRead: [...read, ...(within(homedir(), nodeRoot) ? [nodeRoot] : [])],
@@ -69,6 +71,7 @@ export function cleanEnvironment(roots: Roots): NodeJS.ProcessEnv {
     HOME: roots.tmp, TMPDIR: roots.tmp + '/', XDG_CACHE_HOME: roots.cache,
     npm_config_cache: path.join(roots.cache, 'npm'), npm_config_update_notifier: 'false',
     npm_config_audit: 'false', npm_config_fund: 'false',
+    npm_config_userconfig: '/dev/null', npm_config_globalconfig: path.join(roots.tmp, '.permsift-npm-global'),
     CI: '1', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', TZ: 'UTC',
   };
 }
@@ -76,6 +79,13 @@ export function cleanEnvironment(roots: Roots): NodeJS.ProcessEnv {
 // SRT has a singleton manager. The engine serializes executions; reject accidental concurrent use.
 let busy = false;
 export async function executeSandbox(command: string[], context: BackendContext) {
+  requirePlatform();
+  return superviseSandbox(command, context);
+}
+/** Worker-only entry point. Each invocation owns its runtime and proxy sockets. */
+export async function executeSandboxNative(command: string[], context: BackendContext, hooks: {
+  onStart?: (pid: number) => void; onResult?: (result: SandboxResult) => void;
+} = {}) {
   requirePlatform();
   if (busy) throw new Error('Concurrent backend execution is not supported');
   busy = true;
@@ -87,13 +97,15 @@ export async function executeSandbox(command: string[], context: BackendContext)
     await SandboxManager.initialize(policy, undefined, true);
     // SRT adds TMPDIR=/tmp/claude inside its wrapper. Override it inside the
     // sandbox too, using argv quoting; the shared default directory stays denied.
-    const text = ['/usr/bin/env', `TMPDIR=${context.roots.tmp}/`, ...command].map(shellQuote).join(' ');
+    const text = ['/usr/bin/env', `TMPDIR=${context.roots.tmp}/`, 'NO_PROXY=', 'no_proxy=', ...command].map(shellQuote).join(' ');
     const wrapped = await SandboxManager.wrapWithSandboxArgv(text, '/bin/bash', undefined, context.signal, context.roots.workspace, { commandId: context.invocationId });
     const effective = { read: SandboxManager.getFsReadConfig(), write: SandboxManager.getFsWriteConfig(), network: SandboxManager.getNetworkRestrictionConfig() };
     // wrapped.env is the entire host environment on POSIX. Intentionally do not inherit it.
-    const processResult = await runProcess(wrapped.argv, { cwd: context.roots.workspace, env: cleanEnvironment(context.roots), timeoutMs: context.timeoutMs, maxOutputBytes: context.maxOutputBytes, signal: context.signal });
+    const processResult = await runProcess(wrapped.argv, { cwd: context.roots.workspace, env: cleanEnvironment(context.roots), timeoutMs: context.timeoutMs, maxOutputBytes: context.maxOutputBytes, signal: context.signal, onStart: hooks.onStart });
     const violations = SandboxManager.getSandboxViolationStore().getViolationsForCommand(context.invocationId);
-    return { process: processResult, policy, effective, violations };
+    const result = { process: processResult, policy, effective, violations };
+    hooks.onResult?.(result);
+    return result;
   } finally {
     try { await SandboxManager.reset(); }
     finally {
@@ -102,3 +114,4 @@ export async function executeSandbox(command: string[], context: BackendContext)
     }
   }
 }
+export type SandboxResult = Awaited<ReturnType<typeof executeSandboxNative>>;
