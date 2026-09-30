@@ -1,0 +1,17 @@
+schema_version: 1
+project: .
+exclude: [.git, .permsift, dist, reports]
+scenarios:
+  - id: build
+    command: [node, scripts/build.mjs]
+    timeout_seconds: 30
+    initial_write_grants: ['@workspace', '@cache', '@tmp']
+    initial_read_grants: ['@workspace']
+    assertions:
+      - type: file_contains
+        path: '@workspace/dist/index.js'
+        text: 'demo-version: 1.0.0'
+      - type: json_equals
+        path: '@workspace/dist/manifest.json'
+        pointer: /smoke_test
+        value: passed

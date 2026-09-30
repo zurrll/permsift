@@ -153,3 +153,94 @@ test('export preserves automatic preparation even when its directory no longer n
   const replay = await runExperiment({ mode: 'run', configPath: path.join(report.output, 'recommended.yaml'), limitsPath: f.limitsPath, output: path.join(f.root, 'replay') });
   assert.equal(replay.status, 'verified', JSON.stringify(replay.trials.at(-1)?.diagnosis));
 });
+
+async function enableReads(f: Awaited<ReturnType<typeof fixture>>, grants = ['@workspace']) {
+  const config = JSON.parse(await fs.readFile(f.configPath, 'utf8'));
+  config.scenarios[0].initial_read_grants = grants;
+  await fs.writeFile(f.configPath, JSON.stringify(config));
+  const limits = JSON.parse(await fs.readFile(f.limitsPath, 'utf8'));
+  limits.allowed_read_roots = ['@workspace']; limits.max_candidates = 100;
+  await fs.writeFile(f.limitsPath, JSON.stringify(limits));
+}
+
+test('real read search keeps exact necessary files, denies fake neighboring secrets and replays combined policy', macOnly, async t => {
+  const f = await fixture(t, `const input=JSON.parse(require('node:fs').readFileSync('src/input.json','utf8'));if(input.value!==42)process.exit(5);${writer}`);
+  await fs.mkdir(path.join(f.project, 'src'));
+  await fs.writeFile(path.join(f.project, 'src/input.json'), '{"value":42}');
+  await fs.writeFile(path.join(f.project, 'src/unused.json'), '{"fake":true}');
+  await fs.writeFile(path.join(f.project, 'unused.txt'), 'not needed');
+  await enableReads(f);
+  const report = await runExperiment({ ...f, mode: 'tighten', output: path.join(f.root, 'result') });
+  assert.equal(report.status, 'verified', JSON.stringify(report.trials.at(-1)?.diagnosis));
+  assert.equal(report.search_complete, true);
+  assert.deepEqual(report.read_policies.build, ['@workspace/src/input.json', '@workspace/task.cjs']);
+  assert.deepEqual(report.policies.build, ['@workspace/dist']);
+  assert.ok(report.read_searches.build.steps.some(s => s.decision === 'rejected' && s.recovery_id && s.operation.includes('src/input.json')));
+  for (const phase of ['baseline', 'final']) {
+    const trial = report.trials.find(t => t.phase === phase)!;
+    const evidence = JSON.parse(await fs.readFile(path.join(report.output, trial.evidence), 'utf8'));
+    const checks = evidence.after.checks.filter((c: {name:string}) => c.name.startsWith('read_scope:'));
+    assert.equal(checks.length, 2); assert.ok(checks.every((c: {status:string}) => c.status === 'pass'));
+    assert.ok(checks.every((c: {detail:string}) => c.detail.includes(phase === 'baseline' ? 'expected allowed' : 'expected denied')));
+    assert.ok(evidence.task.policy.filesystem.denyRead.every((p: string) => !p.includes('.permsift-read-')));
+  }
+  await assert.rejects(fs.access(path.join(f.project, '.permsift-read-checks')));
+  const replay = await runExperiment({ mode: 'run', configPath: path.join(report.output, 'recommended.yaml'), limitsPath: f.limitsPath, output: path.join(f.root, 'replay') });
+  assert.equal(replay.status, 'verified'); assert.deepEqual(replay.read_policies.build, report.read_policies.build);
+  assert.equal(replay.inputs.snapshot_hash, report.inputs.snapshot_hash);
+});
+
+test('real write permission does not imply read access; empty project read grants work for inline commands', macOnly, async t => {
+  const f = await fixture(t, `const fs=require('node:fs');try{fs.readFileSync('hidden.txt');process.exit(9);}catch(e){if(!['EPERM','EACCES'].includes(e.code))throw e;}fs.mkdirSync('dist',{recursive:true});fs.writeFileSync('dist/out','fresh');`);
+  await fs.writeFile(path.join(f.project, 'hidden.txt'), 'fake-secret');
+  await enableReads(f, ['@workspace/task.cjs']);
+  const report = await runExperiment({ ...f, mode: 'run', output: path.join(f.root, 'result') });
+  assert.equal(report.status, 'verified', JSON.stringify(report.trials[0].diagnosis));
+  const config = JSON.parse(await fs.readFile(f.configPath, 'utf8'));
+  config.scenarios[0].command = [process.execPath, '-e', writer]; config.scenarios[0].initial_read_grants = [];
+  await fs.writeFile(f.configPath, JSON.stringify(config));
+  const empty = await runExperiment({ ...f, mode: 'run', output: path.join(f.root, 'empty') });
+  assert.equal(empty.status, 'verified', JSON.stringify(empty.trials[0].diagnosis));
+  assert.deepEqual(empty.read_policies.build, []);
+});
+
+test('joint search revisits writes after removing optional read access changes task behavior', macOnly, async t => {
+  const f = await fixture(t, `${writer}let optional=false;try{optional=fs.readFileSync('feature.txt','utf8')==='enabled'}catch(e){if(!['EPERM','EACCES'].includes(e.code))throw e;}if(optional)fs.writeFileSync(require('node:path').join(process.env.XDG_CACHE_HOME,'optional-state'),'used');`);
+  await fs.writeFile(path.join(f.project, 'feature.txt'), 'enabled');
+  await enableReads(f);
+  const report = await runExperiment({ ...f, mode: 'tighten', output: path.join(f.root, 'result') });
+  assert.equal(report.status, 'verified', JSON.stringify(report.trials.at(-1)?.diagnosis));
+  assert.equal(report.search_complete, true);
+  assert.deepEqual(report.read_policies.build, ['@workspace/task.cjs']);
+  assert.deepEqual(report.policies.build, ['@workspace/dist']);
+  const cacheSteps = report.searches.build.steps.filter(s => s.operation === 'remove @cache');
+  assert.ok(cacheSteps.some(s => s.decision === 'rejected'));
+  assert.equal(cacheSteps.at(-1)?.decision, 'accepted');
+});
+
+test('nonexistent or symlink read targets are setup errors and never widen into permissive defaults', macOnly, async t => {
+  const f = await fixture(t, writer);
+  await enableReads(f, ['@workspace/missing.cjs']);
+  const missing = await runExperiment({ ...f, mode: 'run', output: path.join(f.root, 'missing') });
+  assert.equal(missing.status, 'incomplete'); assert.equal(missing.trials[0].verdict, 'unknown');
+  await assert.rejects(fs.access(path.join(missing.output, 'recommended.yaml')));
+  await fs.symlink('task.cjs', path.join(f.project, 'linked.cjs'));
+  await enableReads(f, ['@workspace/linked.cjs']);
+  const linked = await runExperiment({ ...f, mode: 'run', output: path.join(f.root, 'linked') });
+  assert.equal(linked.status, 'incomplete'); assert.match(linked.trials[0].reason!, /symlink/i);
+});
+
+test('a granted file replaced by a directory never becomes recursive read permission in task or post probes', macOnly, async t => {
+  const f = await fixture(t, writer);
+  await fs.writeFile(path.join(f.project, 'input'), 'fake');
+  const config = JSON.parse(await fs.readFile(f.configPath, 'utf8'));
+  config.scenarios[0].command = [process.execPath, '-e', `const fs=require('node:fs');fs.unlinkSync('input');fs.mkdirSync('input');fs.writeFileSync('input/child','fake');try{fs.readFileSync('input/child');process.exit(9)}catch(e){if(!['EPERM','EACCES'].includes(e.code))throw e;}fs.mkdirSync('dist',{recursive:true});fs.writeFileSync('dist/out','fresh');`];
+  await fs.writeFile(f.configPath, JSON.stringify(config));
+  await enableReads(f, ['@workspace/input']);
+  const report = await runExperiment({ ...f, mode: 'run', output: path.join(f.root, 'result') });
+  assert.equal(report.status, 'verified', JSON.stringify(report.trials[0].diagnosis));
+  const evidence = JSON.parse(await fs.readFile(path.join(report.output, report.trials[0].evidence), 'utf8'));
+  assert.deepEqual(evidence.read_grant_kinds, { '@workspace/input': 'file' });
+  assert.deepEqual(evidence.before.execution.policy.filesystem.allowRead, evidence.task.policy.filesystem.allowRead);
+  assert.deepEqual(evidence.after.execution.policy.filesystem.allowRead, evidence.task.policy.filesystem.allowRead);
+});

@@ -1,0 +1,45 @@
+schema_version: 1
+project: ../../../.permsift/third-party/clsx
+exclude: [.git, .permsift, dist]
+scenarios:
+  - id: build-smoke
+    command:
+      - node
+      - -e
+      - |
+        (async () => {
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          require('./bin/index.js');
+          const variants = [require('./dist/clsx.js'), require('./dist/clsx.min.js'), (await import('./dist/clsx.mjs')).default];
+          for (const clsx of variants) {
+            assert.equal(clsx('alpha', ['beta', false, ['gamma']], { delta: true, ignored: false }), 'alpha beta gamma delta');
+            assert.equal(clsx(null, false, 0, undefined), '');
+          }
+          for (const clsx of [require('./dist/lite.js'), (await import('./dist/lite.mjs')).default]) {
+            assert.equal(clsx('alpha', false, { ignored: true }, ['ignored'], 'beta'), 'alpha beta');
+          }
+          fs.writeFileSync('dist/permsift-smoke.json', JSON.stringify({ build: 'passed', variants: 5, assertions: 8 }));
+        })().catch(error => { console.error(error); process.exitCode = 1; });
+    timeout_seconds: 60
+    initial_write_grants: ['@workspace', '@cache', '@tmp']
+    initial_read_grants: ['@workspace']
+    assertions:
+      - type: file_exists
+        path: '@workspace/dist/clsx.mjs'
+      - type: file_exists
+        path: '@workspace/dist/clsx.js'
+      - type: file_exists
+        path: '@workspace/dist/clsx.min.js'
+      - type: file_exists
+        path: '@workspace/dist/lite.mjs'
+      - type: file_exists
+        path: '@workspace/dist/lite.js'
+      - type: json_equals
+        path: '@workspace/dist/permsift-smoke.json'
+        pointer: /variants
+        value: 5
+      - type: json_equals
+        path: '@workspace/dist/permsift-smoke.json'
+        pointer: /build
+        value: passed

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "allowed_write_roots": [
+    "@workspace",
+    "@cache",
+    "@tmp"
+  ],
+  "allowed_read_roots": [
+    "@workspace"
+  ],
+  "max_candidates": 150,
+  "budget_seconds": 900,
+  "repetitions": 3,
+  "max_read_discovery_entries": 128,
+  "max_read_discovery_depth": 2
+}

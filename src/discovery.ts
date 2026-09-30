@@ -21,6 +21,7 @@ export async function directoryInventory(roots: Roots, limits: Limits) {
     directories.push(alias);
     const entries = (await fs.readdir(file, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
     for (const entry of entries) {
+      if (entry.name.startsWith('.permsift-read-')) continue;
       if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
       const child = `${alias}/${entry.name}`;
       if (!aliasSchema.safeParse(child).success) { truncated = true; continue; }

@@ -52,7 +52,10 @@ async function main() {
     if (values.json) console.log(JSON.stringify(report, null, 2));
     else {
       console.log(`\n${report.status.toUpperCase()} · ${report.trials.length} executions`);
-      for (const [id, grants] of Object.entries(report.policies)) console.log(`  ${id}: ${grants.join(', ') || '(no variable write grants)'}`);
+      for (const [id, grants] of Object.entries(report.policies)) {
+        console.log(`  ${id} write: ${grants.join(', ') || '(no variable write grants)'}`);
+        if (report.read_modes[id] === 'explicit') console.log(`  ${id} read: ${report.read_policies[id].join(', ') || '(no project file/data read grants)'}`);
+      }
       if (report.error) console.error(report.error);
       const unsuccessful = report.trials.filter(t => t.verdict !== 'pass');
       if (unsuccessful.length) console.log(`  ${unsuccessful.length} failed/unknown trials explained in the report (with recovery evidence when available).`);

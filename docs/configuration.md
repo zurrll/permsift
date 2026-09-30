@@ -34,6 +34,9 @@ exclude 是**顶层名称**列表，默认 `.git`、`.permsift`、`dist`、`repo
 | command | 非空字符串参数数组，不接受 NUL；适配器负责 shell 引用 |
 | timeout_seconds | 1–600 秒，默认 120；超时结果为 unknown |
 | initial_write_grants | 最多 32 个目录授权，允许空数组；不得重复或超过 limits |
+| initial_read_grants | 可选，最多 32 个 @workspace 文件或目录授权；省略时工作区可读，空数组不授予项目文件内容读取 |
+| auto_read_discover | 默认 true；显式读取模式下生成输入结构候选，false 时只使用手工规则及撤销操作 |
+| narrower_read_candidates | 默认空数组，最多 32 组；to 是 from 严格子路径，每组最多 32 项；须先声明 initial_read_grants |
 | auto_discover | 默认 true；生成自动候选，false 时只搜索手工候选与删除操作 |
 | prepare_directories | 默认空数组；统一预建目录，最多 2048 项，受 limits 上限约束；它不授予任务写权限 |
 | narrower_candidates | 最多 32 组；to 必须是 from 的严格子路径 |
@@ -49,9 +52,9 @@ command 中的可执行程序由受控 PATH 查找，或使用明确的绝对路
 | @cache | 本轮独立空缓存，设置为 XDG_CACHE_HOME，npm 缓存放在其中 |
 | @tmp | 本轮独立临时目录，也是任务的 HOME 和 TMPDIR |
 
-子路径的每个分量只允许字母、数字、下划线、点和连字符。拒绝 `.`、`..`、通配符、空分量、环境变量展开和绝对路径。授权目录及其祖先不能是符号链接；声明过的候选目录会在运行前创建，确保不同候选有相同的目录准备状态。
+子路径的每个分量只允许字母、数字、下划线、点、@ 和连字符，支持 node_modules/@scope/package。拒绝 `.`、`..`、通配符、空分量、环境变量展开和绝对路径；以 .permsift-read- 开头的分量保留给探针。授权及祖先不能是符号链接。写候选目录会在运行前创建；读候选必须对应现有普通文件或目录，不会自动创建输入文件。
 
-写授权不自动代表读取授权的优化。读取策略始终固定；删除写授权后，运行目录通常仍可读取。
+写授权不自动授予读取。省略 initial_read_grants 时读取保持旧行为；声明后按独立读取规则执行。删除写授权不会自动删除读取授权。详细语义见 [读取规则说明](read-permissions.md)。
 
 ## 自动发现候选
 
@@ -150,13 +153,16 @@ Node 的 [JUnit reporter](https://nodejs.org/docs/latest-v24.x/api/test.html#tes
 | 字段 | 默认值 | 含义 |
 | --- | --- | --- |
 | allowed_write_roots | 必填 | 可变写权限上限，包含其子目录；不控制后端固定设备权限 |
-| max_candidates | 30 | 整个实验最多尝试的搜索候选，允许 0；基线、恢复和最终验证不计入 |
+| allowed_read_roots | 省略 | 开启显式读取模式时必填，只接受 @workspace 及其子路径，允许空数组；不约束固定基础读取 |
+| max_candidates | 30 | 整个实验读写合计最多尝试的搜索候选，允许 0；基线、恢复和最终验证不计入 |
 | budget_seconds | 900 | 实验时间预算，范围 1–7200 秒 |
 | repetitions | 3 | 每个任务的基线和最终验证重复次数，范围 1–10 |
 | max_output_bytes | 262144 | 每个进程 stdout 与 stderr 的合计原始字节限制，超出即停止 |
 | max_snapshot_bytes | 500000000 | 输入普通文件的累计大小上限 |
 | max_discovery_depth | 3 | 自动目录枚举相对别名根的最大深度，范围 1–8 |
 | max_discovery_dirs | 64 | 每次目录枚举及合并后的候选目录数上限，范围 1–512 |
+| max_read_discovery_entries | 128 | 输入结构枚举的文件与目录总数上限，范围 1–2048 |
+| max_read_discovery_depth | 3 | 项目读取枚举最大深度，范围 1–8；文件也计入深度 |
 
 时间预算在各阶段检查，并限制任务执行时限；文件复制、宿主验证及后端初始化不是可抢占操作，因此不是严格的总运行时间硬上限。搜索预留基于基线耗时估算的最终验证时间。预算耗尽时，只有确实完成最终验证的候选才能写为 recommended.yaml。
 
@@ -164,7 +170,7 @@ Node 的 [JUnit reporter](https://nodejs.org/docs/latest-v24.x/api/test.html#tes
 
 `--output` 指定一个尚不存在的目录。目录位于原项目内部时，必须处于 exclude 列出的顶层目录中，避免快照递归包含自身。
 
-- report.json：机器可读汇总和证据索引。
+- report.json：机器可读汇总和证据索引；policies/searches 记录写规则，read_policies/read_searches 记录读规则，read_modes 区分 explicit/legacy，read_discovery 记录候选来源。
 - report.md：适合人工审阅的摘要。
 - inputs.json：规范化配置、limits、版本和输入哈希。
 - evidence/*.json：每次运行的任务、探针、断言和日志。

@@ -26,6 +26,11 @@ npm run demo
 npm run examples:prepare
 npm run examples:verify
 
+# 读取收缩演示与第三方原始构建（准备时联网）
+npm run demo:read
+npm run third-party:prepare
+npm run third-party:verify
+
 # 构建 Permsift 自身，并启动产物验证 CLI 版本
 npm run self:verify
 ```
@@ -41,8 +46,9 @@ npm run self:verify
 | junit.test.ts | 嵌套报告、缺失/失败/跳过/重复用例、错误 XML、DTD 和深度上限 |
 | process.test.ts | 参数引用、输出上限、超时、取消、普通后台子进程清理 |
 | probes.test.ts | 不存在的资源、停机端点和夹具篡改 |
+| read.test.ts | 独立读上限、候选与恢复、完整枚举、精确后端规则和读探针对照 |
 | cli.test.ts | 帮助、版本、明确 limits、未知选项 |
-| integration/sandbox.test.ts | 真实内核拒绝、自动发现、临时操作、JUnit、准备状态复测与重放、旧产物、超时和中断 |
+| integration/sandbox.test.ts | 真实读写拒绝、文件收缩、读写联合非单调行为、文件替换目录、自动发现、临时操作、JUnit、准备状态复测与重放、旧产物、超时和中断 |
 
 单元测试可以在 Linux 上运行。集成测试在其他平台显示 skip；这表示未验证该平台，不表示隔离通过。macOS 上出现后端异常时测试应失败，不能临时改成 mock 或无条件跳过。
 

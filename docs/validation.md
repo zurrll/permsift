@@ -1,5 +1,41 @@
 # 实测记录
 
+## v0.3 — 2026-09-30
+
+环境为 macOS 15.8、arm64、Node.js 24.21.0、SRT 0.0.77。以下均为本机实际运行；未将远端 CI 算作通过。
+
+| 检查 | 结果 |
+| --- | --- |
+| npm test | 49 项通过，0 失败、0 跳过 |
+| npm run test:integration | 17 项真实沙箱测试通过，0 失败、0 跳过 |
+| npm run check / build | 成功 |
+| 读取演示 | 70 个 trial，verified，search_complete=true；另重放 3 次，输入哈希相同 |
+| 固定提交第三方 clsx | 190 个搜索 trial，另重放 3 次，全部最终验证通过，search_complete=true，输入哈希相同 |
+| 原有三个代表项目回归 | 45 个搜索 trial + 9 个重放 trial，全通过，写规则与 v0.2 相同 |
+
+新增真实测试验证：目录逐级缩到必要文件，必要输入撤销后失败且恢复通过；写授权不隐含未授权文件读取；空读授权可执行仅使用内置模块的内联命令；读取变化影响可选缓存写入时会重新收缩写权限；不存在或符号链接读目标为 unknown；文件被任务替换为目录后，后置探针不会把精确授权扩大为子树授权。
+
+| 任务 | 最终项目读取 | 最终可变写入 |
+| --- | --- | --- |
+| invoice 构建 + smoke | package.json、scripts/build.mjs、src/invoice.js、dist 目录 | dist 目录 |
+| clsx 原始构建 + 五种产物 smoke | package.json、bin/index.js、src/index.js、src/lite.js、dist、node_modules/terser、node_modules/source-map | dist 目录 |
+
+clsx 固定提交为 925494cf31bcd97d3337aacd34e659e80cae7fe2，版本 2.1.1。未修改上游构建源码，未运行完整上游测试套件。依赖安装在沙箱实验外完成；构建、产物行为断言及权限搜索断网运行。详见 [第三方验证说明](third-party-clsx.md)。
+
+读取演示尝试 35 个读写候选，26 次拒绝各有通过的恢复；clsx 尝试 105 个候选，76 次拒绝各有通过的恢复。两次最终实验均没有 unknown。clsx 的依赖枚举深度限制在包目录，truncated=true；完成有限候选不表示得到全局最小策略。单次 clsx 搜索及重放约 66.4 秒，仅为本机观察，不是性能基准。
+
+基线下项目内假文件按整目录授权可读，最终规则下根目录、src，以及 clsx 的 bin/test 假文件均得到 EPERM。这些假文件仅被禁止写入，没有添加 denyRead 例外。系统/运行时、缓存、临时读取和 cwd 目录访问仍固定，未参与最小化。
+
+最终源码的完整本机证据：
+
+- .permsift/delivery-v0.3-read-final/ 与 .permsift/delivery-v0.3-read-replay/。
+- .permsift/clsx-read-l8wpQh/summary.json 及 search/report.md、replay/report.md。
+- .permsift/representative-projects-Ocskux/summary.json。
+
+原始 JSON 和下载的第三方副本留在忽略目录，未纳入 Git；可按 README 重跑。第一次较深的第三方探索用完 150 个候选预算，最终保留策略仍完成复验，但 search_complete=false；随后调整读取候选顺序与依赖枚举深度，最终版本完成有限搜索。
+
+---
+
 ## v0.2 — 2026-09-30
 
 环境仍为 macOS 15.8、arm64、Node.js 24.21.0、npm 11.19.0、SRT 0.0.77、TypeScript 7.0.2。JUnit 解析依赖 fast-xml-parser 5.11.2，包版本与锁文件均固定。

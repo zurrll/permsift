@@ -3,8 +3,10 @@ import path from 'node:path';
 import { parseDocument } from 'yaml';
 import { z } from 'zod';
 
-export const aliasSchema = z.string().regex(/^@(workspace|cache|tmp)(\/[A-Za-z0-9_.-]+)*$/).refine(
-  value => !value.split('/').some(part => part === '.' || part === '..'), 'Dot path components are forbidden');
+export const aliasSchema = z.string().regex(/^@(workspace|cache|tmp)(\/[A-Za-z0-9_.@-]+)*$/).refine(
+  value => !value.split('/').some(part => part === '.' || part === '..'), 'Dot path components are forbidden')
+  .refine(value => !value.split('/').some(part => part.startsWith('.permsift-read-')), 'Reserved read-probe namespace');
+export const readAliasSchema = aliasSchema.refine(p => p === '@workspace' || p.startsWith('@workspace/'), 'Read search is limited to @workspace');
 const workspaceFile = aliasSchema.refine(p => p.startsWith('@workspace/'), 'Must be a file under @workspace');
 const expectedTests = z.array(z.string().min(1)).min(1).max(10_000).refine(names => new Set(names).size === names.length, 'Expected test names must be unique');
 const assertionSchema = z.discriminatedUnion('type', [
@@ -19,6 +21,9 @@ export const scenarioSchema = z.object({
   command: z.array(z.string().min(1).refine(s => !s.includes('\0'))).min(1),
   timeout_seconds: z.number().int().min(1).max(600).default(120),
   initial_write_grants: z.array(aliasSchema).max(32),
+  initial_read_grants: z.array(readAliasSchema).max(32).optional(),
+  auto_read_discover: z.boolean().default(true),
+  narrower_read_candidates: z.array(z.object({ from: readAliasSchema, to: z.array(readAliasSchema).min(1).max(32) }).strict()).max(32).default([]),
   auto_discover: z.boolean().default(true),
   prepare_directories: z.array(aliasSchema).max(2048).default([]),
   narrower_candidates: z.array(z.object({ from: aliasSchema, to: z.array(aliasSchema).min(1).max(32) }).strict()).max(32).default([]),
@@ -33,6 +38,7 @@ export const configSchema = z.object({
 export const limitsSchema = z.object({
   schema_version: z.literal(1),
   allowed_write_roots: z.array(aliasSchema).min(1),
+  allowed_read_roots: z.array(readAliasSchema).max(64).optional(),
   max_candidates: z.number().int().min(0).max(500).default(30),
   budget_seconds: z.number().int().min(1).max(7200).default(900),
   repetitions: z.number().int().min(1).max(10).default(3),
@@ -40,6 +46,8 @@ export const limitsSchema = z.object({
   max_snapshot_bytes: z.number().int().min(1024).max(10_000_000_000).default(500_000_000),
   max_discovery_depth: z.number().int().min(1).max(8).default(3),
   max_discovery_dirs: z.number().int().min(1).max(512).default(64),
+  max_read_discovery_entries: z.number().int().min(1).max(2048).default(128),
+  max_read_discovery_depth: z.number().int().min(1).max(8).default(3),
 }).strict();
 export type Config = z.infer<typeof configSchema>;
 export type Scenario = z.infer<typeof scenarioSchema>;
@@ -58,6 +66,18 @@ export function validatePolicy(config: Config, limits: Limits): void {
     }
     for (const grant of [...scenario.initial_write_grants, ...scenario.prepare_directories, ...scenario.narrower_candidates.flatMap(c => [c.from, ...c.to])]) {
       if (!limits.allowed_write_roots.some(root => contains(root, grant))) throw new Error(`Grant exceeds trusted limits: ${grant}`);
+    }
+    if (scenario.initial_read_grants === undefined) {
+      if (scenario.narrower_read_candidates.length) throw new Error('Read candidates require initial_read_grants');
+      continue;
+    }
+    if (limits.allowed_read_roots === undefined) throw new Error('Read search requires explicit allowed_read_roots in trusted limits');
+    if (new Set(scenario.initial_read_grants).size !== scenario.initial_read_grants.length) throw new Error('Duplicate read grant');
+    for (const rule of scenario.narrower_read_candidates) {
+      if (rule.to.some(p => !contains(rule.from, p) || rule.from === p)) throw new Error('Read narrowing must target strict descendants');
+    }
+    for (const grant of [...scenario.initial_read_grants, ...scenario.narrower_read_candidates.flatMap(c => [c.from, ...c.to])]) {
+      if (!limits.allowed_read_roots.some(root => contains(root, grant))) throw new Error(`Read grant exceeds trusted limits: ${grant}`);
     }
   }
 }

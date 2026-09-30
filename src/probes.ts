@@ -18,7 +18,8 @@ export async function startEndpoint(): Promise<{ server: Server; port: number }>
   return { server, port: (server.address() as { port: number }).port };
 }
 export const closeEndpoint = (server: Server) => new Promise<void>(resolve => server.close(() => resolve()));
-export type Fixtures = { secret: string; outside: string; report: string; marker: string; port: number };
+export type ReadFixture = { path: string; alias: string; expected: 'allowed' | 'denied' };
+export type Fixtures = { secret: string; outside: string; report: string; marker: string; port: number; reads?: ReadFixture[] };
 
 export async function controlChecks(fixtures: Fixtures): Promise<Check[]> {
   const checks: Check[] = [];
@@ -29,6 +30,12 @@ export async function controlChecks(fixtures: Fixtures): Promise<Check[]> {
       if (file !== fixtures.secret) await writeFile(file, fixtures.marker);
       checks.push({ name: `control:${file}`, status: 'pass', detail: 'Fixture present; content verified' });
     } catch (e) { checks.push({ name: `control:${file}`, status: 'unknown', detail: String(e) }); }
+  }
+  for (const fixture of fixtures.reads ?? []) {
+    try {
+      if (await readFile(fixture.path, 'utf8') !== fixtures.marker) throw new Error('Read fixture changed');
+      checks.push({ name: `control:${fixture.alias}`, status: 'pass', detail: 'Fake read fixture present; content verified' });
+    } catch (e) { checks.push({ name: `control:${fixture.alias}`, status: 'unknown', detail: String(e) }); }
   }
   checks.push({ name: 'control:network_endpoint', status: await canConnect(fixtures.port) ? 'pass' : 'unknown', detail: 'Host loopback connectivity control' });
   return checks;
@@ -45,6 +52,15 @@ function blocked(name, action) {
 blocked('secret_unreadable',()=>fs.readFileSync(f.secret));
 blocked('outside_unwritable',()=>fs.writeFileSync(f.outside,'tampered'));
 blocked('report_unwritable',()=>fs.writeFileSync(f.report,'tampered'));
+for (const fixture of f.reads ?? []) {
+  const name = 'read_scope:' + fixture.alias;
+  try {
+    const content = fs.readFileSync(fixture.path, 'utf8');
+    checks.push({name,status:fixture.expected==='allowed'&&content===f.marker?'pass':'fail',detail:'Read allowed; expected '+fixture.expected});
+  } catch(e) {
+    checks.push({name,status:['EPERM','EACCES'].includes(e.code)?(fixture.expected==='denied'?'pass':'fail'):'unknown',detail:String(e.code)+'; expected '+fixture.expected});
+  }
+}
 const s = net.createConnection({host:'127.0.0.1',port:f.port});
 let done = false;
 function finish(status,detail) { if(done)return;done=true;s.destroy();checks.push({name:'network_blocked',status,detail});console.log(JSON.stringify(checks)); }
@@ -61,8 +77,8 @@ export async function boundaryChecks(fixtures: Fixtures, context: BackendContext
   try {
     if (execution.process.status !== 'completed' || execution.process.exit_code !== 0) throw new Error('Probe process did not complete');
     checks = JSON.parse(execution.process.stdout);
-    const expected = ['secret_unreadable', 'outside_unwritable', 'report_unwritable', 'network_blocked'];
-    if (!Array.isArray(checks) || checks.length !== 4 || checks.some((c, i) => c.name !== expected[i] || !['pass','fail','unknown'].includes(c.status))) throw new Error('Invalid probe response');
+    const expected = ['secret_unreadable', 'outside_unwritable', 'report_unwritable', ...fixtures.reads?.map(f => 'read_scope:' + f.alias) ?? [], 'network_blocked'];
+    if (!Array.isArray(checks) || checks.length !== expected.length || checks.some((c, i) => c.name !== expected[i] || !['pass','fail','unknown'].includes(c.status))) throw new Error('Invalid probe response');
   } catch (e) { checks = [{ name: 'probe_execution', status: 'unknown', detail: String(e) }]; }
   const after = await controlChecks(fixtures);
   return { checks: [...controls, ...checks, ...after], execution };

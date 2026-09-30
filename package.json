@@ -1,6 +1,6 @@
 {
   "name": "permsift",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Test tasks. Trim permissions. Evidence-driven sandbox policy experiments.",
   "type": "module",
   "private": true,
@@ -19,7 +19,10 @@
     "demo": "npm run build && node dist/cli.js tighten --config examples/demo/permsift.yaml --limits examples/limits.json",
     "examples:prepare": "node scripts/prepare-examples.mjs",
     "examples:verify": "npm run build && node scripts/verify-examples.mjs",
-    "self:verify": "npm run build && node dist/cli.js tighten --config examples/self-build.yaml --limits examples/limits.json"
+    "self:verify": "npm run build && node dist/cli.js tighten --config examples/self-build.yaml --limits examples/limits.json",
+    "demo:read": "npm run build && node dist/cli.js tighten --config examples/demo/read-permsift.yaml --limits examples/read-limits.json",
+    "third-party:prepare": "node scripts/prepare-clsx.mjs",
+    "third-party:verify": "npm run build && node scripts/verify-clsx.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.77",

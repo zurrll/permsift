@@ -1,7 +1,8 @@
 import { SandboxManager, type SandboxRuntimeConfig } from '@anthropic-ai/sandbox-runtime';
 import { homedir } from 'node:os';
 import path from 'node:path';
-import { access, realpath } from 'node:fs/promises';
+import { access, lstat, realpath } from 'node:fs/promises';
+import { readAliasSchema } from './config.js';
 import { noSymlinks, resolveAlias, within, type Roots } from './filesystem.js';
 import { runProcess, shellQuote } from './process.js';
 
@@ -12,7 +13,19 @@ export function requirePlatform() {
 export type BackendContext = {
   roots: Roots; experimentRoot: string; protectedPaths: string[];
   grants: string[]; invocationId: string; timeoutMs: number; maxOutputBytes: number; signal?: AbortSignal;
+  readGrants?: string[]; protectedWritePaths?: string[];
+  readKinds?: Record<string, 'file' | 'directory'>;
 };
+
+// SRT treats plain paths as recursive subpaths. A one-character glob compiles
+// to an anchored regex, granting this path only (including cwd directory access).
+export function exactReadPattern(file: string): string {
+  if (/[\[\]*?]/.test(file)) throw new Error('Read search requires paths without glob metacharacters');
+  const name = path.basename(file);
+  const index = name.search(/[A-Za-z0-9_]/);
+  if (index < 0) throw new Error(`Cannot create an exact read rule for ${file}`);
+  return path.join(path.dirname(file), name.slice(0, index) + '[' + name[index] + ']' + name.slice(index + 1));
+}
 
 export async function policyFor(context: BackendContext): Promise<SandboxRuntimeConfig> {
   const { roots } = context;
@@ -27,13 +40,24 @@ export async function policyFor(context: BackendContext): Promise<SandboxRuntime
   }
   const nodeRoot = path.dirname(path.dirname(await realpath(process.execPath)));
   if (nodeRoot === homedir()) throw new Error('Node installed directly under HOME is not supported; use an isolated Node installation.');
+  const read = context.readGrants === undefined ? Object.values(roots) : [exactReadPattern(roots.workspace), roots.cache, roots.tmp];
+  for (const alias of context.readGrants ?? []) {
+    readAliasSchema.parse(alias);
+    const resolved = resolveAlias(alias, roots);
+    if (/[\[\]*?]/.test(resolved)) throw new Error('Read search requires paths without glob metacharacters');
+    await noSymlinks(roots.workspace, resolved);
+    const stat = await lstat(resolved);
+    if (!stat.isFile() && !stat.isDirectory()) throw new Error(`Read grants must target existing regular files or directories: ${alias}`);
+    const kind = context.readKinds?.[alias] ?? (stat.isFile() ? 'file' : 'directory');
+    read.push(kind === 'file' ? exactReadPattern(resolved) : resolved);
+  }
   return {
     network: { allowedDomains: [], deniedDomains: [], allowLocalBinding: false, allowAllUnixSockets: false, allowUnixSockets: [] },
     filesystem: {
       denyRead: [...new Set(['/Users', homedir(), context.experimentRoot, ...context.protectedPaths])],
-      allowRead: [...Object.values(roots), ...(within(homedir(), nodeRoot) ? [nodeRoot] : [])],
+      allowRead: [...read, ...(within(homedir(), nodeRoot) ? [nodeRoot] : [])],
       allowWrite: write,
-      denyWrite: ['/tmp/claude', '/private/tmp/claude', ...context.protectedPaths],
+      denyWrite: ['/tmp/claude', '/private/tmp/claude', ...context.protectedPaths, ...context.protectedWritePaths ?? []],
     },
     allowPty: false, allowAppleEvents: false, enableWeakerNetworkIsolation: false, enableWeakerNestedSandbox: false,
   };
