@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { configSchema, limitsSchema } from './src/config.js';
 import { runExperiment, VERSION } from './src/engine.js';
+import { runRegression } from './src/regression.js';
 
 const help = `Permsift ${VERSION} — Test tasks. Trim permissions.
 
@@ -12,34 +13,57 @@ Usage:
   permsift doctor [--output NEW_DIRECTORY] [--json]
   permsift run --config FILE --limits TRUSTED_FILE [options]
   permsift tighten --config FILE --limits TRUSTED_FILE [options]
+  permsift check --config FILE --baseline REPORT_JSON --limits TRUSTED_FILE [options]
 
 Options:
   --output DIR       Evidence directory; must not already exist
   --keep-workspaces  Preserve disposable workspaces for inspection
   --json             Print the full report as JSON (progress goes to stderr)
+  --baseline FILE    Previously verified report.json (check only; keep its inputs/evidence)
   --help             Show help
   --version          Print version
 
 macOS only. No unsandboxed fallback. Project commands run offline.
 Limits must be explicitly supplied from a location you trust.
-Exit: 0 verified, 1 task/boundary failure, 2 invalid setup/incomplete, 130 interrupted.
+Exit: 0 verified/compatible, 1 failure/regression, 2 invalid setup/inconclusive, 130 interrupted.
 `;
 async function main() {
   const { positionals, values } = parseArgs({ allowPositionals: true, options: {
     config: { type: 'string' }, limits: { type: 'string' }, output: { type: 'string' },
     'keep-workspaces': { type: 'boolean' }, json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' }, version: { type: 'boolean' },
+    baseline: { type: 'string' },
   } });
   if (values.version) { console.log(VERSION); return; }
   if (values.help || positionals.length === 0) { console.log(help); return; }
   const mode = positionals[0];
-  if (positionals.length !== 1 || !['run', 'tighten', 'doctor'].includes(mode)) throw new Error('Expected doctor, run or tighten. See --help.');
+  if (positionals.length !== 1 || !['run', 'tighten', 'doctor', 'check'].includes(mode)) throw new Error('Expected doctor, run, tighten or check. See --help.');
   if (mode !== 'doctor' && (!values.config || !values.limits)) throw new Error('--config and --limits are required');
   if (mode === 'doctor' && (values.config || values.limits)) throw new Error('doctor uses built-in fixtures; use run to check a project configuration');
+  if (mode === 'check' && !values.baseline) throw new Error('check requires --baseline REPORT_JSON');
+  if (mode !== 'check' && values.baseline) throw new Error('--baseline is only supported by check');
   const controller = new AbortController();
   const interrupt = () => controller.abort();
   process.on('SIGINT', interrupt); process.on('SIGTERM', interrupt);
   let doctorProject: string | undefined;
   try {
+    if (mode === 'check') {
+      const report = await runRegression({ configPath: values.config!, limitsPath: values.limits!, baselinePath: values.baseline!, output: values.output, keepWorkspaces: values['keep-workspaces'], signal: controller.signal, onProgress: message => console.error(message) });
+      if (values.json) console.log(JSON.stringify(report, null, 2));
+      else {
+        console.log(`\n${report.status.toUpperCase()} · ${report.trials} executions · input changed: ${report.inputs.input_changed ?? 'unknown'}`);
+        for (const task of report.tasks) {
+          console.log(`  ${task.id}: ${task.status}${task.repair_stop ? ` · repair ${task.repair_stop}` : ''}`);
+          if (task.reason) console.log(`    ${task.reason}`);
+          if (task.suggestion) console.log(`    added reads: ${task.suggestion.added_read.join(', ') || '(none)'}; added writes: ${task.suggestion.added_write.join(', ') || '(none)'}`);
+        }
+        if (report.error) console.error(report.error);
+        console.log(`Report: ${path.join(report.output, 'report.md')}`);
+        if (report.status === 'compatible') console.log(`Policy: ${path.join(report.output, 'compatible.yaml')}`);
+        if (report.status === 'regressed' && report.tasks.every(t => t.status === 'compatible' || t.suggestion)) console.log(`Review suggestion: ${path.join(report.output, 'suggested.yaml')}`);
+      }
+      process.exitCode = controller.signal.aborted ? 130 : report.status === 'compatible' ? 0 : report.status === 'regressed' ? 1 : 2;
+      return;
+    }
     let input;
     if (mode === 'doctor') {
       doctorProject = await mkdtemp(path.join(os.tmpdir(), 'permsift-doctor-'));

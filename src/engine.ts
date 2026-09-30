@@ -13,7 +13,7 @@ import { directoryInventory, discover, type Discovery, type Observation } from '
 import { diagnose, type Diagnosis } from './diagnostics.js';
 import { readInventory, discoverReads, type ReadDiscovery, type ReadObservation } from './read-discovery.js';
 
-export const VERSION = '0.3.1';
+export const VERSION = '0.4.0';
 export type Trial = { id: string; scenario: string; phase: string; grants: string[]; read_grants: string[]; read_mode: 'explicit' | 'legacy'; verdict: TrialVerdict; duration_ms: number; evidence: string; reason?: string; diagnosis?: Diagnosis };
 type SearchSummary = { stop: string; steps: SearchStep[]; rounds: number; reuses: SearchReuse[] };
 export type Report = {
@@ -94,6 +94,7 @@ type ExperimentInput = { config: Config; limits: Limits; project: string; config
 export async function runExperiment(options: {
   mode: 'run' | 'tighten' | 'doctor'; configPath?: string; limitsPath?: string; input?: ExperimentInput;
   output?: string; keepWorkspaces?: boolean; signal?: AbortSignal; onProgress?: (message: string) => void;
+  frozenInput?: { path: string; hash: string; protectedPaths?: string[] };
 }): Promise<Report> {
   requirePlatform();
   const input = options.input ?? await loadConfiguration(options.configPath!, options.limitsPath!);
@@ -142,12 +143,13 @@ export async function runExperiment(options: {
   let candidateCount = 0;
   const observations = new Map<string, Observation[]>();
   const readObservations = new Map<string, ReadObservation[]>();
-  const prepared = new Map(config.scenarios.map(s => [s.id, [...new Set([...s.initial_write_grants, ...s.prepare_directories, ...s.narrower_candidates.flatMap(r => [r.from, ...r.to])])]]));
+  const prepared = new Map(config.scenarios.map(s => [s.id, [...new Set([...s.initial_write_grants, ...s.prepare_directories, ...s.narrower_candidates.flatMap(r => [r.from, ...r.to])])].sort()]));
   const hasTime = () => Date.now() < deadline && !options.signal?.aborted;
   try {
     await checkpoint();
     const inputRoot = path.join(scratch, 'input');
-    report.inputs.snapshot_hash = await snapshot(project, inputRoot, config.exclude, limits.max_snapshot_bytes);
+    report.inputs.snapshot_hash = await snapshot(options.frozenInput?.path ?? project, inputRoot, options.frozenInput ? [] : config.exclude, limits.max_snapshot_bytes);
+    if (options.frozenInput && report.inputs.snapshot_hash !== options.frozenInput.hash) throw new Error('Frozen regression input changed between comparisons');
     // Stable locations based only on frozen input, never on candidate grants or outputs.
     const readProbeDirectories = [''];
     for (const name of ['src', 'bin', 'test']) {
@@ -210,7 +212,7 @@ export async function runExperiment(options: {
             trialFixtures.reads.push({ path: target, alias, expected: readGrants.some(grant => contains(grant, alias)) ? 'allowed' : 'denied' });
           }
         }
-        const context: BackendContext = { roots, experimentRoot: scratch, protectedPaths: [project, input.configFile, input.limitsFile, canonicalOutput].filter(Boolean), protectedWritePaths: trialFixtures.reads?.map(f => path.dirname(f.path)), grants, readGrants: readMode === 'explicit' ? readGrants : undefined, invocationId: trialId, timeoutMs: Math.max(1, Math.min(scenario.timeout_seconds * 1000, deadline - Date.now())), maxOutputBytes: limits.max_output_bytes, signal: options.signal };
+        const context: BackendContext = { roots, experimentRoot: scratch, protectedPaths: [project, input.configFile, input.limitsFile, canonicalOutput, options.frozenInput?.path ?? '', ...options.frozenInput?.protectedPaths ?? []].filter(Boolean), protectedWritePaths: trialFixtures.reads?.map(f => path.dirname(f.path)), grants, readGrants: readMode === 'explicit' ? readGrants : undefined, invocationId: trialId, timeoutMs: Math.max(1, Math.min(scenario.timeout_seconds * 1000, deadline - Date.now())), maxOutputBytes: limits.max_output_bytes, signal: options.signal };
         if (readMode === 'explicit') {
           context.readKinds = {};
           for (const alias of readGrants) {

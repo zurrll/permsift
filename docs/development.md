@@ -31,6 +31,10 @@ npm run demo:read
 npm run third-party:prepare
 npm run third-party:verify
 
+# 代码、依赖及普通错误的规则回归（准备时联网）
+npm run regression:prepare
+npm run regression:verify
+
 # 构建 Permsift 自身，并启动产物验证 CLI 版本
 npm run self:verify
 ```
@@ -42,6 +46,7 @@ npm run self:verify
 | assertions.test.ts | 跳过测试、缺失测试、重复结果、JSON 类型、宿主读取限制、unknown |
 | search.test.ts | 实际收紧、必要授权、恢复失败、预算和非单调执行路径 |
 | scheduler.test.ts | 分组及拆分、延后复查、互相关联授权、相同失败线索、unknown、预算和不稳定恢复 |
+| regression.test.ts | 历史基线和证据导入、当前上限、任务/模式变化、边界分类与有限修复候选 |
 | discovery.test.ts | 跨基线观察合并、上限、链接、有界枚举和候选实际验证 |
 | diagnostics.test.ts | 拒绝来源与路径、普通错误和超时、归因限制 |
 | junit.test.ts | 嵌套报告、缺失/失败/跳过/重复用例、错误 XML、DTD 和深度上限 |
@@ -50,6 +55,7 @@ npm run self:verify
 | read.test.ts | 独立读上限、候选与恢复、完整枚举、精确后端规则和读探针对照 |
 | cli.test.ts | 帮助、版本、明确 limits、未知选项 |
 | integration/sandbox.test.ts | 真实读写拒绝、文件收缩、读写联合非单调行为、文件替换目录、自动发现、临时操作、JUnit、准备状态复测与重放、分组恢复、读写连续变化、旧产物、超时和中断 |
+| integration/regression.test.ts | 旧规则复验、读写补充、依赖解析、冻结输入、目录准备对照、多任务、预算、超时、中断和 CLI 退出码 |
 
 单元测试可以在 Linux 上运行。集成测试在其他平台显示 skip；这表示未验证该平台，不表示隔离通过。macOS 上出现后端异常时测试应失败，不能临时改成 mock 或无条件跳过。
 

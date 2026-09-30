@@ -183,3 +183,9 @@ report.md 的 Failure explanations 对每个失败或未知 trial 展示规则�
 doctor 使用临时内置项目，只输出检查报告，不导出可重放策略。
 
 推荐配置重放时会重新读取 project 指向的当前内容，并重新验证，不会自动恢复历史输入。默认清理完整输入快照，仅保留其哈希和运行证据；如需保存历史输入，使用 --keep-workspaces，报告 workspaces 下的 input/ 即冻结副本。保存该副本及工具锁文件后，可以将配置 project 指向它重新运行，并比较输入哈希和环境版本。
+
+## check 的历史基线与对照策略
+
+`check --config CURRENT --baseline REPORT_JSON --limits TRUSTED_FILE` 使用当前任务和历史最终授权。baseline 旁须保留 inputs.json 和 evidence/，并且该报告为 verified；当前 initial_*_grants 是失败时的宽对照，须覆盖旧规则并在可信上限内。
+
+check 共用整体时间预算、候选数量上限和 repetitions；修复候选先单次试验，再完整重复验证。JSON 为 kind=regression 的汇总，任务状态与子报告记录分开；兼容时生成 compatible.yaml，整份补充都通过验证时生成 suggested.yaml。详见 [回归检查](regression-checks.md)。

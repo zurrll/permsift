@@ -6,7 +6,7 @@ Test tasks. Trim permissions.
 
 Permsift 是一个面向项目任务的沙箱权限调试器。你提供可工作的初始策略和测试、构建等任务，它在干净副本中反复执行，尝试缩小读写权限，用任务断言和边界探针判断是否接受修改，并保留每一步的证据。
 
-当前为 **v0.3.1，macOS 本地 CLI**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。默认自动缩小目录写权限；声明 initial_read_grants 后，还能将项目读取范围缩到目录或具体文件。同级授权成组尝试，失败操作按轮复查，读写组合一起复验。系统运行时、缓存和临时目录读取仍固定开放，网络保持关闭；结果限定于本次环境和测试集合，不代表全局最小权限。
+当前为 **v0.4，macOS 本地 CLI**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。默认自动缩小目录写权限；声明 initial_read_grants 后，还能将项目读取范围缩到目录或具体文件。同级授权成组尝试，失败操作按轮复查，读写组合一起复验。改代码、改依赖后，可用 check 验证旧规则，失败时做宽规则对照并尝试补充建议。系统运行时、缓存和临时目录读取仍固定开放，网络保持关闭；结果限定于本次环境和测试集合，不代表全局最小权限。
 
 ## 快速开始
 
@@ -56,6 +56,12 @@ node dist/cli.js tighten \
 node dist/cli.js run \
   --config .permsift/my-experiment/recommended.yaml \
   --limits examples/limits.json
+
+# 改代码或准备好更新后的依赖后，验证旧规则
+node dist/cli.js check \
+  --config examples/demo/permsift.yaml \
+  --baseline .permsift/my-experiment/report.json \
+  --limits examples/limits.json
 ```
 
 也可以在构建后运行 `npm link`，使用 `permsift doctor` 等命令。项目尚未发布到 npm；package.json 的 private 标志用于避免意外发布。
@@ -64,9 +70,9 @@ node dist/cli.js run \
 
 | 退出码 | 含义 |
 | --- | --- |
-| 0 | 当前策略完成验证；仍需看 search_complete 判断搜索是否结束 |
-| 1 | 基线任务或边界断言失败 |
-| 2 | 配置错误、环境异常、超时或最终验证未完成 |
+| 0 | 当前策略完成验证；check 表示旧规则仍兼容，tighten 仍需看 search_complete |
+| 1 | 基线任务或边界断言失败，或 check 发现需要审阅的回归 |
+| 2 | 配置错误、环境异常、超时、最终验证未完成或 check 无法判断 |
 | 130 | 用户中断，已尽可能保存不完整报告 |
 
 ## 用于自己的项目
@@ -85,7 +91,8 @@ node dist/cli.js run \
 
 ## 交付内容
 
-- `doctor`、`run`、`tighten` 三个命令。
+- `doctor`、`run`、`tighten`、`check` 四个命令。
+- 规则回归检查：冻结当前输入、验证旧规则、宽规则对照和经过复验的补充建议。
 - 按任务独立的读写权限搜索、失败回退与恢复复测；读权限变化后重新搜索写权限。
 - 自动候选及来源记录，工作区、缓存和临时目录变化，统一准备后的基线复测。
 - 干净输入快照、独立缓存、输出刷新及进程组清理。
@@ -126,6 +133,14 @@ npm run examples:verify
 
 ## 验证代码
 
+改代码或改依赖后的检查详见 [回归检查](docs/regression-checks.md)。旧规则通过时只做配置要求的重复验证；权限变化、普通任务失败和未知结果分别记录。经过复验的补充建议保存为 suggested.yaml，便于审阅和重放。
+
+```sh
+# 安装演示的固定依赖，再验证代码、真实依赖和普通错误的变化
+npm run regression:prepare
+npm run regression:verify
+```
+
 ```sh
 npm test
 npm run test:integration
@@ -139,6 +154,7 @@ npm run check
 - [配置参考](docs/configuration.md)：全部字段、成功断言与 limits。
 - [架构与搜索流程](docs/architecture.md)：模块、候选修改、结果状态和证据。
 - [搜索效率](docs/search-efficiency.md)：成组撤销、延后复查和同项目次数对比。
+- [规则回归检查](docs/regression-checks.md)：代码与依赖变化后的验证、对照和建议采用。
 - [安全边界](docs/security.md)：固定权限、支持的工作负载和已知限制。
 - [开发与测试](docs/development.md)：修改代码、测试分层和 CI。
 - [实测记录](docs/validation.md)：本机实际运行结果与验收映射。

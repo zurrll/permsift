@@ -1,5 +1,46 @@
 # 实测记录
 
+## v0.4 — 2026-09-30
+
+环境为 macOS 15.8、arm64、Node.js 24.21.0、SRT 0.0.77。新增 check 的回归编排，复用真实执行器和原有边界探针。
+
+| 检查 | 本机实际结果 |
+| --- | --- |
+| npm test | 70 项通过，0 失败、0 跳过 |
+| npm run test:integration | 32 项真实沙箱测试通过，0 失败、0 跳过 |
+| npm run check / build | 成功 |
+| npm run regression:prepare | 按锁文件安装真实 clsx 2.1.1，禁用生命周期脚本 |
+| npm run regression:verify | 五种状态按预期分类，两份权限建议各独立重放 3 次，输入哈希相同 |
+| 历史 clsx v0.3.1 规则 | 导入旧报告成功；3 次试验 compatible，输入哈希与旧报告一致，未做完整收缩 |
+
+演示先对独立项目完成 27 个 trial 的初始收缩，得到 build.cjs、src/input.json 的读取与 dist 写权限，再修改该项目：
+
+| 当前改动 | 任务结论 | check 的实际 trial | 修复候选 | 建议 |
+| --- | --- | --- | --- | --- |
+| 无改动 | compatible | 3 | 0 | 旧规则继续使用 |
+| 不需要新增权限的代码改动 | compatible | 3 | 0 | 输入哈希变化，旧规则仍通过 |
+| 新增 src/format.json 读取 | permission_change | 10 | 1 | 增加该文件精确读取 |
+| 安装并使用 clsx 2.1.1 | permission_change | 14 | 3 | 增加项目 package.json、clsx/package.json 和 clsx/dist/clsx.js 的精确读取 |
+| 普通代码错误 | unresolved_failure | 2 | 0 | 旧规则和宽规则都失败，无修复导出 |
+
+10/14 个 trial 包含旧失败、宽对照、旧失败重新确认、宽规则恢复，以及候选和完整重复验证；独立建议重放的 3 次另计。新增读取、依赖两项共增加 6 个重放 trial，检查部分共 32 个 trial。演示总共 27 个初始收缩 + 32 个检查 + 6 个重放 trial。
+
+两种 compatible 检查本机单次分别约 0.64/0.66 秒，源码新增读取约 2.09 秒，新增依赖约 3.10 秒，普通错误约 0.47 秒。以上检查耗时不含独立重放，仅为单次观察，不是性能基准。实际次数也受日志线索、任务及配置影响。
+
+新增 13 项真实测试覆盖：旧规则复验、新文件读取、已安装依赖、普通任务失败、检查期间原项目变化、历史精确文件变成目录、候选预算、CLI JSON 与退出码、新写目录的统一准备复查、单纯预建目录引起的行为变化、多任务继续检查、超时和中断，以及历史读取包含预建输出目录时的兼容导入。旧 19 项真实沙箱测试也全部通过。
+
+历史 clsx 检查继续使用 v0.3.1 的 .permsift/clsx-read-aHNMNf/search/report.json，保留同一组读写权限。源码快照不包含 dist，但旧报告记录的目录准备会在每轮创建它；没有将合法的预建输出读取误判为缺失源输入，也没有把旧文件授权扩大成目录。
+
+本机交付证据：
+
+- .permsift/regression-upgrades-DnyNdu/summary.json，以及各检查、初始收缩和独立重放报告。
+- .permsift/delivery-v0.4-clsx-check-final/report.json、report.md 和 compatible.yaml。
+- .permsift/v0.4-unit-final.log 与 .permsift/v0.4-integration-final.log。
+
+报告与第三方安装副本留在忽略目录，未纳入 Git。使用步骤见 [回归检查](regression-checks.md)。CI 已加入依赖准备与回归演示，未把未运行的远端 CI 算作通过。此轮没有实现联网安装搜索或其他平台沙箱执行。
+
+---
+
 ## v0.3.1 — 2026-09-30
 
 环境仍为 macOS 15.8、arm64、Node.js 24.21.0、SRT 0.0.77。此轮只优化搜索调度，没有减少基线和最终重复次数、失败恢复或每次实际运行的前后边界检查。
