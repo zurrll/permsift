@@ -6,9 +6,6 @@ scenarios:
     command: [npm, test]
     timeout_seconds: 30
     initial_write_grants: ['@workspace', '@cache']
-    narrower_candidates:
-      - from: '@workspace'
-        to: ['@workspace/reports']
     assertions:
       - type: test_results
         path: '@workspace/reports/tests.json'
@@ -17,9 +14,6 @@ scenarios:
     command: [npm, run, build]
     timeout_seconds: 30
     initial_write_grants: ['@workspace', '@cache']
-    narrower_candidates:
-      - from: '@workspace'
-        to: ['@workspace/dist']
     assertions:
       - type: file_contains
         path: '@workspace/dist/index.js'

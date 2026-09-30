@@ -12,7 +12,7 @@ async function fixture(t: TestContext, script: string, writes = ['@workspace', '
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   const project = path.join(root, 'project'); await fs.mkdir(project);
   await fs.writeFile(path.join(project, 'task.cjs'), script);
-  await fs.writeFile(path.join(root, 'tasks.json'), JSON.stringify({ schema_version: 1, project: './project', scenarios: [{ id: 'build', command: [process.execPath, 'task.cjs'], timeout_seconds: timeout, initial_write_grants: writes, narrower_candidates: [{ from: '@workspace', to: ['@workspace/dist'] }], assertions: [{ type: 'file_contains', path: '@workspace/dist/out', text: 'fresh' }] }] }));
+  await fs.writeFile(path.join(root, 'tasks.json'), JSON.stringify({ schema_version: 1, project: './project', scenarios: [{ id: 'build', command: [process.execPath, 'task.cjs'], timeout_seconds: timeout, auto_discover: false, initial_write_grants: writes, narrower_candidates: [{ from: '@workspace', to: ['@workspace/dist'] }], assertions: [{ type: 'file_contains', path: '@workspace/dist/out', text: 'fresh' }] }] }));
   await fs.writeFile(path.join(root, 'limits.json'), JSON.stringify({ schema_version: 1, allowed_write_roots: ['@workspace', '@cache'], repetitions: 1, budget_seconds: 120 }));
   return { root, project, configPath: path.join(root, 'tasks.json'), limitsPath: path.join(root, 'limits.json') };
 }
@@ -89,4 +89,67 @@ test('CLI interruption preserves an incomplete report and exits 130', macOnly, a
   assert.equal(code, 130);
   const report = JSON.parse(await fs.readFile(path.join(output, 'report.json'), 'utf8'));
   assert.equal(report.status, 'incomplete'); assert.match(report.error, /interrupted/);
+});
+test('automatic search discovers workspace/cache/temporary scopes without manual hints and explains recovery', macOnly, async t => {
+  const script = `${writer}const p=require('node:path');const cache=p.join(process.env.XDG_CACHE_HOME,'compiler');const tmp=p.join(require('node:os').tmpdir(),'jobs');for(const d of [cache,tmp])fs.mkdirSync(d,{recursive:true});fs.writeFileSync(p.join(cache,'state'),'compiled');fs.writeFileSync(p.join(tmp,'transient'),'work');fs.unlinkSync(p.join(tmp,'transient'));`;
+  const f = await fixture(t, script, ['@workspace', '@cache', '@tmp']);
+  const config = JSON.parse(await fs.readFile(f.configPath, 'utf8')); config.scenarios[0].auto_discover = true; delete config.scenarios[0].narrower_candidates;
+  await fs.writeFile(f.configPath, JSON.stringify(config));
+  const limits = JSON.parse(await fs.readFile(f.limitsPath, 'utf8')); limits.allowed_write_roots.push('@tmp');
+  await fs.writeFile(f.limitsPath, JSON.stringify(limits));
+  const report = await runExperiment({ ...f, mode: 'tighten', output: path.join(f.root, 'result') });
+  assert.equal(report.status, 'verified', JSON.stringify(report.trials.at(-1)?.diagnosis)); assert.equal(report.search_complete, true);
+  assert.deepEqual(report.policies.build, ['@cache/compiler', '@tmp/jobs', '@workspace/dist']);
+  assert.ok(report.trials.some(t => t.phase === 'discovery_baseline'));
+  assert.ok(report.searches.build.steps.some(s => s.source === 'directory_structure' && s.decision === 'accepted'));
+  const rejected = report.searches.build.steps.find(s => s.operation === 'remove @tmp/jobs')!;
+  const trial = report.trials.find(t => t.id === rejected.trial_id)!;
+  assert.equal(trial.diagnosis?.kind, 'permission_denial_observed');
+  assert.ok(trial.diagnosis?.denials.some(d => d.path === '@tmp/jobs/transient'));
+  assert.equal(report.trials.find(t => t.id === rejected.recovery_id)?.verdict, 'pass');
+  const markdown = await fs.readFile(path.join(report.output, 'report.md'), 'utf8');
+  assert.match(markdown, /Restored-policy recovery: \*\*pass\*\*/); assert.match(markdown, /@tmp\/jobs\/transient/);
+  const baseline = JSON.parse(await fs.readFile(path.join(report.output, report.trials[0].evidence), 'utf8'));
+  assert.deepEqual(baseline.file_changes_by_root.tmp.added, []);
+  assert.ok(baseline.discovery_observation.directories.includes('@tmp/jobs'));
+  const replay = await runExperiment({ mode: 'run', configPath: path.join(report.output, 'recommended.yaml'), limitsPath: f.limitsPath, output: path.join(f.root, 'replay') });
+  assert.equal(replay.status, 'verified');
+});
+test('real Node JUnit reporter is validated, stale XML is removed, and skipped tests fail', macOnly, async t => {
+  const f = await fixture(t, writer);
+  await fs.writeFile(path.join(f.project, 'checks.test.cjs'), "const test=require('node:test');const assert=require('node:assert/strict');test('real case',()=>assert.equal(2+2,4));");
+  const config = JSON.parse(await fs.readFile(f.configPath, 'utf8'));
+  config.scenarios[0] = { id: 'test', command: [process.execPath, '--test', '--test-reporter=junit', '--test-reporter-destination=reports/junit.xml', 'checks.test.cjs'], initial_write_grants: ['@workspace'], assertions: [{ type: 'junit', path: '@workspace/reports/junit.xml', expected_tests: ['real case'] }] };
+  await fs.writeFile(f.configPath, JSON.stringify(config));
+  const report = await runExperiment({ ...f, mode: 'tighten', output: path.join(f.root, 'result') });
+  assert.equal(report.status, 'verified', report.error); assert.deepEqual(report.policies.test, ['@workspace/reports']);
+  await fs.writeFile(path.join(f.project, 'checks.test.cjs'), "require('node:test')('real case',{skip:true},()=>{});");
+  const skipped = await runExperiment({ ...f, mode: 'run', output: path.join(f.root, 'skipped') });
+  assert.equal(skipped.status, 'failed'); assert.equal(skipped.trials[0].diagnosis?.kind, 'assertion_failure');
+  await fs.mkdir(path.join(f.project, 'reports')); await fs.writeFile(path.join(f.project, 'reports/junit.xml'), '<testsuite><testcase name="real case"/></testsuite>');
+  config.exclude = ['.git', '.permsift']; config.scenarios[0].command = [process.execPath, '-e', 'process.exit(0)'];
+  await fs.writeFile(f.configPath, JSON.stringify(config));
+  const stale = await runExperiment({ ...f, mode: 'run', output: path.join(f.root, 'stale') });
+  assert.equal(stale.status, 'failed'); assert.ok(stale.trials[0].diagnosis?.failed_assertions.length);
+});
+test('changed automatic preparation must pass a new baseline before policy search', macOnly, async t => {
+  const f = await fixture(t, `${writer}if(fs.existsSync('scratch'))process.exit(7);fs.mkdirSync('scratch');`);
+  const config = JSON.parse(await fs.readFile(f.configPath, 'utf8')); config.scenarios[0].auto_discover = true; config.scenarios[0].narrower_candidates = [];
+  await fs.writeFile(f.configPath, JSON.stringify(config));
+  const report = await runExperiment({ ...f, mode: 'tighten', output: path.join(f.root, 'result') });
+  assert.equal(report.status, 'failed'); assert.equal(report.baseline_verified, false);
+  assert.ok(report.trials.some(t => t.phase === 'discovery_baseline' && t.verdict === 'fail'));
+  assert.equal(Object.keys(report.searches).length, 0);
+});
+test('export preserves automatic preparation even when its directory no longer needs a write grant', macOnly, async t => {
+  const script = `${writer}const p=require('node:path');const cache=p.join(process.env.XDG_CACHE_HOME,'optional');if(!fs.existsSync(cache))fs.mkdirSync(cache);`;
+  const f = await fixture(t, script);
+  const config = JSON.parse(await fs.readFile(f.configPath, 'utf8')); config.scenarios[0].auto_discover = true; config.scenarios[0].narrower_candidates = [];
+  await fs.writeFile(f.configPath, JSON.stringify(config));
+  const report = await runExperiment({ ...f, mode: 'tighten', output: path.join(f.root, 'result') });
+  assert.equal(report.status, 'verified'); assert.deepEqual(report.policies.build, ['@workspace/dist']);
+  const exported = await fs.readFile(path.join(report.output, 'recommended.yaml'), 'utf8');
+  assert.match(exported, /@cache\/optional/);
+  const replay = await runExperiment({ mode: 'run', configPath: path.join(report.output, 'recommended.yaml'), limitsPath: f.limitsPath, output: path.join(f.root, 'replay') });
+  assert.equal(replay.status, 'verified', JSON.stringify(replay.trials.at(-1)?.diagnosis));
 });

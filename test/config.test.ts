@@ -48,3 +48,12 @@ test('YAML duplicate keys are rejected before execution', async t => {
   await fs.writeFile(path.join(dir, 'limits.json'), JSON.stringify(limits()));
   await assert.rejects(loadConfiguration(path.join(dir, 'config.yaml'), path.join(dir, 'limits.json')), /unique|Duplicate|Map keys/i);
 });
+test('discovery defaults, budget bounds and preparation directories obey the trusted ceiling', () => {
+  assert.equal(config().scenarios[0].auto_discover, true);
+  assert.equal(limits().max_discovery_depth, 3);
+  assert.throws(() => limitsSchema.parse({ ...limits(), max_discovery_dirs: 0 }));
+  assert.throws(() => limitsSchema.parse({ ...limits(), max_discovery_depth: 9 }));
+  const c = config(); c.scenarios[0].prepare_directories = ['@cache/private'];
+  assert.throws(() => validatePolicy(c, limits()), /exceeds/);
+  assert.throws(() => configSchema.parse({ schema_version: 1, scenarios: [{ ...scenario, assertions: [{ type: 'junit', path: '@workspace/reports/out.xml', expected_tests: ['a', 'a'] }] }] }));
+});

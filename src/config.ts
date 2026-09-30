@@ -6,17 +6,21 @@ import { z } from 'zod';
 export const aliasSchema = z.string().regex(/^@(workspace|cache|tmp)(\/[A-Za-z0-9_.-]+)*$/).refine(
   value => !value.split('/').some(part => part === '.' || part === '..'), 'Dot path components are forbidden');
 const workspaceFile = aliasSchema.refine(p => p.startsWith('@workspace/'), 'Must be a file under @workspace');
+const expectedTests = z.array(z.string().min(1)).min(1).max(10_000).refine(names => new Set(names).size === names.length, 'Expected test names must be unique');
 const assertionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('file_exists'), path: workspaceFile }).strict(),
   z.object({ type: z.literal('file_contains'), path: workspaceFile, text: z.string().min(1) }).strict(),
   z.object({ type: z.literal('json_equals'), path: workspaceFile, pointer: z.string().regex(/^(\/[^/]*)*$/), value: z.unknown().refine(v => v !== undefined, 'value is required') }).strict(),
-  z.object({ type: z.literal('test_results'), path: workspaceFile, expected_tests: z.array(z.string().min(1)).min(1) }).strict(),
+  z.object({ type: z.literal('test_results'), path: workspaceFile, expected_tests: expectedTests }).strict(),
+  z.object({ type: z.literal('junit'), path: workspaceFile, expected_tests: expectedTests }).strict(),
 ]);
 export const scenarioSchema = z.object({
   id: z.string().regex(/^[a-z][a-z0-9-]{0,63}$/),
   command: z.array(z.string().min(1).refine(s => !s.includes('\0'))).min(1),
   timeout_seconds: z.number().int().min(1).max(600).default(120),
   initial_write_grants: z.array(aliasSchema).max(32),
+  auto_discover: z.boolean().default(true),
+  prepare_directories: z.array(aliasSchema).max(2048).default([]),
   narrower_candidates: z.array(z.object({ from: aliasSchema, to: z.array(aliasSchema).min(1).max(32) }).strict()).max(32).default([]),
   assertions: z.array(assertionSchema).min(1).max(64),
 }).strict();
@@ -34,6 +38,8 @@ export const limitsSchema = z.object({
   repetitions: z.number().int().min(1).max(10).default(3),
   max_output_bytes: z.number().int().min(1024).max(10_000_000).default(262144),
   max_snapshot_bytes: z.number().int().min(1024).max(10_000_000_000).default(500_000_000),
+  max_discovery_depth: z.number().int().min(1).max(8).default(3),
+  max_discovery_dirs: z.number().int().min(1).max(512).default(64),
 }).strict();
 export type Config = z.infer<typeof configSchema>;
 export type Scenario = z.infer<typeof scenarioSchema>;
@@ -50,7 +56,7 @@ export function validatePolicy(config: Config, limits: Limits): void {
     for (const rule of scenario.narrower_candidates) {
       if (rule.to.some(p => !contains(rule.from, p) || rule.from === p)) throw new Error('Narrowing must target strict descendants');
     }
-    for (const grant of [...scenario.initial_write_grants, ...scenario.narrower_candidates.flatMap(c => [c.from, ...c.to])]) {
+    for (const grant of [...scenario.initial_write_grants, ...scenario.prepare_directories, ...scenario.narrower_candidates.flatMap(c => [c.from, ...c.to])]) {
       if (!limits.allowed_write_roots.some(root => contains(root, grant))) throw new Error(`Grant exceeds trusted limits: ${grant}`);
     }
   }

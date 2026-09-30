@@ -1,34 +1,37 @@
 import { contains, type Scenario } from './config.js';
 
-export type Candidate = { grants: string[]; operation: string; semantic_change: boolean };
-export function candidates(scenario: Scenario, current: string[]): Candidate[] {
+export type Rule = { from: string; to: string[]; source: 'manual' | 'file_changes' | 'directory_structure' | 'denial_hint'; evidence_ids: string[] };
+export type Candidate = { grants: string[]; operation: string; semantic_change: boolean; source: Rule['source'] | 'removal'; evidence_ids: string[] };
+export function candidates(scenario: Scenario, current: string[], automatic: Rule[] = []): Candidate[] {
   const result: Candidate[] = [];
-  for (const rule of scenario.narrower_candidates) {
+  for (const rule of [...scenario.narrower_candidates.map(r => ({ ...r, source: 'manual' as const, evidence_ids: [] as string[] })), ...automatic]) {
     if (current.includes(rule.from)) result.push({
       grants: [...new Set([...current.filter(p => p !== rule.from), ...rule.to])].sort(),
       operation: `narrow ${rule.from} -> ${rule.to.join(', ')}`,
       semantic_change: !current.some(p => p !== rule.from && contains(p, rule.from)),
+      source: rule.source, evidence_ids: rule.evidence_ids,
     });
   }
-  for (const grant of current) result.push({ grants: current.filter(p => p !== grant), operation: `remove ${grant}`, semantic_change: !current.some(p => p !== grant && contains(p, grant)) });
-  return result;
+  for (const grant of current) result.push({ grants: current.filter(p => p !== grant), operation: `remove ${grant}`, semantic_change: !current.some(p => p !== grant && contains(p, grant)), source: 'removal', evidence_ids: [] });
+  return result.filter((r, i) => r.grants.length <= 32 && result.findIndex(other => JSON.stringify([...other.grants].sort()) === JSON.stringify([...r.grants].sort())) === i);
 }
 export type TrialVerdict = 'pass' | 'fail' | 'unknown';
-export type SearchStep = { operation: string; before: string[]; after: string[]; semantic_change: boolean; decision: 'accepted' | 'rejected' | 'unknown'; trial_id: string; recovery_id?: string };
+export type SearchStep = { operation: string; before: string[]; after: string[]; semantic_change: boolean; source: Candidate['source']; evidence_ids: string[]; decision: 'accepted' | 'rejected' | 'unknown'; trial_id: string; recovery_id?: string };
 export async function searchPolicy(scenario: Scenario, options: {
   evaluate: (grants: string[], phase: string) => Promise<{ verdict: TrialVerdict; id: string }>;
   canContinue: () => boolean;
   onStep?: (step: SearchStep) => Promise<void>;
+  automatic?: Rule[];
 }) {
   let current = [...scenario.initial_write_grants].sort();
   const steps: SearchStep[] = [];
   let stop: 'exhausted' | 'budget' | 'unstable' = 'exhausted';
   search: while (true) {
     let changed = false;
-    for (const candidate of candidates(scenario, current)) {
+    for (const candidate of candidates(scenario, current, options.automatic)) {
       if (!options.canContinue()) { stop = 'budget'; break search; }
       const result = await options.evaluate(candidate.grants, 'candidate');
-      const step: SearchStep = { operation: candidate.operation, before: current, after: candidate.grants, semantic_change: candidate.semantic_change, decision: result.verdict === 'pass' ? 'accepted' : result.verdict === 'fail' ? 'rejected' : 'unknown', trial_id: result.id };
+      const step: SearchStep = { operation: candidate.operation, before: current, after: candidate.grants, semantic_change: candidate.semantic_change, source: candidate.source, evidence_ids: candidate.evidence_ids, decision: result.verdict === 'pass' ? 'accepted' : result.verdict === 'fail' ? 'rejected' : 'unknown', trial_id: result.id };
       if (result.verdict !== 'pass') {
         const recovery = await options.evaluate(current, 'recovery');
         step.recovery_id = recovery.id;

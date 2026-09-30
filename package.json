@@ -1,6 +1,6 @@
 {
   "name": "permsift",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Test tasks. Trim permissions. Evidence-driven sandbox policy experiments.",
   "type": "module",
   "private": true,
@@ -16,10 +16,14 @@
     "test": "npm run build && node --test --test-concurrency=1 dist/test/*.test.js",
     "test:integration": "npm run build && node --test --test-concurrency=1 dist/test/integration/*.test.js",
     "check": "tsc --noEmit",
-    "demo": "npm run build && node dist/cli.js tighten --config examples/demo/permsift.yaml --limits examples/limits.json"
+    "demo": "npm run build && node dist/cli.js tighten --config examples/demo/permsift.yaml --limits examples/limits.json",
+    "examples:prepare": "node scripts/prepare-examples.mjs",
+    "examples:verify": "npm run build && node scripts/verify-examples.mjs",
+    "self:verify": "npm run build && node dist/cli.js tighten --config examples/self-build.yaml --limits examples/limits.json"
   },
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.77",
+    "fast-xml-parser": "5.11.2",
     "yaml": "2.9.1",
     "zod": "3.25.76"
   },

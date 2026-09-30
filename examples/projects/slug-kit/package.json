@@ -1,0 +1,6 @@
+{
+  "name": "permsift-example-slug-kit",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test --test-reporter=junit --test-reporter-destination=reports/junit.xml test/slug.test.mjs" }
+}

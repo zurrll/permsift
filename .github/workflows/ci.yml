@@ -30,6 +30,9 @@ jobs:
       - run: npm test
       - run: npm run test:integration
       - run: npm run demo
+      - run: npm run examples:prepare
+      - run: npm run examples:verify
+      - run: npm run self:verify
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,0 +1,10 @@
+schema_version: 1
+project: .
+scenarios:
+  - id: test
+    command: [node, --test, --test-reporter=junit, --test-reporter-destination=reports/junit.xml, test/slug.test.mjs]
+    initial_write_grants: ['@workspace', '@cache']
+    assertions:
+      - type: junit
+        path: '@workspace/reports/junit.xml'
+        expected_tests: [normalizes accents, collapses punctuation, handles empty input]

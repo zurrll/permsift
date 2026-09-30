@@ -54,6 +54,9 @@ async function main() {
       console.log(`\n${report.status.toUpperCase()} · ${report.trials.length} executions`);
       for (const [id, grants] of Object.entries(report.policies)) console.log(`  ${id}: ${grants.join(', ') || '(no variable write grants)'}`);
       if (report.error) console.error(report.error);
+      const unsuccessful = report.trials.filter(t => t.verdict !== 'pass');
+      if (unsuccessful.length) console.log(`  ${unsuccessful.length} failed/unknown trials explained in the report (with recovery evidence when available).`);
+      if (!report.baseline_verified && unsuccessful[0]?.diagnosis) console.error(unsuccessful[0].diagnosis.summary);
       console.log(`Report: ${path.join(report.output, 'report.md')}`);
       if (mode !== 'doctor') console.log(`Policy: ${path.join(report.output, report.status === 'verified' ? 'recommended.yaml' : 'unverified-candidate.yaml')}`);
     }

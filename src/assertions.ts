@@ -4,6 +4,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import type { Assertion } from './config.js';
 import { noSymlinks, resolveAlias, type Roots } from './filesystem.js';
+import { checkJunit } from './junit.js';
 
 export type Check = { name: string; status: 'pass' | 'fail' | 'unknown'; detail: string };
 export async function safeRead(file: string, root: string) {
@@ -23,6 +24,7 @@ export async function checkAssertions(assertions: Assertion[], roots: Roots): Pr
     try {
       const content = await safeRead(resolveAlias(assertion.path, roots), roots.workspace);
       let passed = true;
+      let detail: string | undefined;
       if (assertion.type === 'file_contains') passed = content.includes(assertion.text);
       if (assertion.type === 'json_equals') {
         let value: unknown = JSON.parse(content);
@@ -36,7 +38,11 @@ export async function checkAssertions(assertions: Assertion[], roots: Roots): Pr
         const names = tests.map(t => t.name);
         passed = new Set(names).size === names.length && tests.every(t => t.status === 'passed') && assertion.expected_tests.every(name => names.includes(name));
       }
-      result.push({ name, status: passed ? 'pass' : 'fail', detail: passed ? 'Assertion satisfied' : 'Expected content or test outcomes not satisfied' });
+      if (assertion.type === 'junit') {
+        const junit = checkJunit(content, assertion.expected_tests);
+        passed = junit.passed; detail = junit.detail;
+      }
+      result.push({ name, status: passed ? 'pass' : 'fail', detail: detail ?? (passed ? 'Assertion satisfied' : 'Expected content or test outcomes not satisfied') });
     } catch (e) { result.push({ name, status: 'fail', detail: String(e) }); }
   }
   return result;

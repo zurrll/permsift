@@ -30,3 +30,9 @@ test('removing a covered grant is not described as an actual scope reduction', (
   const rows = candidates(scenario(), ['@workspace', '@workspace/dist']);
   assert.equal(rows.find(r => r.operation === 'remove @workspace/dist')?.semantic_change, false);
 });
+test('replacement candidates cannot exceed the exported policy grant limit', () => {
+  const s = scenario();
+  s.narrower_candidates = [{ from: '@workspace', to: Array.from({ length: 32 }, (_, i) => `@workspace/output-${i}`) }];
+  assert.ok(candidates(s, ['@workspace', '@cache']).every(c => c.grants.length <= 32));
+  assert.ok(candidates(s, ['@workspace']).some(c => c.grants.length === 32));
+});

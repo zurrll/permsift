@@ -1,0 +1,7 @@
+{
+  "name": "permsift-example-cached-build",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "node scripts/build.mjs" },
+  "devDependencies": { "typescript": "7.0.2" }
+}

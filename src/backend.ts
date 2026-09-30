@@ -7,7 +7,7 @@ import { runProcess, shellQuote } from './process.js';
 
 export const BACKEND_VERSION = '0.0.77';
 export function requirePlatform() {
-  if (process.platform !== 'darwin') throw new Error('Permsift v0.1 requires macOS. No unsandboxed fallback is available.');
+  if (process.platform !== 'darwin') throw new Error('Permsift requires macOS. No unsandboxed fallback is available.');
 }
 export type BackendContext = {
   roots: Roots; experimentRoot: string; protectedPaths: string[];
@@ -55,13 +55,15 @@ export async function executeSandbox(command: string[], context: BackendContext)
   requirePlatform();
   if (busy) throw new Error('Concurrent backend execution is not supported');
   busy = true;
-  const stripped = Object.entries(process.env).filter(([key]) => /^(JAVA_TOOL_OPTIONS|JDK_JAVA_OPTIONS|_JAVA_OPTIONS|GIT_CONFIG|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY|http_proxy|https_proxy|all_proxy|no_proxy)/.test(key));
+  const stripped = Object.entries(process.env).filter(([key]) => /^(JAVA_TOOL_OPTIONS|JDK_JAVA_OPTIONS|_JAVA_OPTIONS|GIT_CONFIG|CLAUDE_CODE_TMPDIR|CLAUDE_TMPDIR|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY|http_proxy|https_proxy|all_proxy|no_proxy)/.test(key));
   try {
     const policy = await policyFor(context);
     // SRT composes certain settings into its command string from the host environment.
     for (const [key] of stripped) delete process.env[key];
     await SandboxManager.initialize(policy, undefined, true);
-    const text = command.map(shellQuote).join(' ');
+    // SRT adds TMPDIR=/tmp/claude inside its wrapper. Override it inside the
+    // sandbox too, using argv quoting; the shared default directory stays denied.
+    const text = ['/usr/bin/env', `TMPDIR=${context.roots.tmp}/`, ...command].map(shellQuote).join(' ');
     const wrapped = await SandboxManager.wrapWithSandboxArgv(text, '/bin/bash', undefined, context.signal, context.roots.workspace, { commandId: context.invocationId });
     const effective = { read: SandboxManager.getFsReadConfig(), write: SandboxManager.getFsWriteConfig(), network: SandboxManager.getNetworkRestrictionConfig() };
     // wrapped.env is the entire host environment on POSIX. Intentionally do not inherit it.

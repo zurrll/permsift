@@ -9,14 +9,17 @@ import { snapshot, hash, within, noSymlinks, resolveAlias, manifest, diffFiles, 
 import { checkAssertions, type Check } from './assertions.js';
 import { startEndpoint, closeEndpoint, boundaryChecks, type Fixtures } from './probes.js';
 import { searchPolicy, type SearchStep, type TrialVerdict } from './search.js';
+import { directoryInventory, discover, type Discovery, type Observation } from './discovery.js';
+import { diagnose, type Diagnosis } from './diagnostics.js';
 
-export const VERSION = '0.1.0';
-export type Trial = { id: string; scenario: string; phase: string; grants: string[]; verdict: TrialVerdict; duration_ms: number; evidence: string; reason?: string };
+export const VERSION = '0.2.0';
+export type Trial = { id: string; scenario: string; phase: string; grants: string[]; verdict: TrialVerdict; duration_ms: number; evidence: string; reason?: string; diagnosis?: Diagnosis };
 export type Report = {
   schema_version: 1; id: string; mode: string; started_at: string; finished_at?: string;
   status: 'running' | 'verified' | 'failed' | 'incomplete';
   environment: Record<string, string>; inputs: Record<string, unknown>; scope: string[];
   trials: Trial[]; searches: Record<string, { stop: string; steps: SearchStep[] }>;
+  discovery: Record<string, Discovery>;
   policies: Record<string, string[]>; baseline_verified: boolean; final_verified: boolean;
   search_complete: boolean; output: string; workspaces?: string; error?: string;
 };
@@ -25,7 +28,7 @@ export function classifyTrial(taskStatus: string, exitCode: number | null, asser
   if (taskStatus !== 'completed' || boundaries.some(c => c.status === 'unknown') || assertions.some(c => c.status === 'unknown')) return 'unknown';
   return exitCode === 0 && assertions.every(c => c.status === 'pass') && boundaries.every(c => c.status === 'pass') ? 'pass' : 'fail';
 }
-const markdownEscape = (s: string) => s.replaceAll('|', '\\|').replaceAll('\n', ' ');
+const markdownEscape = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replace(/[\u0000-\u001f]/g, ' ').replace(/[|`\[\]]/g, '\\$&');
 export function markdownReport(report: Report) {
   return [
     '# Permsift experiment', '',
@@ -37,9 +40,33 @@ export function markdownReport(report: Report) {
     '## Scope and limitations', '', ...report.scope.map(s => `- ${s}`), '',
     '## Current candidate policies', '',
     ...Object.entries(report.policies).map(([id, grants]) => `- **${id}**: ${grants.length ? grants.join(', ') : '(no variable write grants)'}`), '',
+    '## Candidate discovery', '',
+    ...Object.entries(report.discovery).flatMap(([id, d]) => [
+      `- **${id}**: ${d.enabled ? `${d.rules.length} automatic rules; inventory truncated: ${d.truncated}` : 'disabled (manual rules only)'}`,
+      `  - Prepared directories: ${d.prepared_directories.join(', ') || '(none added)'}`,
+      ...d.limitations.map(s => `  - ${s}`),
+    ]), '',
     '## Policy changes', '',
-    '| Task | Operation | Decision | Actual scope change | Evidence |', '| --- | --- | --- | --- | --- |',
-    ...Object.entries(report.searches).flatMap(([id, search]) => search.steps.map(s => `| ${id} | ${markdownEscape(s.operation)} | ${s.decision} | ${s.semantic_change ? 'yes' : 'no (overlapping grants)'} | [trial](evidence/${s.trial_id}.json)${s.recovery_id ? ` / [recovery](evidence/${s.recovery_id}.json)` : ''} |`)), '',
+    '| Task | Operation | Source | Decision | Actual scope change | Evidence |', '| --- | --- | --- | --- | --- | --- |',
+    ...Object.entries(report.searches).flatMap(([id, search]) => search.steps.map(s => `| ${id} | ${markdownEscape(s.operation)} | ${s.source} | ${s.decision} | ${s.semantic_change ? 'yes' : 'no (overlapping grants)'} | [trial](evidence/${s.trial_id}.json)${s.recovery_id ? ` / [recovery](evidence/${s.recovery_id}.json)` : ''} |`)), '',
+    '## Failure explanations', '',
+    ...report.trials.filter(t => t.verdict !== 'pass').flatMap(t => {
+      const step = Object.values(report.searches).flatMap(s => s.steps).find(s => s.trial_id === t.id);
+      const recovery = step?.recovery_id ? report.trials.find(r => r.id === step.recovery_id) : undefined;
+      const d = t.diagnosis;
+      return [
+        `### ${t.scenario} / ${t.phase} / ${t.id}`, '',
+        `- Verdict: **${t.verdict}**; diagnosis: ${d?.kind ?? 'unavailable'}`,
+        ...(step ? [`- Rule change: ${step.before.join(', ') || '(none)'} → ${step.after.join(', ') || '(none)'}`] : []),
+        `- ${markdownEscape(d?.summary ?? t.reason ?? 'No explanation available')}`,
+        ...d?.denials.map(e => `- Denial (${e.source}): ${markdownEscape(e.operation)} ${markdownEscape(e.path ?? '(path not captured)')}; ${markdownEscape(e.detail)}`) ?? [],
+        ...d?.failed_assertions.map(c => `- Assertion ${markdownEscape(c.name)}: ${c.status}; ${markdownEscape(c.detail)}`) ?? [],
+        ...d?.boundary_issues.map(c => `- Boundary ${markdownEscape(c.name)}: ${c.status}; ${markdownEscape(c.detail)}`) ?? [],
+        ...(d?.stderr_excerpt ? [`- Task stderr excerpt: ${markdownEscape(d.stderr_excerpt)}`] : []),
+        ...(recovery ? [`- Restored-policy recovery: **${recovery.verdict}** ([evidence](${recovery.evidence})). ${recovery.verdict === 'pass' ? 'The restored policy worked in this comparison; this is scenario-specific evidence.' : 'Recovery did not pass, so the policy comparison is inconclusive.'}`] : []),
+        `- [Full trial evidence](${t.evidence})`, `- ${d?.log_limitations ?? 'Denial logs are incomplete.'}`, '',
+      ];
+    }),
     '## Executions', '', '| Task | Phase | Verdict | Duration (ms) | Evidence |', '| --- | --- | --- | --- | --- |',
     ...report.trials.map(t => `| ${t.scenario} | ${t.phase} | ${t.verdict} | ${t.duration_ms} | [${t.id}](${t.evidence}) |`), '',
     'A rejected removal with a passing recovery is evidence for this configuration and scenario, not proof of universal necessity.', '',
@@ -81,7 +108,7 @@ export async function runExperiment(options: {
       'No global minimum or sandbox escape-resistance claim. Results apply to recorded inputs, assertions and environment.',
       'Process-group cleanup handles normal descendants; deliberately detached/daemonized processes are outside the supported workload contract.',
     ],
-    trials: [], searches: {}, policies: Object.fromEntries(config.scenarios.map(s => [s.id, s.initial_write_grants])),
+    trials: [], searches: {}, discovery: {}, policies: Object.fromEntries(config.scenarios.map(s => [s.id, s.initial_write_grants])),
     baseline_verified: false, final_verified: false, search_complete: false, output: canonicalOutput,
     ...(options.keepWorkspaces ? { workspaces: scratch } : {}),
   };
@@ -92,6 +119,8 @@ export async function runExperiment(options: {
   let endpoint: Awaited<ReturnType<typeof startEndpoint>> | undefined;
   const deadline = Date.now() + limits.budget_seconds * 1000;
   let candidateCount = 0;
+  const observations = new Map<string, Observation[]>();
+  const prepared = new Map(config.scenarios.map(s => [s.id, [...new Set([...s.initial_write_grants, ...s.prepare_directories, ...s.narrower_candidates.flatMap(r => [r.from, ...r.to])])]]));
   const hasTime = () => Date.now() < deadline && !options.signal?.aborted;
   try {
     await checkpoint();
@@ -112,14 +141,19 @@ export async function runExperiment(options: {
       const evidence: Record<string, unknown> = { id: trialId, scenario: scenario.id, phase, grants, policy_hash: hash(grants) };
       if (phase === 'candidate') candidateCount++;
       options.onProgress?.(`${scenario.id} · ${phase} · ${grants.join(', ') || 'no variable write grants'}`);
+      let roots: Roots | undefined;
+      let task: Awaited<ReturnType<typeof executeSandbox>> | undefined;
+      let assertions: Check[] = [];
+      let boundaries: Check[] = [];
       try {
         if (!hasTime()) throw new Error(options.signal?.aborted ? 'Experiment interrupted' : 'Experiment budget exhausted');
         const runRoot = path.join(scratch, 'runs', trialId);
-        const roots: Roots = { workspace: path.join(runRoot, 'workspace'), cache: path.join(runRoot, 'cache'), tmp: path.join(runRoot, 'tmp') };
+        roots = { workspace: path.join(runRoot, 'workspace'), cache: path.join(runRoot, 'cache'), tmp: path.join(runRoot, 'tmp') };
         await fs.mkdir(runRoot, { recursive: true });
         await fs.cp(inputRoot, roots.workspace, { recursive: true, verbatimSymlinks: true });
         for (const directory of [roots.cache, roots.tmp]) await fs.mkdir(directory);
-        const allPaths = [...scenario.initial_write_grants, ...scenario.narrower_candidates.flatMap(r => [r.from, ...r.to])];
+        const allPaths = prepared.get(scenario.id)!;
+        evidence.prepared_directories = allPaths;
         for (const alias of new Set(allPaths)) {
           const directory = resolveAlias(alias, roots);
           const root = roots[alias.slice(1).split('/')[0] as keyof Roots];
@@ -135,28 +169,47 @@ export async function runExperiment(options: {
         }
         const context: BackendContext = { roots, experimentRoot: scratch, protectedPaths: [project, input.configFile, input.limitsFile, canonicalOutput].filter(Boolean), grants, invocationId: trialId, timeoutMs: Math.max(1, Math.min(scenario.timeout_seconds * 1000, deadline - Date.now())), maxOutputBytes: limits.max_output_bytes, signal: options.signal };
         evidence.roots = roots;
-        const before = await manifest(roots.workspace);
+        const before = Object.fromEntries(await Promise.all(Object.entries(roots).map(async ([name, root]) => [name, await manifest(root)] as const)));
+        const inventoryBefore = phase === 'baseline' && scenario.auto_discover ? await directoryInventory(roots, limits) : undefined;
         const pre = await boundaryChecks(fixtures, { ...context, invocationId: trialId + '-before' });
         evidence.before = pre;
+        boundaries = pre.checks;
         if (pre.checks.some(c => c.status !== 'pass')) {
           trial.verdict = pre.checks.some(c => c.status === 'unknown') ? 'unknown' : 'fail';
           trial.reason = 'Pre-execution boundary check did not pass';
         } else {
           if (!hasTime()) throw new Error('Budget exhausted before task execution');
-          const task = await executeSandbox(scenario.command, { ...context, timeoutMs: Math.max(1, Math.min(context.timeoutMs, deadline - Date.now())) });
+          task = await executeSandbox(scenario.command, { ...context, timeoutMs: Math.max(1, Math.min(context.timeoutMs, deadline - Date.now())) });
           evidence.task = task;
-          const assertions = await checkAssertions(scenario.assertions, roots);
+          assertions = await checkAssertions(scenario.assertions, roots);
           evidence.assertions = assertions;
           const post = await boundaryChecks(fixtures, { ...context, invocationId: trialId + '-after', timeoutMs: Math.max(1, Math.min(context.timeoutMs, deadline - Date.now())) });
           evidence.after = post;
-          evidence.file_changes = diffFiles(before, await manifest(roots.workspace));
+          boundaries = [...pre.checks, ...post.checks];
+          const changes = Object.fromEntries(await Promise.all(Object.entries(roots).map(async ([name, root]) => [name, diffFiles(before[name], await manifest(root))] as const)));
+          evidence.file_changes = changes.workspace; // Preserve the v0.1 evidence field.
+          evidence.file_changes_by_root = changes;
           trial.verdict = classifyTrial(task.process.status, task.process.exit_code, assertions, post.checks);
           if (!hasTime()) { trial.verdict = 'unknown'; trial.reason = 'Budget exhausted or interrupted before trial completion'; }
+          if (phase === 'baseline' && scenario.auto_discover && trial.verdict === 'pass') {
+            const inventoryAfter = await directoryInventory(roots, limits);
+            const observation: Observation = {
+              id: trialId, directories: [...new Set([...(inventoryBefore?.directories ?? []), ...inventoryAfter.directories])],
+              writes: Object.entries(changes).flatMap(([name, change]) => [...change.added, ...change.changed, ...change.removed].map(p => `@${name}/${p.split(path.sep).join('/')}`)),
+              denial_paths: diagnose({ task, roots, assertions, boundaries, verdict: trial.verdict }).denials.flatMap(d => d.path?.startsWith('@') ? [d.path] : []),
+              truncated: !!inventoryBefore?.truncated || inventoryAfter.truncated,
+            };
+            evidence.discovery_observation = observation;
+            observations.set(scenario.id, [...observations.get(scenario.id) ?? [], observation]);
+          }
         }
       } catch (error) {
         trial.verdict = 'unknown'; trial.reason = String(error); evidence.error = String(error);
       }
+      if (!hasTime()) { trial.verdict = 'unknown'; trial.reason = options.signal?.aborted ? 'Experiment interrupted' : 'Experiment budget exhausted before evidence completion'; }
       trial.duration_ms = Date.now() - started;
+      trial.diagnosis = diagnose({ task, roots, assertions, boundaries, verdict: trial.verdict, reason: trial.reason });
+      evidence.diagnosis = trial.diagnosis;
       evidence.summary = trial;
       await saveJson(path.join(output, trial.evidence), evidence);
       report.trials.push(trial);
@@ -168,6 +221,23 @@ export async function runExperiment(options: {
     baseline: for (const scenario of config.scenarios) for (let i = 0; i < limits.repetitions; i++) {
       const result = await evaluate(scenario, scenario.initial_write_grants, 'baseline');
       if (result.verdict !== 'pass') { baselinePass = false; break baseline; }
+    }
+    if (baselinePass && options.mode === 'tighten') {
+      for (const scenario of config.scenarios) {
+        const plan = discover(scenario, observations.get(scenario.id) ?? [], limits);
+        report.discovery[scenario.id] = plan;
+        prepared.set(scenario.id, [...new Set([...prepared.get(scenario.id)!, ...plan.prepared_directories])].sort());
+      }
+      await checkpoint();
+      // Automatic targets may require new directories. Confirm the baseline under
+      // the same frozen preparation used by every candidate, recovery and final run.
+      confirmation: for (const scenario of config.scenarios) {
+        if (!report.discovery[scenario.id].prepared_directories.length) continue;
+        for (let i = 0; i < limits.repetitions; i++) {
+          const result = await evaluate(scenario, scenario.initial_write_grants, 'discovery_baseline');
+          if (result.verdict !== 'pass') { baselinePass = false; break confirmation; }
+        }
+      }
     }
     report.baseline_verified = baselinePass;
     if (!baselinePass) {
@@ -182,6 +252,7 @@ export async function runExperiment(options: {
       const finalReserve = Math.max(5000, baselineMs * 2);
       for (const scenario of config.scenarios) {
         const search = await searchPolicy(scenario, {
+          automatic: report.discovery[scenario.id]?.rules,
           evaluate: (grants, phase) => evaluate(scenario, grants, phase),
           canContinue: () => hasTime() && candidateCount < limits.max_candidates && Date.now() + finalReserve < deadline,
           onStep: async step => {
@@ -213,7 +284,7 @@ export async function runExperiment(options: {
     if (options.signal?.aborted) { report.status = 'incomplete'; report.error = 'Experiment interrupted'; }
     report.finished_at = new Date().toISOString();
     const name = report.status === 'verified' ? 'recommended.yaml' : 'unverified-candidate.yaml';
-    if (options.mode !== 'doctor') await fs.writeFile(path.join(output, name), stringify({ ...config, project, scenarios: config.scenarios.map(s => ({ ...s, initial_write_grants: report.policies[s.id] })) }), { mode: 0o600 });
+    if (options.mode !== 'doctor') await fs.writeFile(path.join(output, name), stringify({ ...config, project, scenarios: config.scenarios.map(s => ({ ...s, initial_write_grants: report.policies[s.id], prepare_directories: prepared.get(s.id) })) }), { mode: 0o600 });
     await checkpoint();
   }
   return report;

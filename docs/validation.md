@@ -1,4 +1,43 @@
-# MVP 实测记录
+# 实测记录
+
+## v0.2 — 2026-09-30
+
+环境仍为 macOS 15.8、arm64、Node.js 24.21.0、npm 11.19.0、SRT 0.0.77、TypeScript 7.0.2。JUnit 解析依赖 fast-xml-parser 5.11.2，包版本与锁文件均固定。
+
+| 检查 | 本机实际结果 |
+| --- | --- |
+| npm ci --ignore-scripts | 成功；审计报告 0 个漏洞 |
+| npm test | 44 项通过，0 失败、0 跳过 |
+| npm run test:integration | 12 项真实 macOS 沙箱测试通过，0 失败、0 跳过 |
+| npm run check | 成功 |
+| doctor | 本轮独立任务、对照与前后边界检查通过 |
+| 自动 demo | 28 个 trial，verified，search_complete=true；不填写手工候选 |
+| 三个代表项目 | 45 个搜索 trial、9 个导出配置重放 trial，全部 verified |
+| Permsift 自身构建 | 20 个 trial，verified，最终仅 @workspace/dist |
+
+新覆盖的问题包括：跨基线观察合并、目录枚举上限与链接排除、候选数量约束、瞬时临时写入、JUnit 原生报告与跳过/旧报告、准备变化导致基线失败，以及写授权被删后仍需保留的预建目录能通过导出配置重放。
+
+报告展示系统日志与 stderr 拒绝线索的不同来源、操作和路径，任务失败断言及恢复 verdict。普通命令失败、超时和退出零但断言失败分别解释，不将日志缺失当成访问不存在。
+
+三个代表项目的配置均省略 narrower_candidates。slug-kit 场景文件 10 行，bundle-kit 与 cached-build 各 14 行，包含任务、初始授权和产物断言；这些行数只说明示例配置大小，不是人类准备成本的测量。
+
+| 项目 | 搜索 trial | 最终可变写权限 | 必要授权撤销失败并恢复 |
+| --- | --- | --- | --- |
+| Node 原生测试 slug-kit | 13 | @workspace/reports | 1 次 |
+| esbuild bundle-kit | 14 | @workspace/dist | 1 次 |
+| TypeScript cached-build | 18 | @cache/typescript、@tmp/compiler、@workspace/dist | 3 次 |
+
+这三项是可运行的代表项目，使用真实测试运行器和编译工具。安装依赖在实验外完成，任务全程断网、缓存每轮为空。依赖目录枚举因深度或路径格式限制出现 truncated 时，报告如实标记；search_complete 只描述有限候选已搜索完。
+
+本机交付演示证据在 .permsift/delivery-v0.2-demo/，doctor 在 .permsift/delivery-v0.2-doctor/。代表项目通过 npm run examples:verify 生成独立报告及 summary.json；实测汇总位于本轮 representative-projects-* 目录。完整 JSON 和原始日志留在忽略目录，不纳入 Git；可以按 README 重跑。
+
+本轮代表项目汇总为 .permsift/representative-projects-BMjjth/summary.json：搜索单次本机耗时分别约 3.6 秒、7.7 秒、19.8 秒，不含重放时间；这些是单次观察而非性能基准。导出配置均从干净状态重放 3 次，并核对冻结输入哈希一致。自构建证据为 .permsift/2026-09-30T07-38-14-235Z-9febc85e/，实际启动构建后的 CLI 并验证版本。
+
+v0.2 尚未验证第三方生产项目长期升级、读取权限最小化、开放网络或其他操作系统。CI 已配置这些检查，但本地通过不等于远端 CI 已执行。
+
+---
+
+## v0.1 历史交付记录
 
 日期：2026-09-30。以下是本地实际执行结果，未把尚未运行的 GitHub Actions 算作通过。
 

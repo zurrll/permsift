@@ -1,0 +1,14 @@
+schema_version: 1
+project: .
+scenarios:
+  - id: build
+    command: [node, scripts/build.mjs]
+    initial_write_grants: ['@workspace', '@cache', '@tmp']
+    assertions:
+      - type: json_equals
+        path: '@workspace/dist/build.json'
+        pointer: /smoke_test
+        value: passed
+      - type: file_contains
+        path: '@workspace/dist/index.d.ts'
+        text: 'greeting'

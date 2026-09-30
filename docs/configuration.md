@@ -34,6 +34,8 @@ exclude 是**顶层名称**列表，默认 `.git`、`.permsift`、`dist`、`repo
 | command | 非空字符串参数数组，不接受 NUL；适配器负责 shell 引用 |
 | timeout_seconds | 1–600 秒，默认 120；超时结果为 unknown |
 | initial_write_grants | 最多 32 个目录授权，允许空数组；不得重复或超过 limits |
+| auto_discover | 默认 true；生成自动候选，false 时只搜索手工候选与删除操作 |
+| prepare_directories | 默认空数组；统一预建目录，最多 2048 项，受 limits 上限约束；它不授予任务写权限 |
 | narrower_candidates | 最多 32 组；to 必须是 from 的严格子路径 |
 | assertions | 1–64 项产物断言；退出码为 0 是额外的固定条件 |
 
@@ -50,6 +52,16 @@ command 中的可执行程序由受控 PATH 查找，或使用明确的绝对路
 子路径的每个分量只允许字母、数字、下划线、点和连字符。拒绝 `.`、`..`、通配符、空分量、环境变量展开和绝对路径。授权目录及其祖先不能是符号链接；声明过的候选目录会在运行前创建，确保不同候选有相同的目录准备状态。
 
 写授权不自动代表读取授权的优化。读取策略始终固定；删除写授权后，运行目录通常仍可读取。
+
+## 自动发现候选
+
+省略 narrower_candidates 即可使用默认自动搜索。初始基线全部通过后，工具汇总多次基线中的文件新增、修改、删除以及目录结构，覆盖 @workspace、@cache 和 @tmp。它优先尝试实际变化指向的目录组合，再尝试目录结构和可获得的拒绝线索；手工规则优先于自动规则，重复候选合并。
+
+自动发现有深度与目录数上限。输入符号链接不作为授权目录；不符合路径别名格式的目录不参与搜索。报告 discovery 中记录来源 trial、规则、准备目录、truncated 和未覆盖范围。search_complete 只表示有限候选搜索已结束；目录枚举被截断时也不能声称覆盖了整个项目。
+
+文件差异看不到已经删除的临时文件，也可能看不到写入相同内容的操作。工具不会直接按观察结果宣布最小权限，每个候选仍实际执行任务、断言和边界探针，失败后恢复复测。
+
+自动规则可能新增需要预建的目录。此时工具冻结准备列表，用初始权限重新执行 discovery_baseline；通过后，候选、恢复与最终验证都使用同一列表。准备变化导致基线失败时不进行搜索。推荐配置通过 prepare_directories 保存这个运行条件，重放时应继续使用相同的可信 limits。
 
 ## 成功断言
 
@@ -100,7 +112,22 @@ assertions:
 }
 ```
 
-每个预期用例必须存在；不允许重复名称；报告中的所有用例必须 passed。failed、skipped、缺失或格式错误都导致断言失败。第一版只支持这个小型约定，不会自动识别 Jest/Vitest/JUnit 的原生报告格式。
+每个预期用例必须存在；不允许重复名称；报告中的所有用例必须 passed。failed、skipped、缺失或格式错误都导致断言失败。expected_tests 自身也不得重复。
+
+### JUnit XML
+
+```yaml
+assertions:
+  - type: junit
+    path: '@workspace/reports/junit.xml'
+    expected_tests: [normalizes accents, handles empty input]
+```
+
+支持单个 testsuite 或 testsuites 根节点及嵌套 testsuite。预期名称使用 testcase 的 name，必须在报告中恰好出现一次；同名用例有多个 classname 时，需要调整用例名使预期项全局唯一。报告中的任何 failure、error、skipped、重复 classname/name 身份、非零失败/跳过统计，或与实际用例数量不符的 tests 统计都会失败。空报告、缺失用例、格式错误和不支持的结果元素也会失败。
+
+DTD 与自定义实体声明禁止；只处理 XML 预定义和数字字符引用。仍受 1 MiB 普通文件限制；元素数量和嵌套深度有上限。宿主读取报告，不执行其中的代码。报告的文件新鲜度由每轮删除旧文件保证，不依赖报告自填的时间戳。
+
+Node 的 [JUnit reporter](https://nodejs.org/docs/latest-v24.x/api/test.html#test-reporters) 与 pytest 的 [--junitxml](https://docs.pytest.org/en/stable/how-to/output.html#creating-junitxml-format-files) 可生成这类报告。本机验证了 Node 原生 reporter；其他生产者须先确认报告符合以上支持范围。
 
 项目自己的报告仍可能撒谎，因此第一版仅面向可信或审核过的任务。宿主验证器不执行项目提供的脚本，也不加载项目插件。
 
@@ -128,6 +155,8 @@ assertions:
 | repetitions | 3 | 每个任务的基线和最终验证重复次数，范围 1–10 |
 | max_output_bytes | 262144 | 每个进程 stdout 与 stderr 的合计原始字节限制，超出即停止 |
 | max_snapshot_bytes | 500000000 | 输入普通文件的累计大小上限 |
+| max_discovery_depth | 3 | 自动目录枚举相对别名根的最大深度，范围 1–8 |
+| max_discovery_dirs | 64 | 每次目录枚举及合并后的候选目录数上限，范围 1–512 |
 
 时间预算在各阶段检查，并限制任务执行时限；文件复制、宿主验证及后端初始化不是可抢占操作，因此不是严格的总运行时间硬上限。搜索预留基于基线耗时估算的最终验证时间。预算耗尽时，只有确实完成最终验证的候选才能写为 recommended.yaml。
 
@@ -142,6 +171,8 @@ assertions:
 - recommended.yaml：当前策略通过完整验证时生成。
 - unverified-candidate.yaml：失败、中断或最终验证未完成时生成，不应直接作为已验证配置采用。
 - report-guard：只包含随机假数据，用来测试报告目录写入保护。
+
+report.md 的 Failure explanations 对每个失败或未知 trial 展示规则前后变化、拒绝操作与路径、断言及边界问题、有限 stderr 摘要和恢复结果。对应 JSON 保存 diagnosis，并保留原始任务日志。stderr 来自项目，拒绝日志为尽力采集；恢复通过只支持本次比较，不是通用因果证明。
 
 doctor 使用临时内置项目，只输出检查报告，不导出可重放策略。
 
