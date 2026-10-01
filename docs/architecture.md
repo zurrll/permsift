@@ -21,6 +21,9 @@ flowchart LR
 | cli.ts | 参数、信号、退出码、doctor 内置项目 |
 | src/config.ts | 严格配置校验、路径别名和可信读写权限上限 |
 | src/filesystem.ts | 快照、路径检查、哈希、文件变化及原子 JSON 写入 |
+| src/hash-scan.ts | 有界内容扫描、稳定历史摘要、文件身份核对及细分诊断 |
+| src/timing.ts | 独占墙钟跨度、根扫描诊断及聚合 |
+| src/installed-snapshot.ts | 私有安装快照捕获、发布、双重三根完整性核对与独立克隆 |
 | src/backend.ts | macOS 后端、固定约束、清理环境变量和 SRT 生命周期 |
 | src/process.ts | 参数引用、有限输出、超时、取消及进程组清理 |
 | src/probes.ts | 假数据、宿主对照、本地 TCP 端点及沙箱探针 |

@@ -4,6 +4,7 @@ import { constants } from 'node:fs';
 import path from 'node:path';
 import { aliasSchema } from './config.js';
 import { runProcess } from './process.js';
+import { scanHash, type HashScanOptions } from './hash-scan.js';
 
 export type Roots = { workspace: string; cache: string; tmp: string };
 export const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -89,8 +90,8 @@ export async function snapshot(source: string, destination: string, excludes: st
   return snapshotTree(source, destination, excludes, maxBytes);
 }
 /** Same digest as snapshot, without materializing a second copy. */
-export async function snapshotHash(source: string, maxBytes: number, includeDirectoryModes = false): Promise<string> {
-  return snapshotTree(source, undefined, [], maxBytes, includeDirectoryModes);
+export async function snapshotHash(source: string, maxBytes: number, includeDirectoryModes = false, options: HashScanOptions = {}): Promise<string> {
+  return scanHash(source, maxBytes, includeDirectoryModes, options);
 }
 async function snapshotTree(source: string, destination: string | undefined, excludes: string[], maxBytes: number, includeDirectoryModes = false): Promise<string> {
   const base = await fs.realpath(source);

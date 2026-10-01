@@ -12,11 +12,11 @@ import { searchPolicy, type SearchReuse, type SearchStep, type TrialVerdict, typ
 import { directoryInventory, discover, type Discovery, type Observation } from './discovery.js';
 import { diagnose, type Diagnosis } from './diagnostics.js';
 import { readInventory, discoverReads, type ReadDiscovery, type ReadObservation } from './read-discovery.js';
-import { InstalledSnapshots, installationKey, type InstalledSnapshot } from './installed-snapshot.js';
+import { InstalledSnapshots, installationKey, rootHashes, type InstalledSnapshot } from './installed-snapshot.js';
 import { Timings, summarizeTimings, type TimingSummary } from './timing.js';
 import { inspectInstall, executeInstall, prepareInstallCache, npmVersion, type InstallInput } from './install.js';
 
-export const VERSION = '0.7.0';
+export const VERSION = '0.8.0';
 export type Trial = { id: string; scenario: string; phase: string; grants: string[]; read_grants: string[]; read_mode: 'explicit' | 'legacy'; network_grants: string[]; verdict: TrialVerdict; duration_ms: number; evidence: string; reason?: string; diagnosis?: Diagnosis; install_grants?: string[]; execution_stage?: 'install' | 'task'; installation_reused?: boolean; timings?: TimingSummary };
 type SearchSummary = { stop: string; steps: SearchStep[]; rounds: number; reuses: SearchReuse[] };
 export type Report = {
@@ -54,6 +54,13 @@ export function markdownReport(report: Report) {
       '| Operation | Seconds | Calls |', '| --- | --- | --- |',
       ...Object.entries(report.timings.phases).sort((a, b) => b[1].duration_ms - a[1].duration_ms).map(([name, value]) => `| ${name} | ${(value.duration_ms / 1000).toFixed(2)} | ${value.calls} |`), '',
       'Durations are exclusive wall time, not CPU time. Hash checks and file-change manifests are separate. Sandbox startup/cleanup inside a command is included in install, task or probes. Owned trial/input/snapshot cleanup is reported separately. The final report write is outside this snapshot.', '',
+      ...report.timings.hash_scan ? [
+        '### Content hash scans', '',
+        `${report.timings.hash_scan.scans} root scans (${report.timings.hash_scan.incomplete_scans} incomplete); ${report.timings.hash_scan.files} file visits; ${report.timings.hash_scan.content_bytes} content bytes. Maximum I/O concurrency: ${report.timings.hash_scan.concurrency}; peak pending small-file buffers: ${report.timings.hash_scan.peak_buffered_files}.`, '',
+        '| Hash operation | Service seconds | Calls |', '| --- | --- | --- |',
+        ...Object.entries(report.timings.hash_scan.operations).map(([name, value]) => `| ${name} | ${(value.service_ms / 1000).toFixed(2)} | ${value.calls} |`), '',
+        'Service durations overlap during concurrent I/O. They describe calls, not an exclusive breakdown, and must not be added to wall time or compared as CPU time. Counts include repeated visits across root scans. The read category includes opens, reads and closes.', '',
+      ] : [],
     ] : [],
     '## Scope and limitations', '', ...report.scope.map(s => `- ${s}`), '',
     '## Current candidate policies', '',
@@ -135,6 +142,8 @@ export async function runExperiment(options: {
   output?: string; keepWorkspaces?: boolean; signal?: AbortSignal; onProgress?: (message: string) => void;
   expectedReadKinds?: Record<string, Record<string, 'file' | 'directory'>>;
   frozenInput?: { path: string; hash: string; protectedPaths?: string[] };
+  /** Diagnostic harness only: observe post-install/pre-task state, adding full scans. */
+  measureInstalledState?: boolean;
 }): Promise<Report> {
   const experimentTimings = new Timings();
   requirePlatform();
@@ -201,7 +210,7 @@ export async function runExperiment(options: {
     const inputRoot = path.join(scratch, 'input');
     if (options.frozenInput) {
       report.inputs.snapshot_fork = await experimentTimings.measure('clone', () => forkSnapshot(options.frozenInput!.path, inputRoot, { timeoutMs: Math.max(1, deadline - Date.now()), signal: options.signal }));
-      report.inputs.snapshot_hash = await experimentTimings.measure('hash', () => snapshotHash(inputRoot, limits.max_snapshot_bytes));
+      report.inputs.snapshot_hash = await experimentTimings.measure('hash', () => snapshotHash(inputRoot, limits.max_snapshot_bytes, false, { signal: options.signal, timeoutMs: Math.max(0, deadline - Date.now()), onProfile: p => experimentTimings.recordHashScan(p) }));
     } else report.inputs.snapshot_hash = await experimentTimings.measure('freeze', () => snapshot(project, inputRoot, config.exclude, limits.max_snapshot_bytes));
     if (options.frozenInput && report.inputs.snapshot_hash !== options.frozenInput.hash) throw new Error('Frozen regression input changed between comparisons');
     const installations = new Map<string, InstallInput>();
@@ -331,6 +340,10 @@ export async function runExperiment(options: {
               installObservations.set(scenario.id, [...installObservations.get(scenario.id) ?? [], { id: trialId, directories: [...new Set([...(inventoryBefore?.directories ?? []), ...inventory!.directories])], writes: Object.entries(evidence.install_file_changes).flatMap(([name, c]) => { const change = c as ReturnType<typeof diffFiles>; return [...change.added, ...change.changed, ...change.removed].map(p => `@${name}/${p.split(path.sep).join('/')}`); }), denial_paths: [], truncated: !!inventoryBefore?.truncated || !!inventory?.truncated }]);
             }
             // Preserve state BEFORE task execution and probes, publish only if this complete trial passes.
+            if (options.measureInstalledState && !stage.taskOnly) evidence.installation_state = {
+              hashes: await timings.measure('hash', () => rootHashes(roots!, limits.max_snapshot_bytes, forkOptions())),
+              files: await scanRoots(),
+            };
             if (stage.capture) pendingSnapshot = await installed.capture(key, roots, trialId, forkOptions());
             if (!stage.taskOnly) await prepareReads();
             if (['baseline', 'discovery_baseline', 'installation_snapshot'].includes(phase) && readMode === 'explicit' && scenario.auto_read_discover) readInventoryBefore = await timings.measure('discovery', () => readInventory(roots!, limits, true));

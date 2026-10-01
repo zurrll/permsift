@@ -80,6 +80,11 @@ test('separate stage policies shrink task reads/writes, reuse isolated installed
       assert.equal(e.install_file_changes, undefined, 'No invented installation delta for a snapshot task');
       assert.equal(r.trials[i].timings!.phases.manifest!.calls, 2, 'Only task before/after manifests');
       assert.equal(r.trials[i].timings!.phases.hash!.calls, 2, 'Frozen source and cloned content are both checked');
+      assert.equal(r.trials[i].timings!.hash_scan!.scans, 6, 'Both checks fully scan all three roots');
+      assert.equal(r.trials[i].timings!.hash_scan!.incomplete_scans, 0);
+      assert.ok(r.trials[i].timings!.hash_scan!.files > 0);
+      assert.ok(r.trials[i].timings!.hash_scan!.peak_buffered_files <= 8);
+      assert.equal(e.installation_state, undefined, 'Expensive installation diagnostic scans are opt-in');
       assert.ok(e.file_changes_by_root.workspace.added.includes('dist/out') || r.trials[i].verdict !== 'pass');
     }
     if (r.trials[i].phase === 'final') {

@@ -22,6 +22,8 @@ npm run medium:verify
 
 ## 计时口径
 
+v0.8 在原分项之外增加 hash_scan 根扫描诊断，有界并行保持原内容摘要与源/副本两次核对。service time 会重叠，不能与独占分项相加；微基准、重装一致性与同时间预算对照见 [完整校验说明](hash-validation.md)。
+
 report.json 的 timings、trials[].timings，以及证据的 summary.timings 使用单调时钟。phases 含 duration_ms 和 calls；不同类别统计独占墙钟时间，嵌套子操作不重复计入父项。并行根目录清单统计在同一个跨度内，调用数代表一次三根目录扫描批次；安装快照 hash 的一次调用也覆盖三根。CLI 同时显示总时间与耗时最多的一项，tighten 显示 search_complete。
 
 | 类别 | 包含的工作 |
