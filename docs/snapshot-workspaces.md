@@ -26,3 +26,9 @@ node scripts/benchmark-forks.mjs
 npm tarball 可包含 ._ 开头的普通文件。本机发现 macOS cp 在伴随文件存在时会跳过某些 ._ 项；v0.6 在原生克隆后做目录枚举，将缺失项目作为数据补齐，保留文件模式和独立性。补齐通常是少量字节复制，证据记录 preserved_dot_underscore_entries。取消、超时和复制错误仍清理半成品。此枚举有额外成本，早期 302 ms 结果仅代表 v0.5 当时实现。
 
 安装后快照进一步核对各根内容、文件/目录模式和内部链接，来源和克隆不匹配时保持 unknown。相关 Apple 实现可见 [cp 源码](https://github.com/apple-oss-distributions/file_cmds/blob/main/cp/cp.c) 的 ._ 跳过逻辑；行为以本机测试为准。
+
+## v0.7 扫描成本
+
+写时复制仍需要目录枚举、完整性核对和后续变化清单。v0.7 将任务快照试验的完整清单批次从四次改为两次，不输出没有安装时的 install_file_changes。保留每轮冻结源/克隆内容核对，真实任务前后变化以及完整安装试验的安装变化；报告把 clone、hash、manifest、cleanup 分项记录。中等项目方法与限制见 [performance.md](performance.md)。
+
+默认每轮证据落盘后删除该轮目录，使同时存活的试验工作区至多一轮。冻结输入与独立安装快照保留至实验结束；--keep-workspaces 仍保留全部试验目录。清理错误中止实验，不能发布推荐配置。

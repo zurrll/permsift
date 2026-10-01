@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { domainSchema, type Scenario } from './config.js';
 import { forkSnapshot, manifest, noSymlinks, resolveAlias, hash, type Roots } from './filesystem.js';
 import { executeSandbox, type BackendContext } from './backend.js';
+import type { Timings } from './timing.js';
 
 export type InstallInput = { lock_hash: string; package_hash: string; resolved_domains: string[]; cache: 'cold' | 'warm'; cache_seed_hash?: string };
 const fileHash = (text: string) => createHash('sha256').update(text).digest('hex');
@@ -20,7 +21,7 @@ async function readPackage(root: string, name: string) {
   const text = await fs.readFile(file, 'utf8');
   return { hash: fileHash(text), value: JSON.parse(text) as Record<string, unknown> };
 }
-export async function inspectInstall(scenario: Scenario, inputRoot: string): Promise<InstallInput> {
+export async function inspectInstall(scenario: Scenario, inputRoot: string, timings?: Timings): Promise<InstallInput> {
   const install = scenario.install!;
   if (await fs.lstat(path.join(inputRoot, '.npmrc')).catch(() => undefined)) throw new Error('Install MVP does not accept project .npmrc; use explicit registry and no private credentials');
   if (await fs.lstat(path.join(inputRoot, 'npm-shrinkwrap.json')).catch(() => undefined)) throw new Error('Install MVP requires package-lock.json, not npm-shrinkwrap.json');
@@ -43,16 +44,17 @@ export async function inspectInstall(scenario: Scenario, inputRoot: string): Pro
     await noSymlinks(inputRoot, seed);
     if (!(await fs.stat(seed)).isDirectory()) throw new Error('Cache seed must be a directory');
     // Reject seed links as well: never grant a copied cache access to live host data.
-    const entries = await manifest(seed);
+    const entries = timings ? await timings.measure('manifest', () => manifest(seed)) : await manifest(seed);
     if (Object.values(entries).some(v => v.startsWith('symlink:'))) throw new Error('Cache seed must not contain symlinks');
     cache_seed_hash = hash(entries);
   }
   return { package_hash: pkg.hash, lock_hash: lock.hash, resolved_domains: [...domains].sort(), cache: install.cache, ...(cache_seed_hash ? { cache_seed_hash } : {}) };
 }
-export async function prepareInstallCache(scenario: Scenario, inputRoot: string, roots: Roots, options: { timeoutMs: number; signal?: AbortSignal }) {
+export async function prepareInstallCache(scenario: Scenario, inputRoot: string, roots: Roots, options: { timeoutMs: number; signal?: AbortSignal; timings?: Timings }) {
   if (scenario.install!.cache === 'cold') return { condition: 'cold', initial_files: 0 };
   const seed = resolveAlias(scenario.install!.cache_seed!, { workspace: inputRoot, cache: inputRoot, tmp: inputRoot });
-  const fork = await forkSnapshot(seed, path.join(roots.cache, 'npm'), options);
+  const clone = () => forkSnapshot(seed, path.join(roots.cache, 'npm'), options);
+  const fork = options.timings ? await options.timings.measure('clone', clone) : await clone();
   return { condition: 'warm', fork };
 }
 export function installCommand(scenario: Scenario, roots: Roots) {

@@ -79,6 +79,11 @@ async function main() {
     if (values.json) console.log(JSON.stringify(report, null, 2));
     else {
       console.log(`\n${report.status.toUpperCase()} · ${report.trials.length} executions`);
+      if (report.timings) {
+        const largest = Object.entries(report.timings.phases).sort((a, b) => b[1].duration_ms - a[1].duration_ms)[0];
+        console.log(`Time: ${(report.timings.total_ms / 1000).toFixed(1)} s${largest ? `; largest operation: ${largest[0]} ${(largest[1].duration_ms / 1000).toFixed(1)} s` : ''}`);
+      }
+      if (mode === 'tighten') console.log(`Search complete: ${report.search_complete}`);
       for (const [id, grants] of Object.entries(report.policies)) {
         console.log(`  ${id} write: ${grants.join(', ') || '(no variable write grants)'}`);
         if (report.install_policies[id]) { console.log(`  ${id} install write: ${report.install_policies[id].join(', ') || '(none)'}`); const stats = report.installation_stats[id]; if (stats) console.log(`  ${id} npm executions: ${stats.executed}; installed snapshot reuses: ${stats.reused}`); }

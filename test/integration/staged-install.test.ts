@@ -1,6 +1,7 @@
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
+import { existsSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createServer } from 'node:http';
@@ -67,6 +68,8 @@ test('separate stage policies shrink task reads/writes, reuse isolated installed
   assert.ok(stats.reused > 5); assert.equal(stats.snapshots, 1);
   assert.equal(stats.executed + stats.reused, r.trials.length);
   assert.ok(stats.executed < r.trials.length);
+  assert.ok(r.timings && r.timings.phases.probes && r.timings.phases.reporting);
+  assert.ok(Math.abs(r.timings!.total_ms - r.timings!.measured_ms - r.timings!.other_ms) < 0.001);
   const cached = [];
   for (let i = 0; i < r.trials.length; i++) {
     const e = await evidence(r, i);
@@ -74,11 +77,16 @@ test('separate stage policies shrink task reads/writes, reuse isolated installed
     if (r.trials[i].installation_reused) {
       assert.equal(e.installation, undefined); assert.ok(e.installed_snapshot.source_trial); cached.push(e);
       assert.ok(e.before_offline_task.checks.every((c: {status:string}) => c.status === 'pass'));
+      assert.equal(e.install_file_changes, undefined, 'No invented installation delta for a snapshot task');
+      assert.equal(r.trials[i].timings!.phases.manifest!.calls, 2, 'Only task before/after manifests');
+      assert.equal(r.trials[i].timings!.phases.hash!.calls, 2, 'Frozen source and cloned content are both checked');
+      assert.ok(e.file_changes_by_root.workspace.added.includes('dist/out') || r.trials[i].verdict !== 'pass');
     }
     if (r.trials[i].phase === 'final') {
       assert.equal(r.trials[i].installation_reused, false); assert.equal(e.install_cache.initial_files, 0);
       assert.ok(e.installation.inputs_unchanged); assert.ok(e.installation.execution.policy.filesystem.allowWrite.includes(path.join(e.roots.workspace, 'node_modules')));
       assert.deepEqual(e.task.policy.filesystem.allowWrite, [path.join(e.roots.workspace, 'dist')]);
+      assert.equal(r.trials[i].timings!.phases.manifest!.calls, 4, 'Full trials retain installation and task deltas');
     }
   }
   assert.ok(cached.length > 2);
@@ -89,6 +97,7 @@ test('separate stage policies shrink task reads/writes, reuse isolated installed
   const before = f.requests();
   const replay = await runExperiment({ mode: 'run', configPath: path.join(r.output, 'recommended.yaml'), limitsPath: f.limitsPath, output: path.join(f.root, 'replay') });
   assert.equal(replay.status, 'verified'); assert.equal(replay.installation_stats.install.reused, 0); assert.ok(f.requests() >= before + 4);
+  assert.ok(replay.timings!.phases.cleanup);
   const check = await runRegression({ ...f, baselinePath: path.join(r.output, 'report.json'), output: path.join(f.root, 'check') });
   assert.equal(check.status, 'compatible', JSON.stringify(check.tasks)); assert.equal(check.trials, 2);
 });
@@ -98,9 +107,19 @@ test('task caches inside node_modules retain only their small write directory', 
   Object.assign(f.config.scenarios[0], { initial_read_grants: undefined, narrower_candidates: [{ from: '@workspace', to: ['@workspace/dist', '@workspace/node_modules/.cache'] }] });
   await fs.appendFile(path.join(f.project, 'verify.cjs'), "fs.mkdirSync('node_modules/.cache',{recursive:true});fs.writeFileSync('node_modules/.cache/entry','needed');");
   await f.save();
-  const r = await runExperiment({ ...f, mode: 'tighten', output: path.join(f.root, 'cache') });
+  const output = path.join(f.root, 'cache');
+  let deletedBeforeNextTrial = 0;
+  const r = await runExperiment({ ...f, mode: 'tighten', output, onProgress: () => {
+    const previous = (JSON.parse(readFileSync(path.join(output, 'report.json'), 'utf8')) as Report).trials.at(-1);
+    if (!previous) return;
+    const e = JSON.parse(readFileSync(path.join(output, previous.evidence), 'utf8'));
+    for (const root of Object.values(e.roots) as string[]) assert.equal(existsSync(root), false, 'Previous trial roots are deleted before the next clone');
+    deletedBeforeNextTrial++;
+  } });
   assert.equal(r.status, 'verified', JSON.stringify({error:r.error, unknown:r.trials.filter(t=>t.verdict==='unknown')}));
   assert.deepEqual(r.policies.install, ['@workspace/dist', '@workspace/node_modules/.cache']);
+  assert.ok(deletedBeforeNextTrial > 5);
+  assert.ok(r.installation_stats.install.reused > 0, 'Private installed state survives deletion of its source trial');
   const denied = r.searches.install.steps.find(s => s.operation === 'remove @workspace/node_modules/.cache' && s.decision === 'rejected');
   assert.ok(denied); assert.equal(r.trials.find(t => t.id === denied.recovery_id)?.verdict, 'pass');
 });
@@ -128,6 +147,7 @@ test('successful cached task trials cannot replace final fresh installations dur
   assert.ok(r.trials.some(t => t.installation_reused && t.verdict === 'pass'));
   const final = r.trials.findIndex(t => t.phase === 'final'), e = await evidence(r, final);
   assert.equal(r.trials[final].installation_reused, false); assert.equal(r.trials[final].verdict, 'unknown');
+  assert.ok(r.trials[final].timings!.phases.install!.duration_ms > 0, 'Unknown installations still record spent time');
   assert.ok(e.installation); assert.equal(e.task, undefined); assert.ok(e.task_skipped);
   await assert.rejects(fs.access(path.join(r.output, 'recommended.yaml')));
 });

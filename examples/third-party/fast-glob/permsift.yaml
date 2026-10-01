@@ -1,0 +1,45 @@
+schema_version: 1
+project: ../../../.permsift/third-party/fast-glob
+# Upstream .npmrc only disables package-lock creation; we explicitly supply a pinned lock.
+exclude: [.git, .npmrc, node_modules, out, reports]
+scenarios:
+  - id: compile-test
+    install:
+      manager: npm
+      cache: cold
+      initial_write_grants: ['@workspace', '@cache', '@tmp']
+      auto_discover: false
+      narrower_candidates:
+        - from: '@workspace'
+          to: ['@workspace/node_modules']
+        - from: '@cache'
+          to: ['@cache/npm']
+    initial_network_grants: [registry.npmjs.org, example.org]
+    initial_write_grants: ['@workspace', '@cache', '@tmp']
+    initial_read_grants: ['@workspace']
+    auto_discover: false
+    narrower_candidates:
+      - from: '@workspace'
+        to: ['@workspace/out', '@workspace/reports']
+    command: [node, verify.cjs]
+    timeout_seconds: 120
+    assertions:
+      - type: json_equals
+        path: '@workspace/reports/tests.json'
+        pointer: /stats/failures
+        value: 0
+      - type: json_equals
+        path: '@workspace/reports/tests.json'
+        pointer: /stats/pending
+        value: 0
+      - type: json_equals
+        path: '@workspace/reports/build.json'
+        pointer: /count
+        value: 9
+      - type: json_equals
+        path: '@workspace/reports/build.json'
+        pointer: /async_matches_sync
+        value: true
+      - type: file_contains
+        path: '@workspace/out/index.d.ts'
+        text: declare

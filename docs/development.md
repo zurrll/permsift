@@ -38,6 +38,10 @@ npm run regression:verify
 # 在沙箱内安装固定 clsx，收缩域名；验证冷暖缓存与断网产物
 npm run install:verify
 
+# 中等规模上游项目（冷安装、暖搜索、导出重放）
+npm run medium:prepare
+npm run medium:verify
+
 # 本机副本创建性能对照（生成 256 MiB 临时数据）
 node scripts/benchmark-forks.mjs
 
@@ -47,6 +51,7 @@ npm run self:verify
 
 | 测试文件 | 关注的问题 |
 | --- | --- |
+| timing.test.ts | 单调计时、嵌套独占耗时、失败计时和聚合对账 |
 | config.test.ts | 路径穿越、未知配置、最高权限、错误缩小、重复配置 |
 | filesystem.test.ts | 快照独立性、依赖目录保留、内部与外部链接、哈希、输出差异 |
 | install.test.ts | 精确域名与上限、安装条件、锁文件与缓存种子、固定参数、传输未知和域名搜索 |
@@ -94,3 +99,9 @@ CI 配置包含 Linux 单元测试与 macOS 完整测试。新增 CI 文件不�
 ## v0.6 分阶段验收
 
 `npm run stages:verify` 使用公开 clsx 锁定依赖，验证冷/暖缓存的独立安装写规则、任务读取收缩、安装快照复用、三次完整重放与旧规则 check。`test/installed-snapshot.test.ts` 检查键、内容/模式/链接、篡改与副本隔离；`test/integration/staged-install.test.ts` 验证真实策略切换、生成读取、必要小缓存、回归补充和最终注册表故障。旧安装和离线集成测试继续保留。结果见 [validation.md](validation.md)。
+
+## v0.7 性能验证
+
+耗时默认记录，不影响 verdict。并行操作必须在一个计时跨度内统计，嵌套跨度只给父项计独占时间。JSON 增加字段兼容旧历史报告。安装快照任务有两轮任务清单扫描及两次三根完整性核对；完整安装仍保留四轮清单。真实集成测试同时检查变化证据和原项目隔离。默认清理的测试在下一轮启动前检查上一轮三个根已删除，并验证私有安装快照仍可复用；保留模式继续验证多个副本可独立修改。中等项目的对比、配置适配与范围限制见 [performance.md](performance.md)。
+
+中等项目额外提供手动触发的 medium.yml 工作流，避免在每次小改动的 CI 中加入长时间公开注册表/依赖树实测；新增配置不表示远端已经执行。

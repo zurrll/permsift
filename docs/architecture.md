@@ -107,3 +107,7 @@ diagnosis 单独分类执行未完成、边界问题、退出非零且捕获到�
 install.initial_write_grants 激活阶段策略。安装域名/写规则先通过完整试验搜索；已接受规则的新完整 trial 在任务前捕获 workspace/cache/tmp，整个 trial 通过才发布快照。InstalledSnapshots 绑定完整输入、环境、安装配置、策略、准备和上限，核对源/克隆内容与模式。任务候选只克隆已发布状态，任务读写联合搜索；所有最终 trial 仍走真实安装。
 
 report.install_policies / install_searches / install_discovery 保存安装写搜索，原 policies / read_policies 为任务。installation_stats 与 evidence.installed_snapshot 明确区分新安装和复用来源。读取目录库存于安装后获取，包目录作为叶节点，不扩大 incomplete/truncated 子项。最终验证不能省略；阶段搜索是有界顺序，不声称跨阶段共同最优。run/check 共用完整执行器并在安装后核对历史依赖读取类型。
+
+## v0.7 成本记录
+
+Timings 记录单调时钟的独占跨度，实验聚合初始冻结、各轮操作、证据写入及末尾清理。耗时和调用数是观测字段，不参与 verdict 或必要权限判定。复用安装快照时不生成安装变化清单，仍执行两次三根完整性核对和任务前后真实内容清单；全流程试验保留安装变化。详见 [计时口径](performance.md)。
