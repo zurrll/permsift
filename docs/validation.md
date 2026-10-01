@@ -1,5 +1,50 @@
 # 实测记录
 
+## v0.6 — 2026-10-01
+
+本机环境同 v0.5：macOS 15.8 / arm64、Node 24.21.0、npm 11.19.0、SRT 0.0.77。显式分阶段模式分别执行安装写规则和任务读写；安装后快照只用于本次实验的任务候选，完整基线、安装候选、最终验证、run/check 继续真实安装。
+
+### 公开 npm 分阶段流程
+
+最终代码运行 `npm run stages:verify`，证据位于 `.permsift/staged-workflow-1oZDcF/summary.json`。
+
+| 条件 | 状态 | Trial | 候选 | npm 执行 | 任务快照复用 | 搜索耗时 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 冷缓存搜索 | verified，complete=true | 60 | 33 | 23 | 37 | 77.349 s |
+| 固定暖缓存搜索 | verified，complete=true | 55 | 32 | 15 | 40 | 51.051 s |
+
+冷缓存安装写范围为 @workspace/node_modules 和 @cache/npm，域名仅 registry.npmjs.org；暖缓存安装只需 @workspace/node_modules，域名为空。两种任务写范围均为 @workspace/dist 和 @workspace/reports；读取只保留 verify.cjs、package.json 和 node_modules/clsx。真实任务及边界探针断网，没有继承安装依赖目录写规则。
+
+冷/暖搜索各建立一份通过完整来源 trial 的安装快照。60 个冷试验中只有 23 次调用 npm，37 次任务候选/恢复从固定安装状态克隆；55 个暖试验中 15 次调用 npm，40 次复用。保留源安装及来源 trial、三根哈希和实际生效策略；复用记录不伪装成新的 npm 执行。
+
+两种导出各从原始输入完整重新安装并重放 3 次，均 verified、输入哈希一致、复用次数 0；冷规则 check 为 compatible，3 次完整安装。搜索、重放与回归合计 124 个 trial（47 次 npm 执行、77 次任务快照复用）。这包含了比 v0.5 更多的读取和分阶段候选，运行范围不同；以上单次耗时不能当作与 v0.5 等价的加速基准。
+
+冷输入 SHA-256：5a74e97176c1289834e99b3d34cfd739bffc56a8c13511d5156027f2912efe56。暖输入 SHA-256：27c3ced2972c4cfe59d3f956040472e950109d84e8b935dda841c3f461ef4df7。暖种子 SHA-256：b84293233753fbe28bf49e75166c995912ce82893e6d12d7a3817970ecd0f220。种子来自该次冷安装，两个缓存条件单独验证。
+
+### 隔离、失效与回归证据
+
+新增真实 macOS 测试覆盖：
+
+- 安装可以写依赖，任务仅写产物；未使用包读取被撤销，独立副本原地修改和删除不会污染下一轮或原项目。
+- 确实需要 node_modules/.cache 的任务只保留该小目录；撤销后失败、恢复通过，npm ci 后重新准备目录可完整重放。
+- 任务开始读取另一已安装依赖后，check 提供经过完整重复验证的读取补充，并保持安装写策略。
+- 快照任务候选成功、最终注册表停机时，实际安装为 unknown，最终验证不成立、没有 recommended.yaml。
+- 历史生成文件/目录类型在当前安装后核对，类型变化不会把精确文件授权默默扩大。
+
+组件测试覆盖完整输入/环境/缓存/规则/上限/准备对快照键的影响、未发布快照拒绝、内容和目录模式篡改拒绝、链接逃逸、取消与副本隔离，以及完整新安装证据的基线导入约束。
+
+npm 夹具包含 tar 提取的 ._ 文件，完整性核对暴露 macOS cp 的丢项行为。已补齐此类数据，并用普通 ._ 文件和真实 npm 安装确认哈希一致。额外枚举后的 256 MiB 克隆对照中，普通复制 1718/958/760 ms，克隆 293/295/295 ms；中位数 958 → 295 ms，来源隔离检查全部通过。仍只测工作区创建，文件哈希和执行成本不在这项比较中；本机观察不证明物理块共享。新结果保存于 `.permsift/fork-benchmark-v0.6.json`，默认 fork-benchmark.json 是最近一次运行结果。
+
+### 最终检查
+
+`npm run check`、构建、93 项单元/组件与 45 项真实 macOS 集成测试全部通过，合计 138 项，0 失败、0 跳过。原有 40 项真实测试保留，包括共用写模式安装、读写搜索、网络故障、旧规则回归及中断。依赖枚举优先级仅用于新分阶段模式；最终调整后 10 项读取/快照定向检查通过。另导入 v0.3.1 第三方 clsx 历史基线，3 次 compatible，输入哈希未变，日志为 `.permsift/v0.6-historical-clsx.log`。
+
+日志：`.permsift/v0.6-unit-delivery.log`、`.permsift/v0.6-integration-final.log`、`.permsift/v0.6-public-stages-delivery.log`、`.permsift/v0.6-fork-benchmark.log`。公开流程各子报告、暖种子和独立实验项目位于 staged-workflow-1oZDcF；记录留在 Git 忽略目录。
+
+CI 已加入 stages:verify 并调整时间上限，远端 CI 尚未运行。分阶段配置、条件搜索和仍保留的读取范围见 [staged-permissions.md](staged-permissions.md)。
+
+---
+
 ## v0.5 — 2026-09-30
 
 环境为 macOS 15.8 / arm64、Node.js 24.21.0、npm 11.19.0、SRT 0.0.77、TypeScript 7.0.2。新增依赖安装仍复用这个固定后端，没有自行实现新的沙箱。
@@ -42,7 +87,7 @@
 
 最终 `npm run check`、构建、85 项单元/组件测试及 40 项真实 macOS 沙箱测试全部通过，合计 125 项，0 失败、0 跳过。日志为 `.permsift/v0.5-unit-delivery.log` 和 `.permsift/v0.5-integration-delivery.log`；包含全部既有读写、回归、预算、超时和中断用例。
 
-- `.permsift/fork-benchmark.json` 保存副本创建对照。
+- 早期副本对照值记录于上表；`.permsift/fork-benchmark.json` 为最近运行结果，会更新。
 - `.permsift/install-workflow-g5Lwis/summary.json` 保存 79 次安装流程的汇总与各阶段入口。
 - `.permsift/delivery-v0.5-install-cold-replay-final/`、`delivery-v0.5-install-warm-replay-final/` 保存最终代码复验。
 - `.permsift/delivery-v0.5-historical-clsx-check/` 保存历史基线兼容复验。

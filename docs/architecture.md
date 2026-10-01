@@ -101,3 +101,9 @@ diagnosis 单独分类执行未完成、边界问题、退出非零且捕获到�
 输入哈希覆盖复制的文件内容、文件模式、相对路径、目录以及内部符号链接目标。配置、limits 和包含读写范围、读取目标类型与目录准备状态的可变策略也分别计算哈希。哈希帮助对照实验条件，不能替代可信存储或第三方签名。
 
 每轮工作区通过 forkSnapshot 创建。macOS 使用系统 cp -c 的 clonefile 写时复制，Linux 文件工具测试使用 Node 的 reflink 优先选项；文件和目录仍独立，绝不使用硬链接。磁盘不支持克隆时，复制工具回退到复制字节。evidence.workspace_fork 记录策略与创建耗时；策略名称表示请求克隆，不能证明所有文件实际共享了物理块。输入冻结仍只进行一次完整内容读取和哈希，文件枚举、差异哈希、目录创建/删除的成本仍然存在。详见 [快照工作区](snapshot-workspaces.md)。
+
+## v0.6 可选的安装/任务阶段
+
+install.initial_write_grants 激活阶段策略。安装域名/写规则先通过完整试验搜索；已接受规则的新完整 trial 在任务前捕获 workspace/cache/tmp，整个 trial 通过才发布快照。InstalledSnapshots 绑定完整输入、环境、安装配置、策略、准备和上限，核对源/克隆内容与模式。任务候选只克隆已发布状态，任务读写联合搜索；所有最终 trial 仍走真实安装。
+
+report.install_policies / install_searches / install_discovery 保存安装写搜索，原 policies / read_policies 为任务。installation_stats 与 evidence.installed_snapshot 明确区分新安装和复用来源。读取目录库存于安装后获取，包目录作为叶节点，不扩大 incomplete/truncated 子项。最终验证不能省略；阶段搜索是有界顺序，不声称跨阶段共同最优。run/check 共用完整执行器并在安装后核对历史依赖读取类型。

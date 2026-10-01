@@ -57,3 +57,7 @@ check 从本地历史报告导入授权，仍用当前独立 limits 校验，并
 - [Sandbox Runtime 源码和限制说明](https://github.com/anthropics/sandbox-runtime)
 - [bubblewrap 对调用者安全策略责任的说明](https://github.com/containers/bubblewrap#sandbox-security)
 - [Landlock 访问控制与兼容性](https://docs.kernel.org/userspace-api/landlock.html)
+
+## 分阶段与安装快照
+
+v0.6 分阶段模式实际切换安装写规则和任务读写规则，安装器保留宽工作区读取。任务快照属于本次实验的受保护状态，派生副本保留独立 inode；内容、文件/目录模式和链接核对失败即 unknown。摘要不覆盖扩展属性/ACL/mtime。最终必须从原始输入重新安装并验证两段策略，预算或故障不能用快照结果顶替。候选搜索限定于冻结安装状态及有限操作，不证明跨阶段全局最小。具体流程与保留的小缓存权限见 [分阶段说明](staged-permissions.md)。

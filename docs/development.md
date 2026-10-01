@@ -90,3 +90,7 @@ CI 配置包含 Linux 单元测试与 macOS 完整测试。新增 CI 文件不�
 使用 `--keep-workspaces` 保留副本，报告中的 workspaces 给出绝对路径。查看失败 trial 的 evidence 文件，依次区分对照检查、探针、任务进程和产物断言。
 
 保留的工作区不会自动重用。完成检查后，可自行清理报告所指向的本次临时目录；不要使用宽泛的 /tmp 通配符删除其他实验。
+
+## v0.6 分阶段验收
+
+`npm run stages:verify` 使用公开 clsx 锁定依赖，验证冷/暖缓存的独立安装写规则、任务读取收缩、安装快照复用、三次完整重放与旧规则 check。`test/installed-snapshot.test.ts` 检查键、内容/模式/链接、篡改与副本隔离；`test/integration/staged-install.test.ts` 验证真实策略切换、生成读取、必要小缓存、回归补充和最终注册表故障。旧安装和离线集成测试继续保留。结果见 [validation.md](validation.md)。

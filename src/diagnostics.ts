@@ -5,6 +5,7 @@ import { within, type Roots } from './filesystem.js';
 
 export type Denial = { source: 'sandbox_log' | 'stderr'; operation: string; path?: string; detail: string };
 export type Diagnosis = {
+  stage?: 'install' | 'task';
   kind: 'passed' | 'execution_incomplete' | 'boundary_issue' | 'permission_denial_observed' | 'task_failed' | 'assertion_failure';
   summary: string; denials: Denial[]; failed_assertions: Check[]; boundary_issues: Check[];
   stderr_excerpt: string; log_limitations: string;

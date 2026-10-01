@@ -37,6 +37,7 @@ export async function forkSnapshot(source: string, destination: string, options:
   if (options.signal?.aborted) throw new Error('Snapshot fork interrupted');
   await fs.mkdir(path.dirname(target), { recursive: true });
   const strategy = process.platform === 'darwin' ? 'macos-clone-preferred' : 'node-reflink-preferred';
+  let preservedDotUnderscore = 0;
   try {
     if (process.platform === 'darwin') {
       const result = await runProcess(['/bin/cp', '-cRpPN', base, target], {
@@ -44,11 +45,25 @@ export async function forkSnapshot(source: string, destination: string, options:
         timeoutMs: options.timeoutMs ?? 120_000, maxOutputBytes: 16384, signal: options.signal,
       });
       if (result.status !== 'completed' || result.exit_code !== 0) throw new Error(`Snapshot fork ${result.status}: ${result.stderr || result.error || result.exit_code}`);
+      // cp suppresses ._<name> entries when <name> exists. Preserve those
+      // entries as ordinary data, including files extracted by npm.
+      const preserve = async (from: string, to: string): Promise<void> => {
+        if (options.signal?.aborted || Date.now() - started >= (options.timeoutMs ?? 120_000)) throw new Error('Snapshot fork interrupted or timed out');
+        for (const entry of await fs.readdir(from, { withFileTypes: true })) {
+          const sourceEntry = path.join(from, entry.name), targetEntry = path.join(to, entry.name);
+          if (entry.name.startsWith('._')) {
+            const exists = await fs.lstat(targetEntry).catch(error => { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; return undefined; });
+            if (!exists) { await fs.cp(sourceEntry, targetEntry, { recursive: true, verbatimSymlinks: true }); preservedDotUnderscore++; }
+          }
+          if (entry.isDirectory()) await preserve(sourceEntry, targetEntry);
+        }
+      };
+      await preserve(base, target);
     } else {
       await fs.cp(base, target, { recursive: true, verbatimSymlinks: true, mode: constants.COPYFILE_FICLONE });
     }
     if (options.signal?.aborted) throw new Error('Snapshot fork interrupted');
-    return { strategy, duration_ms: Date.now() - started, fallback: 'Byte copy on filesystems without clone support; clone preference is not proof of physical block sharing' };
+    return { strategy, duration_ms: Date.now() - started, preserved_dot_underscore_entries: preservedDotUnderscore, fallback: 'Byte copy on filesystems without clone support; clone preference is not proof of physical block sharing' };
   } catch (error) {
     await fs.rm(target, { recursive: true, force: true });
     throw error;
@@ -74,10 +89,10 @@ export async function snapshot(source: string, destination: string, excludes: st
   return snapshotTree(source, destination, excludes, maxBytes);
 }
 /** Same digest as snapshot, without materializing a second copy. */
-export async function snapshotHash(source: string, maxBytes: number): Promise<string> {
-  return snapshotTree(source, undefined, [], maxBytes);
+export async function snapshotHash(source: string, maxBytes: number, includeDirectoryModes = false): Promise<string> {
+  return snapshotTree(source, undefined, [], maxBytes, includeDirectoryModes);
 }
-async function snapshotTree(source: string, destination: string | undefined, excludes: string[], maxBytes: number): Promise<string> {
+async function snapshotTree(source: string, destination: string | undefined, excludes: string[], maxBytes: number, includeDirectoryModes = false): Promise<string> {
   const base = await fs.realpath(source);
   let bytes = 0;
   const digest = createHash('sha256');
@@ -95,7 +110,7 @@ async function snapshotTree(source: string, destination: string | undefined, exc
     if (stat.isDirectory()) {
       if (ancestors.has(resolved)) throw new Error(`Symlink cycle in input: ${relative}`);
       const next = new Set(ancestors).add(resolved);
-      digest.update(JSON.stringify([relative, 'directory']));
+      digest.update(JSON.stringify(includeDirectoryModes ? [relative, 'directory', stat.mode & 0o777] : [relative, 'directory']));
       if (destination) await fs.mkdir(to, { recursive: true, mode: 0o700 });
       const entries = (await fs.readdir(resolved)).sort();
       for (const entry of entries) {

@@ -140,3 +140,31 @@ test('only captured exact network hosts inside the wider control generate domain
   const candidates=await repairCandidates(old,control,[diagnosis(hints)],f.root);
   assert.deepEqual(candidates.map(s=>s.initial_network_grants),[['cdn.example','registry.npmjs.org']]);
 });
+
+test('staged baselines require fresh full-flow evidence and preserve independent installer rules', async t => {
+  const f = await fixture(t); f.config.exclude.push('node_modules');
+  f.config.scenarios[0].install = { manager: 'npm', cache: 'cold', registry: 'https://registry.npmjs.org/', initial_write_grants: ['@workspace'] };
+  f.limits.allowed_network_domains = [];
+  const report = { ...f.report, network_policies: { build: [] }, install_policies: { build: ['@workspace/node_modules'] }, inputs: { ...f.report.inputs, config_hash: hash(configSchema.parse(f.config)) }, trials: [{ ...f.report.trials[0], network_grants: [], install_grants: ['@workspace/node_modules'], installation_reused: false }] };
+  const evidence = { ...f.evidence, network_grants: [], install_grants: ['@workspace/node_modules'], stage_policy_mode: 'separate', summary: { installation_reused: false } };
+  await fs.writeFile(path.join(f.root,'inputs.json'), JSON.stringify({config:f.config})); await fs.writeFile(f.reportFile, JSON.stringify(report)); await fs.writeFile(path.join(f.root,'evidence/abc.json'), JSON.stringify(evidence));
+  const baseline = await loadBaseline(f.reportFile), configs = regressionConfigs(f.config, baseline, f.limits);
+  assert.deepEqual(configs.old.scenarios[0].install?.initial_write_grants, ['@workspace/node_modules']);
+  assert.deepEqual(configs.control.scenarios[0].install?.initial_write_grants, ['@workspace']);
+  const bounded = structuredClone(f.config); bounded.scenarios[0].install!.initial_write_grants = [];
+  assert.throws(() => regressionConfigs(bounded, baseline, f.limits), /Control install writes/);
+  await fs.writeFile(f.reportFile, JSON.stringify({ ...report, trials: [{ ...report.trials[0], installation_reused: true }] })); await assert.rejects(loadBaseline(f.reportFile), /no passing evidence/);
+  await fs.writeFile(f.reportFile, JSON.stringify(report)); await fs.writeFile(path.join(f.root,'evidence/abc.json'), JSON.stringify({ ...evidence, install_grants: [] })); await assert.rejects(loadBaseline(f.reportFile), /full-flow/);
+});
+
+test('staged repair hints keep install writes separate and allow bounded generated-module hypotheses', async t => {
+  const f = await fixture(t);
+  const old = { ...f.config.scenarios[0], initial_write_grants: ['@workspace/dist'], initial_read_grants: ['@workspace/task.cjs'], install: { manager: 'npm' as const, cache: 'cold' as const, registry: 'https://registry.npmjs.org/', initial_write_grants: ['@workspace/node_modules'] } };
+  const control = { ...old, initial_write_grants: ['@workspace'], initial_read_grants: ['@workspace'], install: { ...old.install, initial_write_grants: ['@workspace', '@tmp'] } };
+  const installHints = [{ source: 'stderr' as const, operation: 'mkdir', path: '@tmp/npm-extra', detail: 'untrusted' }];
+  const install = await repairCandidates(old, control, [{ ...diagnosis(installHints), stage: 'install' }], f.root);
+  assert.ok(install.some(s => s.install?.initial_write_grants?.includes('@tmp/npm-extra'))); assert.ok(install.every(s => !s.initial_write_grants.includes('@tmp/npm-extra')));
+  const read = await repairCandidates(old, control, [{ ...diagnosis([], "Cannot find module 'new-dep'"), stage: 'task' }], f.root);
+  assert.ok(read.some(s => s.initial_read_grants?.includes('@workspace/node_modules/new-dep')));
+  assert.ok(read.every(s => s.install?.initial_write_grants?.join() === old.install.initial_write_grants.join()));
+});

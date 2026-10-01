@@ -1,0 +1,31 @@
+schema_version: 1
+project: ../install/project
+exclude: [.git, .permsift, dist, reports, node_modules]
+scenarios:
+  - id: install-build
+    install:
+      manager: npm
+      cache: cold
+      initial_write_grants: ['@workspace', '@cache', '@tmp']
+      auto_discover: false
+      narrower_candidates:
+        - from: '@workspace'
+          to: ['@workspace/node_modules']
+        - from: '@cache'
+          to: ['@cache/npm']
+    initial_network_grants: [registry.npmjs.org, example.org]
+    initial_write_grants: ['@workspace', '@cache', '@tmp']
+    initial_read_grants: ['@workspace']
+    auto_discover: false
+    narrower_candidates:
+      - from: '@workspace'
+        to: ['@workspace/dist', '@workspace/reports']
+    command: [node, verify.cjs]
+    assertions:
+      - type: test_results
+        path: '@workspace/reports/tests.json'
+        expected_tests: [strings, conditional, arrays, empty]
+      - type: json_equals
+        path: '@workspace/dist/classes.json'
+        pointer: /classes
+        value: button active

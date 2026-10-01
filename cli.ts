@@ -56,6 +56,7 @@ async function main() {
           console.log(`  ${task.id}: ${task.status}${task.repair_stop ? ` · repair ${task.repair_stop}` : ''}`);
           if (task.reason) console.log(`    ${task.reason}`);
           if (task.suggestion) console.log(`    added reads: ${task.suggestion.added_read.join(', ') || '(none)'}; added writes: ${task.suggestion.added_write.join(', ') || '(none)'}`);
+          if (task.suggestion?.added_install_write) console.log(`    added install writes: ${task.suggestion.added_install_write.join(', ') || '(none)'}`);
           if (task.suggestion?.added_network) console.log(`    added install domains: ${task.suggestion.added_network.join(', ') || '(none)'}`);
         }
         if (report.error) console.error(report.error);
@@ -80,6 +81,7 @@ async function main() {
       console.log(`\n${report.status.toUpperCase()} · ${report.trials.length} executions`);
       for (const [id, grants] of Object.entries(report.policies)) {
         console.log(`  ${id} write: ${grants.join(', ') || '(no variable write grants)'}`);
+        if (report.install_policies[id]) { console.log(`  ${id} install write: ${report.install_policies[id].join(', ') || '(none)'}`); const stats = report.installation_stats[id]; if (stats) console.log(`  ${id} npm executions: ${stats.executed}; installed snapshot reuses: ${stats.reused}`); }
         if (report.read_modes[id] === 'explicit') console.log(`  ${id} read: ${report.read_policies[id].join(', ') || '(no project file/data read grants)'}`);
         if (report.network_searches[id] || report.network_policies[id].length) console.log(`  ${id} install network: ${report.network_policies[id].join(', ') || '(offline)'}`);
       }

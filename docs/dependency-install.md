@@ -58,7 +58,7 @@ scenarios:
 
 网络授权只影响 install，command 和它的探针域名列表始终为空。适配器清除 NO_PROXY 绕过列表，npm 经后端认证代理访问；直接连接、本地监听及任意 Unix socket 放行继续关闭。
 
-安装与后续命令目前共用该场景的文件写规则，网络按阶段切换。因此导出的是整条安装、验证流程的写范围；尚未分别搜索各阶段的写策略，也不在不同场景之间传递安装产物。
+未声明 install.initial_write_grants 的旧配置共用该场景的文件写规则，网络按阶段切换。v0.6 的显式分阶段配置支持独立安装写规则、任务读写与安装快照复用，详见 [分阶段说明](staged-permissions.md)。旧模式导出的是整条安装、验证流程的写范围；尚未分别搜索各阶段的写策略，也不在不同场景之间传递安装产物。
 
 ## 冷缓存与固定暖缓存
 
@@ -95,7 +95,7 @@ report.json 的 network_policies / network_searches 保存最终候选域名、�
 
 后端每次调用使用独立 worker。真实命令结果发送后，若代理的 CONNECT 半关闭连接卡住清理，父进程最多等待 1 秒，再结束该 worker 并确认退出；execution.backend_cleanup.forced 记录此事。没有真实命令结果、执行超时、取消或清理报错仍为 unknown。每次 worker 启动会增加一点执行开销；它把后端状态及代理连接限制在该次调用内。
 
-首版要求 Node 旁边可用的 npm、package-lock v2/v3、完整性校验的 registry tarball。拒绝项目 .npmrc、npm-shrinkwrap、workspaces、Git/file/link 依赖或私有凭据配置。当前安装场景保留工作区读取，暂不对动态生成的依赖树做读权限搜索。需要 postinstall 构建的包通常无法通过后续行为验证；未来应把生命周期脚本设计成独立权限阶段。
+首版要求 Node 旁边可用的 npm、package-lock v2/v3、完整性校验的 registry tarball。拒绝项目 .npmrc、npm-shrinkwrap、workspaces、Git/file/link 依赖或私有凭据配置。安装器保留工作区读取。旧模式不做动态依赖读取搜索；v0.6 分阶段模式可对安装后的任务搜索项目和包读取。需要 postinstall 构建的包通常无法通过后续行为验证；未来应把生命周期脚本设计成独立权限阶段。
 
 域名授权不约束 URL 路径或返回内容，也不是供应链信任证明。固定锁和完整性校验只覆盖声明的安装输入。macOS、SRT 和文件系统边界仍有 [安全说明](security.md) 中的范围限制。
 

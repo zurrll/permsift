@@ -101,3 +101,7 @@ npm run regression:verify
 脚本在 .permsift/regression-upgrades-* 中建立独立副本，不修改 examples 的源文件。先生成窄规则，再依次验证：原输入、无新增权限的代码改动、新增 src/format.json 读取、安装并使用真实 clsx 依赖，以及普通代码错误。
 
 新增读取和依赖的建议均独立重放，核对输入哈希一致；代码错误要求两种规则都失败且不产生修复。summary.json 保存每项次数、时间、新增范围和报告位置。时间为单次本机观察；实测结果见 [validation.md](validation.md)。
+
+## 分阶段基线
+
+v0.6 显式分阶段基线记录独立的 install_policies。导入须找到最终两段规则下重新安装的完整通过证据，不能只提供快照任务通过记录。生成依赖的历史读取类型在当前安装后验证。补充字段包括 install_write / added_install_write，安装失败提示只补充安装写策略，任务新增依赖只补充任务读取。切换阶段模式需要新基线；旧 v0.5 共用写模式继续按旧语义验证。详见 [分阶段说明](staged-permissions.md)。

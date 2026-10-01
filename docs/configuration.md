@@ -58,7 +58,7 @@ command 中的可执行程序由受控 PATH 查找，或使用明确的绝对路
 
 写授权不自动授予读取。省略 initial_read_grants 时读取保持旧行为；声明后按独立读取规则执行。删除写授权不会自动删除读取授权。详细语义见 [读取规则说明](read-permissions.md)。
 
-install.cache 为 warm 时，将冻结输入中 cache_seed 指向的目录独立克隆到 @cache/npm；其余缓存与临时目录仍为空。种子必须是 @workspace 下的现有目录且内部不能含符号链接。记录种子内容哈希并使用 npm --offline；无法从缺失种子自动切换联网。安装场景暂不接受 initial_read_grants。registry 只接受 HTTPS origin；HTTP 的 localhost/127.0.0.1 origin 专供本地夹具。域名规则不带协议、通配符、端口或 URL 路径，授权匹配该精确主机的所有端口；保留域名 permsift-denied.invalid 禁止配置。见 [安装说明](dependency-install.md)。
+install.cache 为 warm 时，将冻结输入中 cache_seed 指向的目录独立克隆到 @cache/npm；其余缓存与临时目录仍为空。种子必须是 @workspace 下的现有目录且内部不能含符号链接。记录种子内容哈希并使用 npm --offline；无法从缺失种子自动切换联网。旧安装模式不接受 initial_read_grants；声明 install.initial_write_grants 的分阶段模式可以收缩任务读取。registry 只接受 HTTPS origin；HTTP 的 localhost/127.0.0.1 origin 专供本地夹具。域名规则不带协议、通配符、端口或 URL 路径，授权匹配该精确主机的所有端口；保留域名 permsift-denied.invalid 禁止配置。见 [安装说明](dependency-install.md)。
 
 ## 自动发现候选
 
@@ -194,3 +194,9 @@ doctor 使用临时内置项目，只输出检查报告，不导出可重放策�
 `check --config CURRENT --baseline REPORT_JSON --limits TRUSTED_FILE` 使用当前任务和历史最终授权。baseline 旁须保留 inputs.json 和 evidence/，并且该报告为 verified；当前 initial_*_grants 是失败时的宽对照，须覆盖旧规则并在可信上限内。
 
 check 共用整体时间预算、候选数量上限和 repetitions；修复候选先单次试验，再完整重复验证。JSON 为 kind=regression 的汇总，任务状态与子报告记录分开；兼容时生成 compatible.yaml，整份补充都通过验证时生成 suggested.yaml。详见 [回归检查](regression-checks.md)。
+
+## 分阶段安装（v0.6）
+
+install.initial_write_grants（可选，最多 32 项）显式开启分阶段模式，空数组也开启；install.narrower_candidates 为安装写候选，install.auto_discover 默认为 true。后两项需要显式的安装写字段。顶层读写和候选字段用于任务，网络仍仅用于安装，两段写规则都必须在 allowed_write_roots 内。
+
+原始输入、安装配置/规则、缓存条件、目录准备、上限或环境改变会使安装快照失效。本版只在一次实验内复用，最终 repetitions 和 run/check 都重新安装。旧共用策略配置和历史基线保持兼容；切换阶段/读取模式须建立新基线。完整流程、报告及生成读取限制见 [staged-permissions.md](staged-permissions.md)。

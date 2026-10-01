@@ -6,7 +6,7 @@ Test tasks. Trim permissions.
 
 Permsift 是一个面向项目任务的沙箱权限调试器。你提供可工作的初始策略和安装、测试、构建等任务，它在干净副本中反复执行，尝试缩小文件和安装网络权限，用任务断言和边界探针判断是否接受修改，并保留每一步的证据。
 
-当前为 **v0.5，macOS 本地 CLI**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。支持目录写权限、可选的项目文件读取收缩，以及 npm 安装阶段的精确域名撤销。安装后在同一工作区断网测试和构建，冷缓存与固定暖缓存分别验证。工作区优先使用写时复制，保持各轮文件独立。改代码、锁文件或依赖后，可用 check 验证旧规则并尝试受限补充。系统运行时、缓存和临时目录读取仍固定开放；结果限定于本次环境和测试集合，不代表全局最小权限。
+当前为 **v0.6，macOS 本地 CLI**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。支持目录写权限、可选的项目文件读取收缩，以及 npm 安装阶段的精确域名撤销。安装后断网测试和构建，冷缓存与固定暖缓存分别验证。显式分阶段配置可分别收缩安装写权限和任务读写，任务候选复用本次实验内的安装快照，最终仍重新安装完整验收。工作区优先使用写时复制，保持各轮文件独立。改代码、锁文件或依赖后，可用 check 验证旧规则并尝试受限补充。系统运行时、缓存和临时目录读取仍固定开放；结果限定于本次环境和测试集合，不代表全局最小权限。
 
 ## 快速开始
 
@@ -87,7 +87,7 @@ node dist/cli.js check \
 
 **所有文件断言都描述本轮新产生的输出。** 执行前会从工作区副本删除这些输出，避免旧产物导致假通过。不要把源文件或不可替代的输入写成输出断言。原项目不受这些删除操作影响。
 
-路径只接受 `@workspace`、`@cache`、`@tmp` 三类别名及其子路径。第一版不接受任意原始后端配置、宿主验证脚本、联网规则或自定义环境变量。
+路径只接受 `@workspace`、`@cache`、`@tmp` 三类别名及其子路径。当前支持受限的安装域名列表，不接受任意原始后端配置、宿主验证脚本或自定义环境变量。
 
 ## 交付内容
 
@@ -145,7 +145,17 @@ node dist/cli.js tighten \
 
 例子固定 clsx 2.1.1。安装阶段运行 npm ci --ignore-scripts，尝试撤销 example.org 和 registry.npmjs.org；冷缓存保留实际需要的下载域名。已有缓存从明确的固定种子独立克隆，npm --offline 安装，得到的无网络规则只适用于该缓存条件。随后执行 4 项依赖行为检查并生成构建产物，任务命令始终断网。
 
-首版支持 npm、v2/v3 锁文件和注册表 tarball；安装场景使用完整工作区读取。暂不支持私有凭据、项目 .npmrc、Git/file 依赖、npm workspaces 或依赖生命周期脚本。详见 [安装与网络权限](docs/dependency-install.md)。
+首版支持 npm、v2/v3 锁文件和注册表 tarball；旧安装配置保留完整工作区读取；分阶段配置支持任务读取收缩。暂不支持私有凭据、项目 .npmrc、Git/file 依赖、npm workspaces 或依赖生命周期脚本。详见 [安装与网络权限](docs/dependency-install.md)。
+
+## 分阶段安装与任务权限
+
+```sh
+npm run stages:verify
+```
+
+在 install 内声明 initial_write_grants 后，该字段用于安装，顶层 initial_write_grants / initial_read_grants 用于安装后的任务。任务获得独立规则，能够撤销不需要的依赖写权限和包读取；确需依赖内缓存时可保留小目录。安装规则固定后的任务候选从验证过的安装状态克隆，减少重复 npm ci；最终重复验证和 run/check 仍从原始输入重新安装。
+
+导出一份包含两段规则的配置，报告区分实际安装次数与快照复用次数。旧 v0.5 安装配置保留共用写规则行为。见 [分阶段说明](docs/staged-permissions.md) 与 [示例](examples/staged-install/permsift.yaml)。
 
 ## 验证代码
 
@@ -171,6 +181,7 @@ npm run check
 - [架构与搜索流程](docs/architecture.md)：模块、候选修改、结果状态和证据。
 - [搜索效率](docs/search-efficiency.md)：成组撤销、延后复查和同项目次数对比。
 - [快照工作区](docs/snapshot-workspaces.md)：写时复制、跨轮隔离、回退与本机对照。
+- [分阶段权限](docs/staged-permissions.md)：独立安装写规则、安装快照复用、任务读取与完整重放。
 - [安装与网络权限](docs/dependency-install.md)：安装阶段、冷暖缓存、域名上限和断网验证。
 - [规则回归检查](docs/regression-checks.md)：代码与依赖变化后的验证、对照和建议采用。
 - [安全边界](docs/security.md)：固定权限、支持的工作负载和已知限制。

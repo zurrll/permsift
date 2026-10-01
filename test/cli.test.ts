@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 function cli(...args: string[]) { return spawnSync(process.execPath, ['dist/cli.js', ...args], { encoding: 'utf8' }); }
 test('CLI help and version are available without sandbox execution', () => {
   const help = cli('--help'); assert.equal(help.status, 0); assert.match(help.stdout, /tighten/);
-  const version = cli('--version'); assert.equal(version.status, 0); assert.match(version.stdout, /^0\.5\.0/);
+  const version = cli('--version'); assert.equal(version.status, 0); assert.match(version.stdout, /^0\.6\.0/);
 });
 test('check requires a historical baseline and other commands reject that option', () => {
   const missing = cli('check', '--config', 'tasks.yaml', '--limits', 'limits.json');

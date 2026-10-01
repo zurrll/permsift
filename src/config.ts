@@ -14,6 +14,9 @@ export const domainSchema = z.string().max(253).regex(/^[a-z0-9](?:[a-z0-9-]*[a-
   .refine(s => s !== 'permsift-denied.invalid', 'Reserved network-probe domain');
 const installSchema = z.object({
   manager: z.literal('npm'), cache: z.enum(['cold', 'warm']).default('cold'),
+  initial_write_grants: z.array(aliasSchema).max(32).optional(),
+  narrower_candidates: z.array(z.object({ from: aliasSchema, to: z.array(aliasSchema).min(1).max(32) }).strict()).max(32).optional(),
+  auto_discover: z.boolean().optional(),
   cache_seed: readAliasSchema.optional(),
   registry: z.string().url().default('https://registry.npmjs.org/').refine(s => {
     try { const u = new URL(s); return !u.username && !u.password && !u.search && !u.hash && u.pathname === '/' && domainSchema.safeParse(u.hostname).success &&
@@ -83,7 +86,14 @@ export function validatePolicy(config: Config, limits: Limits): void {
       if (domains.some(d => !limits.allowed_network_domains!.includes(d))) throw new Error('Network grant exceeds trusted limits');
       if (!config.exclude.includes('node_modules')) throw new Error('Install scenarios must exclude top-level node_modules');
       if (scenario.install.cache === 'warm' ? !scenario.install.cache_seed?.startsWith('@workspace/') : scenario.install.cache_seed !== undefined) throw new Error('Warm cache requires a project cache_seed; cold cache forbids a seed');
-      if (scenario.initial_read_grants !== undefined) throw new Error('Install currently requires legacy workspace reads; generated dependency read scopes are not yet searched');
+      if (scenario.initial_read_grants !== undefined && !isStaged(scenario)) throw new Error('Install currently requires legacy workspace reads; set separate install.initial_write_grants to search task reads');
+      const install = installationScenario(scenario);
+      if (!isStaged(scenario) && (scenario.install.narrower_candidates !== undefined || scenario.install.auto_discover !== undefined)) throw new Error('Install stage options require install.initial_write_grants');
+      if (new Set(install.initial_write_grants).size !== install.initial_write_grants.length) throw new Error('Duplicate install write grant');
+      for (const rule of install.narrower_candidates) if (rule.to.some(p => !contains(rule.from, p) || rule.from === p)) throw new Error('Install narrowing must target strict descendants');
+      for (const grant of [...install.initial_write_grants, ...install.narrower_candidates.flatMap(r => [r.from, ...r.to])]) {
+        if (!limits.allowed_write_roots.some(root => contains(root, grant))) throw new Error(`Install grant exceeds trusted limits: ${grant}`);
+      }
     }
     if (new Set(scenario.initial_write_grants).size !== scenario.initial_write_grants.length) throw new Error('Duplicate write grant');
     for (const rule of scenario.narrower_candidates) {
@@ -105,6 +115,14 @@ export function validatePolicy(config: Config, limits: Limits): void {
       if (!limits.allowed_read_roots.some(root => contains(root, grant))) throw new Error(`Read grant exceeds trusted limits: ${grant}`);
     }
   }
+}
+
+export const isStaged = (scenario: Scenario) => scenario.install?.initial_write_grants !== undefined;
+/** A separate installer retains broad project reads; task read rules apply only after npm completes. */
+export function installationScenario(scenario: Scenario): Scenario {
+  return { ...scenario, initial_write_grants: scenario.install?.initial_write_grants ?? scenario.initial_write_grants,
+    initial_read_grants: undefined, narrower_read_candidates: [],
+    narrower_candidates: scenario.install?.narrower_candidates ?? [], auto_discover: scenario.install?.auto_discover ?? true };
 }
 
 async function readConfig(file: string): Promise<unknown> {

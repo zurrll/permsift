@@ -101,3 +101,12 @@ test('snapshot fork refuses existing/nested paths and an aborted fork leaves no 
   await assert.rejects(forkSnapshot(source, path.join(root, 'aborted'), { signal: controller.signal }), /interrupted/);
   await assert.rejects(fs.access(path.join(root, 'aborted')));
 });
+
+test('forks preserve dot-underscore data next to companion files', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'permsift-dot-underscore-')); t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const source = path.join(root, 'source'); await fs.mkdir(source);
+  await fs.writeFile(path.join(source, 'data'), 'main'); await fs.writeFile(path.join(source, '._data'), 'ordinary data');
+  const copy = path.join(root, 'copy'); await forkSnapshot(source, copy);
+  assert.equal(await fs.readFile(path.join(copy, '._data'), 'utf8'), 'ordinary data');
+  assert.equal(await snapshotHash(copy, 1000), await snapshotHash(source, 1000));
+});

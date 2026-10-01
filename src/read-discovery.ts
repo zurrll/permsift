@@ -8,14 +8,14 @@ export type ReadObservation = ReadInventory & { id: string };
 export type ReadDiscovery = { enabled: boolean; rules: Rule[]; observation_ids: string[]; truncated: boolean; limitations: string[] };
 
 /** Inventory inputs before execution. Outputs not yet present cannot become file grants. */
-export async function readInventory(roots: Roots, limits: Limits): Promise<ReadInventory> {
+export async function readInventory(roots: Roots, limits: Limits, installed = false): Promise<ReadInventory> {
   const result: ReadInventory = { groups: [], entries: [], truncated: false };
   const queue = ['@workspace'];
   while (queue.length) {
     const from = queue.shift()!;
     const directory = resolveAlias(from, roots);
     await noSymlinks(roots.workspace, directory);
-    const children = (await fs.readdir(directory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
+    const children = (await fs.readdir(directory, { withFileTypes: true })).sort((a, b) => (installed ? Number(b.name === 'node_modules') - Number(a.name === 'node_modules') : 0) || a.name.localeCompare(b.name));
     const to: string[] = [];
     let complete = true;
     for (const entry of children) {
@@ -30,7 +30,8 @@ export async function readInventory(roots: Roots, limits: Limits): Promise<ReadI
       result.entries.push({ alias, type: entry.isFile() ? 'file' : 'directory' });
       to.push(alias);
       if (entry.isDirectory()) {
-        if (alias.split('/').length - 1 < limits.max_read_discovery_depth) queue.push(alias);
+        if (installed && contains('@workspace/node_modules', from) && !entry.name.startsWith('@')) result.truncated = true;
+        else if (alias.split('/').length - 1 < limits.max_read_discovery_depth) queue.push(alias);
         else result.truncated = true;
       }
     }
