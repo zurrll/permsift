@@ -1,5 +1,41 @@
 # 实测记录
 
+## v0.9 — 2026-10-02
+
+新增依赖使用观察，不运行权限搜索。单元/宿主组件 111 项通过；真实 macOS 完整集成 50 项通过，新增失败后继续其他任务用例及末次观察采集修改后复跑全部 6 项观察集成通过，合计覆盖 51 个不同真实集成用例。0 失败、0 跳过。类型检查/构建通过；日志 `.permsift/v0.9-unit-delivery.log`、`.permsift/v0.9-integration.log`、`.permsift/v0.9-observation-delivery.log`。开发测试证明实现约定，测试总数不作为用户收益指标。
+
+固定夹具核对 npm 提升/作用域/嵌套重复版本与锁中未安装的可选条目；CJS、ESM、Node 子进程和默认 worker 继承；稳定加载列表/解析关系；未用包不被观察；事件上限、文件上限、缺 footer、损坏/链接日志、非文件 URL 内容不被记录，以及前后版本/加载变化。真实集成核对每任务一次、产物与前后边界、任务日志目录写例外和预加载 denyWrite、无推荐配置、观察不能作为 check 基线、清空子进程观察环境的可见缺口、shell 任务 pass 与 unavailable 分开、失败任务继续其他场景、超时保存部分记录。
+
+### 用户收益与覆盖的真实例子
+
+`npm run observe:verify -- --medium-baseline .permsift/fast-glob-profile-tM7NH1/summary.json` 使用已有固定暖输入/种子，不重新搜索；每项目普通执行一次、观察两次。证据 `.permsift/dependency-usage-gYHkTJ/summary.json` 与各项目 usage.json，日志 `.permsift/v0.9-usage-verification.log`。
+
+| 项目 / 配置任务 | 实际安装实例 | 包名去重 | 观察到模块加载的包实例 | 未观察到模块加载 | 收到记录的 Node 进程/线程 |
+| --- | --- | --- | --- | --- | --- |
+| bundle-kit / build | 2 | 2 | 1 | 1 | 1 |
+| fast-glob / compile | 507 | 381 | 1 | 506 | 1 |
+| fast-glob / compile-test | 507 | 381 | 97 | 410 | 3 |
+
+两次观察的安装归属、加载包/文件与解析关系完全相同，输入摘要与普通执行相同；任务断言和边界均通过，范围内日志完整。fast-glob 的 compile 只观察到 TypeScript 的 JS 加载，compile-test 还观察到 Mocha 及本轮间接依赖；仍执行原 verify.cjs 的编译、精确 246 项测试和构建 API 断言。能解释 `glob-parent` 这条真实关系：`@workspace/out/utils/pattern.js → @workspace/node_modules/glob-parent/index.js`，而非仅提供 97 这个总数。
+
+这些数字不表示编译只使用一个依赖，也不表示剩余 410/506 个包可删除：声明、资源和其他文件读取不由模块钩子覆盖。bundle-kit 观察到 esbuild 包装层的加载及原生二进制启动尝试；`@esbuild/darwin-arm64` 在未观察列表，却提供实际使用的二进制，报告明确列为覆盖盲区。bundle-kit 锁文件 27 个包位置，仅实际安装 2 个；未安装的平台记录不被算进已安装分母。fast-glob 本次 507 个锁位置均实际安装。
+
+受控集成改动让原未加载的 unused 出现在观察列表，并把同安装位置 alpha 从 1.0.0 改为 2.0.0，前后对比分别显示新增观察和版本变化。没有自动删除依赖或转换成权限候选。
+
+### 成本观察
+
+| 配置任务 | 普通 task 分项 | 首次观察 task 分项 | 第二次观察 task 分项 |
+| --- | --- | --- | --- |
+| bundle-kit / build | 1116.34 ms | 2037.63 ms | 433.30 ms |
+| fast-glob / compile | 954.77 ms | 930.32 ms | 940.06 ms |
+| fast-glob / compile-test | 1237.23 ms | 1273.91 ms | 1241.05 ms |
+
+两个 fast-glob 任务各执行一次的全流程：普通 24.57 s、观察 25.54 s、重复观察 24.89 s，包含独立的固定暖安装、副本、变化扫描、边界和清理。不是用 25 秒替代原 70 次权限搜索获得相同结论：观察只回答本次模块加载。bundle-kit 全流程 1.63 / 2.46 / 0.85 s；单次差异较大，不能据此承诺普遍低开销。task 分项含后端启动/退出；清单/日志收集另外计时，顺序与文件系统状态也影响成本。
+
+本版收益验证落在来源解释、任务区别、受控变化发现和已知盲区；尚未量化外部用户的人工排查时间，也没有证明观察驱动收缩能大幅减少试验。CI 加入默认 bundle-kit 观察验证，远端未运行。具体范围见 [dependency-usage.md](dependency-usage.md)，取舍见 [value-and-scope.md](value-and-scope.md)。
+
+实际 CLI 的 observe --json --baseline 已验证退出 0、stdout 为独立 dependency_usage JSON、同输入对比无新增/移除/版本变化；证据 `.permsift/v0.9-cli-observe/` 与 `.permsift/v0.9-cli-observe.stdout.json`。末次日志读回修正保留损坏尾行之前的有效记录，部分报告仍为 incomplete。
+
 ## v0.8 — 2026-10-02
 
 单元/宿主组件 102 项、真实 macOS 沙箱 45 项，共 147 项通过，0 失败、0 跳过；npm run check 与 build 通过。新增历史摘要兼容、同大小内容修改及恢复时间戳、文件/目录权限、内部/外部/循环/悬空链接、大文件分块、空文件/目录、大小上限、取消/超时、异常类型、读取中增长拒绝/关闭与诊断聚合检查。源及副本两次完整三根核对均保留。日志：.permsift/v0.8-unit-delivery.log、.permsift/v0.8-integration.log；末次诊断计数修正后额外复跑全部分阶段测试，见 .permsift/v0.8-staged-delivery.log。测量跨 2026-10-01/02，版本交付日期为 2026-10-02。

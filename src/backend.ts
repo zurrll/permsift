@@ -6,6 +6,7 @@ import { readAliasSchema } from './config.js';
 import { noSymlinks, resolveAlias, within, type Roots } from './filesystem.js';
 import { runProcess, shellQuote } from './process.js';
 import { superviseSandbox } from './sandbox-supervisor.js';
+import type { ObserverContext } from './observation.js';
 
 export const BACKEND_VERSION = '0.0.77';
 export function requirePlatform() {
@@ -17,6 +18,8 @@ export type BackendContext = {
   readGrants?: string[]; protectedWritePaths?: string[];
   readKinds?: Record<string, 'file' | 'directory'>;
   networkGrants?: string[];
+  /** Engine-owned preload/collector only. Never accepted from project config. */
+  observer?: ObserverContext;
 };
 
 // SRT treats plain paths as recursive subpaths. A one-character glob compiles
@@ -40,6 +43,14 @@ export async function policyFor(context: BackendContext): Promise<SandboxRuntime
     await access(resolved);
     write.push(resolved);
   }
+  if (context.observer) {
+    const base = path.join(roots.tmp, '.permsift-observer');
+    if (context.observer.bootstrap !== path.join(base, 'preload.cjs') || context.observer.directory !== path.join(base, 'logs')) throw new Error('Invalid observer control paths');
+    await noSymlinks(roots.tmp, context.observer.bootstrap);
+    await noSymlinks(roots.tmp, context.observer.directory);
+    if (!(await lstat(context.observer.bootstrap)).isFile() || !(await lstat(context.observer.directory)).isDirectory()) throw new Error('Invalid observer control types');
+    write.push(context.observer.directory);
+  }
   const nodeRoot = path.dirname(path.dirname(await realpath(process.execPath)));
   if (nodeRoot === homedir()) throw new Error('Node installed directly under HOME is not supported; use an isolated Node installation.');
   const read = context.readGrants === undefined ? Object.values(roots) : [exactReadPattern(roots.workspace), roots.cache, roots.tmp];
@@ -59,7 +70,7 @@ export async function policyFor(context: BackendContext): Promise<SandboxRuntime
       denyRead: [...new Set(['/Users', homedir(), context.experimentRoot, ...context.protectedPaths])],
       allowRead: [...read, ...(within(homedir(), nodeRoot) ? [nodeRoot] : [])],
       allowWrite: write,
-      denyWrite: ['/tmp/claude', '/private/tmp/claude', ...context.protectedPaths, ...context.protectedWritePaths ?? []],
+      denyWrite: ['/tmp/claude', '/private/tmp/claude', ...context.protectedPaths, ...context.protectedWritePaths ?? [], ...context.observer ? [context.observer.bootstrap] : []],
     },
     allowPty: false, allowAppleEvents: false, enableWeakerNetworkIsolation: false, enableWeakerNestedSandbox: false,
   };
@@ -101,7 +112,9 @@ export async function executeSandboxNative(command: string[], context: BackendCo
     const wrapped = await SandboxManager.wrapWithSandboxArgv(text, '/bin/bash', undefined, context.signal, context.roots.workspace, { commandId: context.invocationId });
     const effective = { read: SandboxManager.getFsReadConfig(), write: SandboxManager.getFsWriteConfig(), network: SandboxManager.getNetworkRestrictionConfig() };
     // wrapped.env is the entire host environment on POSIX. Intentionally do not inherit it.
-    const processResult = await runProcess(wrapped.argv, { cwd: context.roots.workspace, env: cleanEnvironment(context.roots), timeoutMs: context.timeoutMs, maxOutputBytes: context.maxOutputBytes, signal: context.signal, onStart: hooks.onStart });
+    const env = cleanEnvironment(context.roots);
+    if (context.observer) env.NODE_OPTIONS = `--require ${JSON.stringify(context.observer.bootstrap)}`;
+    const processResult = await runProcess(wrapped.argv, { cwd: context.roots.workspace, env, timeoutMs: context.timeoutMs, maxOutputBytes: context.maxOutputBytes, signal: context.signal, onStart: hooks.onStart });
     const violations = SandboxManager.getSandboxViolationStore().getViolationsForCommand(context.invocationId);
     const result = { process: processResult, policy, effective, violations };
     hooks.onResult?.(result);

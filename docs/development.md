@@ -10,6 +10,17 @@ npm run check
 
 依赖精确固定在 package.json 和 package-lock.json。TypeScript 输出位于 dist/；源码是 CLI 入口 cli.ts 及 src/ 下的模块。工具尚未发布，直接通过 node dist/cli.js 使用。
 
+## 依赖观察验证
+
+```sh
+# 已 examples:prepare 后：普通一次、观察两次；不运行权限搜索
+npm run observe:verify
+# 使用现有 medium:verify 结果的固定暖输入/种子，增加 fast-glob 两种任务
+npm run observe:verify -- --medium-baseline .permsift/fast-glob-profile-XXXXXX/summary.json
+```
+
+新增 observation.test.ts 验证清单、CJS/ESM/Node 子进程、记录截断和对比；integration/observation.test.ts 验证真实写保护、前后边界、任务与记录状态分离、受控依赖变化和超时保存。CLI 观察的完整边界见 [dependency-usage.md](dependency-usage.md)。
+
 ## 测试分层
 
 ```sh

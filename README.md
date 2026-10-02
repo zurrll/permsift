@@ -6,7 +6,7 @@ Test tasks. Trim permissions.
 
 Permsift 是一个面向项目任务的沙箱权限调试器。你提供可工作的初始策略和安装、测试、构建等任务，它在干净副本中反复执行，尝试缩小文件和安装网络权限，用任务断言和边界探针判断是否接受修改，并保留每一步的证据。
 
-当前为 **v0.8，macOS 本地 CLI**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。支持目录写权限、可选的项目文件读取收缩，以及 npm 安装阶段的精确域名撤销。安装后断网测试和构建，冷缓存与固定暖缓存分别验证。显式分阶段配置可分别收缩安装写权限和任务读写，任务候选复用本次实验内的安装快照，最终仍重新安装完整验收。工作区优先使用写时复制，保持各轮文件独立。改代码、锁文件或依赖后，可用 check 验证旧规则并尝试受限补充。系统运行时、缓存和临时目录读取仍固定开放；结果限定于本次环境和测试集合，不代表全局最小权限。
+当前为 **v0.9，macOS 本地 CLI**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。支持目录写权限、可选的项目文件读取收缩，以及 npm 安装阶段的精确域名撤销。安装后断网测试和构建，冷缓存与固定暖缓存分别验证。显式分阶段配置可分别收缩安装写权限和任务读写，任务候选复用本次实验内的安装快照，最终仍重新安装完整验收。工作区优先使用写时复制，保持各轮文件独立。改代码、锁文件或依赖后，可用 check 验证旧规则并尝试受限补充。系统运行时、缓存和临时目录读取仍固定开放；结果限定于本次环境和测试集合，不代表全局最小权限。
 
 ## 快速开始
 
@@ -34,6 +34,18 @@ VERIFIED · ... executions
 初始策略允许写整个工作区和缓存。工具将测试写入范围缩到 `reports/`，构建缩到 `dist/`，撤销不需要的缓存写权限；再尝试删除产物目录写权限时，任务失败，恢复后重新通过。基线和最终策略各独立重复三次。自动发现后还会使用统一的目录准备状态重新确认基线，因此运行次数随候选变化。
 
 完整报告位于命令输出的 `.permsift/<experiment-id>/` 目录。每次默认使用新目录，不覆盖历史证据。
+
+## 依赖使用观察
+
+v0.9 提供 `observe`：每个任务运行一次，记录已安装的 npm 包、Node 模块加载与本次解析来源；可比较改动前后的新增加载和版本变化。默认只观察，不启动权限搜索。
+
+```sh
+node dist/cli.js observe --config examples/projects/bundle-kit/permsift.yaml --limits examples/limits.json
+# 用上一次 usage.json 对比当前观察
+node dist/cli.js observe --config examples/projects/bundle-kit/permsift.yaml --limits examples/limits.json --baseline .permsift/PREVIOUS/usage.json
+```
+
+示例需先 `npm run examples:prepare`。报告位于 usage.md / usage.json，任务断言和真实边界证据仍在 report.md。模块观察需要 Node 22.15+ 或 23.5+；原生构建进程、类型及资源读取不在本版覆盖范围。**未观察到模块加载，不表示依赖无用或可以删除。** 详见 [依赖使用报告](docs/dependency-usage.md) 和 [收益取舍](docs/value-and-scope.md)。
 
 ## CLI
 
@@ -70,9 +82,9 @@ node dist/cli.js check \
 
 | 退出码 | 含义 |
 | --- | --- |
-| 0 | 当前策略完成验证；check 表示旧规则仍兼容，tighten 仍需看 search_complete |
+| 0 | 当前策略完成验证；check 表示兼容，tighten 仍需看 search_complete；observe 表示任务通过且范围内记录已读回 |
 | 1 | 基线任务或边界断言失败，或 check 发现需要审阅的回归 |
-| 2 | 配置错误、环境异常、超时、最终验证未完成或 check 无法判断 |
+| 2 | 配置错误、环境异常、超时、验证未完成、check 无法判断或 observe 记录不完整 |
 | 130 | 用户中断，已尽可能保存不完整报告 |
 
 ## 用于自己的项目
@@ -91,7 +103,7 @@ node dist/cli.js check \
 
 ## 交付内容
 
-- `doctor`、`run`、`tighten`、`check` 四个命令。
+- `doctor`、`run`、`tighten`、`check`、`observe` 五个命令。
 - 规则回归检查：冻结当前输入、验证旧规则、宽规则对照和经过复验的补充建议。
 - 按任务独立的读写权限搜索、失败回退与恢复复测；读权限变化后重新搜索写权限。
 - 自动候选及来源记录，工作区、缓存和临时目录变化，统一准备后的基线复测。

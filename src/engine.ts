@@ -15,8 +15,9 @@ import { readInventory, discoverReads, type ReadDiscovery, type ReadObservation 
 import { InstalledSnapshots, installationKey, rootHashes, type InstalledSnapshot } from './installed-snapshot.js';
 import { Timings, summarizeTimings, type TimingSummary } from './timing.js';
 import { inspectInstall, executeInstall, prepareInstallCache, npmVersion, type InstallInput } from './install.js';
+import { prepareObservation, collectObservation, type ObservationSetup, type TaskObservation } from './observation.js';
 
-export const VERSION = '0.8.0';
+export const VERSION = '0.9.0';
 export type Trial = { id: string; scenario: string; phase: string; grants: string[]; read_grants: string[]; read_mode: 'explicit' | 'legacy'; network_grants: string[]; verdict: TrialVerdict; duration_ms: number; evidence: string; reason?: string; diagnosis?: Diagnosis; install_grants?: string[]; execution_stage?: 'install' | 'task'; installation_reused?: boolean; timings?: TimingSummary };
 type SearchSummary = { stop: string; steps: SearchStep[]; rounds: number; reuses: SearchReuse[] };
 export type Report = {
@@ -32,6 +33,7 @@ export type Report = {
   install_policies: Record<string, string[]>; install_searches: Record<string, SearchSummary>; install_discovery: Record<string, Discovery>;
   installation_stats: Record<string, { executed: number; reused: number; snapshots: number; snapshot_key?: string; hashes?: Record<string, string> }>;
   timings?: TimingSummary;
+  dependency_observations?: Record<string, TaskObservation>;
   search_complete: boolean; output: string; workspaces?: string; error?: string;
 };
 export function classifyTrial(taskStatus: string, exitCode: number | null, assertions: Check[], boundaries: Check[]): TrialVerdict {
@@ -138,7 +140,7 @@ export function markdownReport(report: Report) {
 
 type ExperimentInput = { config: Config; limits: Limits; project: string; configFile: string; limitsFile: string };
 export async function runExperiment(options: {
-  mode: 'run' | 'tighten' | 'doctor'; configPath?: string; limitsPath?: string; input?: ExperimentInput;
+  mode: 'run' | 'tighten' | 'doctor' | 'observe'; configPath?: string; limitsPath?: string; input?: ExperimentInput;
   output?: string; keepWorkspaces?: boolean; signal?: AbortSignal; onProgress?: (message: string) => void;
   expectedReadKinds?: Record<string, Record<string, 'file' | 'directory'>>;
   frozenInput?: { path: string; hash: string; protectedPaths?: string[] };
@@ -184,8 +186,10 @@ export async function runExperiment(options: {
     read_policies: Object.fromEntries(config.scenarios.map(s => [s.id, s.initial_read_grants ?? ['@workspace']])),
     read_modes: Object.fromEntries(config.scenarios.map(s => [s.id, s.initial_read_grants === undefined ? 'legacy' : 'explicit'])),
     baseline_verified: false, final_verified: false, search_complete: false, output: canonicalOutput,
+    ...(options.mode === 'observe' ? { dependency_observations: {} } : {}),
     ...(options.keepWorkspaces ? { workspaces: scratch } : {}),
   };
+  if (options.mode === 'observe') report.scope.unshift('Observation executes each configured task once. A passing task is not a repeated policy baseline; no policy recommendation or search is produced. The task-only observer adds a write-protected builtin preload and one internal trace directory write exception.');
   const updateTimings = () => {
     const setup = experimentTimings.snapshot();
     report.timings = summarizeTimings(setup.total_ms, [setup, ...report.trials.flatMap(t => t.timings ? [t.timings] : [])]);
@@ -241,6 +245,7 @@ export async function runExperiment(options: {
       if (phase.startsWith('candidate')) candidateCount++;
       options.onProgress?.(`${scenario.id} · ${phase} · write: ${grants.join(', ') || '(none)'}${readMode === 'explicit' ? ` · read: ${readGrants.join(', ') || '(none)'}` : ''}${scenario.install ? ` · network: ${networkGrants.join(', ') || '(offline)'}` : ''}${staged ? ` · install write: ${installGrants.join(', ') || '(none)'} · ${stage.taskOnly ? 'snapshot' : 'fresh install'}` : ''}`);
       let roots: Roots | undefined, task: Awaited<ReturnType<typeof executeSandbox>> | undefined;
+      let observer: ObservationSetup | undefined;
       let assertions: Check[] = [], boundaries: Check[] = [], pendingSnapshot: InstalledSnapshot | undefined;
       const stats = staged ? report.installation_stats[scenario.id] ??= { executed: 0, reused: 0, snapshots: 0 } : undefined;
       const scanRoots = () => timings.measure('manifest', async () => Object.fromEntries(
@@ -358,7 +363,14 @@ export async function runExperiment(options: {
               if (offline.checks.some(c => c.status !== 'pass')) throw new Error('Offline task boundary checks did not pass');
             }
             trial.execution_stage = 'task';
-            task = await timings.measure('task', () => executeSandbox(scenario.command, { ...offlineContext, timeoutMs: Math.max(1, taskDeadline - Date.now()) })); evidence.task = task;
+            if (options.mode === 'observe') {
+              observer = await timings.measure('discovery', () => prepareObservation(roots!, options.signal));
+              evidence.observer = { source: 'node_module_hooks', bootstrap: observer.bootstrap, collector: observer.directory, bootstrap_hash: observer.bootstrap_hash,
+                internal_write_exception: '@tmp/.permsift-observer/logs', instrumentation_applies_to: 'offline task only; not install or boundary probes' };
+            }
+            task = await timings.measure('task', () => executeSandbox(scenario.command, { ...offlineContext,
+              ...observer ? { observer: { bootstrap: observer.bootstrap, directory: observer.directory } } : {},
+              timeoutMs: Math.max(1, taskDeadline - Date.now()) })); evidence.task = task;
           } else evidence.task_skipped = 'Install did not pass; offline command was not executed';
           assertions = await timings.measure('assertions', () => checkAssertions(scenario.assertions, roots!)); evidence.assertions = assertions;
           const post = await timings.measure('probes', () => boundaryChecks(trialFixtures, { ...(scenario.install && installVerdict !== 'pass' ? installContext : offlineContext), invocationId: trialId + '-after', timeoutMs: Math.max(1, Math.min(context.timeoutMs, deadline - Date.now())) }));
@@ -383,6 +395,12 @@ export async function runExperiment(options: {
         }
       } catch (error) { trial.verdict = 'unknown'; trial.reason = String(error); evidence.error = String(error); }
       if (!hasTime()) { trial.verdict = 'unknown'; trial.reason = options.signal?.aborted ? 'Experiment interrupted' : 'Experiment budget exhausted before evidence completion'; }
+      if (observer && roots) {
+        const observation = await timings.measure('reporting', () => collectObservation(observer!, roots!));
+        report.dependency_observations![scenario.id] = { ...observation, task: scenario.id, trial: trialId, command: scenario.command,
+          task_definition_hash: hash(scenario), verdict: trial.verdict, duration_ms: task?.process.duration_ms };
+        evidence.dependency_observation = report.dependency_observations![scenario.id];
+      }
       trial.duration_ms = Date.now() - started;
       trial.diagnosis = { ...diagnose({ task, roots, assertions, boundaries, verdict: trial.verdict, reason: trial.reason }), ...(staged ? { stage: trial.execution_stage } : {}) };
       trial.timings = timings.snapshot();
@@ -396,9 +414,9 @@ export async function runExperiment(options: {
     };
 
     let baselinePass = true;
-    baseline: for (const scenario of config.scenarios) for (let i = 0; i < limits.repetitions; i++) {
-      const result = await evaluate(scenario, scenario.initial_write_grants, 'baseline');
-      if (result.verdict !== 'pass') { baselinePass = false; break baseline; }
+    baseline: for (const scenario of config.scenarios) for (let i = 0; i < (options.mode === 'observe' ? 1 : limits.repetitions); i++) {
+      const result = await evaluate(scenario, scenario.initial_write_grants, options.mode === 'observe' ? 'observe' : 'baseline');
+      if (result.verdict !== 'pass') { baselinePass = false; if (options.mode !== 'observe') break baseline; }
     }
     if (baselinePass && options.mode === 'tighten') {
       for (const scenario of config.scenarios) {
@@ -422,12 +440,12 @@ export async function runExperiment(options: {
         }
       }
     }
-    if (baselinePass) for (const scenario of config.scenarios) {
+    if (baselinePass && options.mode !== 'observe') for (const scenario of config.scenarios) {
       report.read_discovery[scenario.id] = discoverReads(scenario, readObservations.get(scenario.id) ?? [], limits);
     }
     report.baseline_verified = baselinePass;
     if (!baselinePass) {
-      report.status = report.trials.at(-1)?.verdict === 'fail' ? 'failed' : 'incomplete';
+      report.status = options.mode === 'observe' ? (report.trials.some(t => t.verdict === 'unknown') ? 'incomplete' : 'failed') : report.trials.at(-1)?.verdict === 'fail' ? 'failed' : 'incomplete';
       report.error = 'Baseline did not pass. No policy search was performed.';
     } else if (options.mode !== 'tighten') {
       report.final_verified = true;
@@ -528,7 +546,7 @@ export async function runExperiment(options: {
     if (options.signal?.aborted) { report.status = 'incomplete'; report.error = 'Experiment interrupted'; }
     report.finished_at = new Date().toISOString();
     const name = report.status === 'verified' ? 'recommended.yaml' : 'unverified-candidate.yaml';
-    if (options.mode !== 'doctor') await fs.writeFile(path.join(output, name), stringify({ ...config, project, scenarios: config.scenarios.map(s => ({ ...s, initial_write_grants: report.policies[s.id], ...(s.initial_read_grants === undefined ? {} : { initial_read_grants: report.read_policies[s.id] }), ...(s.install ? { initial_network_grants: report.network_policies[s.id], ...(isStaged(s) ? { install: { ...s.install, initial_write_grants: report.install_policies[s.id] } } : {}) } : {}), prepare_directories: prepared.get(s.id) })) }), { mode: 0o600 });
+    if (options.mode !== 'doctor' && options.mode !== 'observe') await fs.writeFile(path.join(output, name), stringify({ ...config, project, scenarios: config.scenarios.map(s => ({ ...s, initial_write_grants: report.policies[s.id], ...(s.initial_read_grants === undefined ? {} : { initial_read_grants: report.read_policies[s.id] }), ...(s.install ? { initial_network_grants: report.network_policies[s.id], ...(isStaged(s) ? { install: { ...s.install, initial_write_grants: report.install_policies[s.id] } } : {}) } : {}), prepare_directories: prepared.get(s.id) })) }), { mode: 0o600 });
     await checkpoint();
   }
   return report;

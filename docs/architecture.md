@@ -114,3 +114,11 @@ report.install_policies / install_searches / install_discovery 保存安装写�
 ## v0.7 成本记录
 
 Timings 记录单调时钟的独占跨度，实验聚合初始冻结、各轮操作、证据写入及末尾清理。耗时和调用数是观测字段，不参与 verdict 或必要权限判定。复用安装快照时不生成安装变化清单，仍执行两次三根完整性核对和任务前后真实内容清单；全流程试验保留安装变化。详见 [计时口径](performance.md)。
+
+## v0.9 依赖观察
+
+observe-command.ts 复用 engine 的 observe 模式，每个配置任务一次；不进入候选、恢复、快照搜索和推荐配置导出。执行器仅为离线任务准备内置 observation-runtime 的 CJS 预加载，backend 限定内部控制路径、追加日志目录写例外及预加载 denyWrite，清理后不保留工作副本。
+
+dependency-inventory.ts 在任务前读取 npm 安装位置和包元数据；observation.ts 有界读回各进程/线程的 JSONL，区分解析、加载、子进程启动尝试与 footer 健康度，映射归属最长匹配安装根。引擎证据保存原始任务/边界和观察摘要，observe-command.ts 生成独立的 usage.json/md 并比较历史观察。报告模式不能作为 regression 的 run/tighten 基线；观察不生成 Rule，不把加载升级为必需权限。
+
+JSONL 是任务可写的合作式诊断数据，不能作为防篡改审计证据。安装/探针保持清洁环境；Task verdict 和 capture_status 分开，详细限制见 [dependency-usage.md](dependency-usage.md)。

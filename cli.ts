@@ -6,6 +6,7 @@ import path from 'node:path';
 import { configSchema, limitsSchema } from './src/config.js';
 import { runExperiment, VERSION } from './src/engine.js';
 import { runRegression } from './src/regression.js';
+import { runObservation } from './src/observe-command.js';
 
 const help = `Permsift ${VERSION} — Test tasks. Trim permissions.
 
@@ -14,19 +15,20 @@ Usage:
   permsift run --config FILE --limits TRUSTED_FILE [options]
   permsift tighten --config FILE --limits TRUSTED_FILE [options]
   permsift check --config FILE --baseline REPORT_JSON --limits TRUSTED_FILE [options]
+  permsift observe --config FILE --limits TRUSTED_FILE [--baseline USAGE_JSON] [options]
 
 Options:
   --output DIR       Evidence directory; must not already exist
   --keep-workspaces  Preserve disposable workspaces for inspection
   --json             Print the full report as JSON (progress goes to stderr)
-  --baseline FILE    Previously verified report.json (check only; keep its inputs/evidence)
+  --baseline FILE    check: verified report.json; observe: previous usage.json for comparison
   --help             Show help
   --version          Print version
 
 macOS only. No unsandboxed fallback. Task commands run offline;
 optional npm install stages use explicit trusted domain grants.
 Limits must be explicitly supplied from a location you trust.
-Exit: 0 verified/compatible, 1 failure/regression, 2 invalid setup/inconclusive, 130 interrupted.
+Exit: 0 verified/compatible/observed, 1 failure/regression, 2 invalid setup/inconclusive/incomplete capture, 130 interrupted.
 `;
 async function main() {
   const { positionals, values } = parseArgs({ allowPositionals: true, options: {
@@ -37,16 +39,34 @@ async function main() {
   if (values.version) { console.log(VERSION); return; }
   if (values.help || positionals.length === 0) { console.log(help); return; }
   const mode = positionals[0];
-  if (positionals.length !== 1 || !['run', 'tighten', 'doctor', 'check'].includes(mode)) throw new Error('Expected doctor, run, tighten or check. See --help.');
+  if (positionals.length !== 1 || !['run', 'tighten', 'doctor', 'check', 'observe'].includes(mode)) throw new Error('Expected doctor, run, tighten, check or observe. See --help.');
   if (mode !== 'doctor' && (!values.config || !values.limits)) throw new Error('--config and --limits are required');
   if (mode === 'doctor' && (values.config || values.limits)) throw new Error('doctor uses built-in fixtures; use run to check a project configuration');
   if (mode === 'check' && !values.baseline) throw new Error('check requires --baseline REPORT_JSON');
-  if (mode !== 'check' && values.baseline) throw new Error('--baseline is only supported by check');
+  if (mode !== 'check' && mode !== 'observe' && values.baseline) throw new Error('--baseline is only supported by check and observe');
   const controller = new AbortController();
   const interrupt = () => controller.abort();
   process.on('SIGINT', interrupt); process.on('SIGTERM', interrupt);
   let doctorProject: string | undefined;
   try {
+    if (mode === 'observe') {
+      const report = await runObservation({ configPath: values.config!, limitsPath: values.limits!, baselinePath: values.baseline, output: values.output,
+        keepWorkspaces: values['keep-workspaces'], signal: controller.signal, onProgress: message => console.error(message) });
+      if (values.json) console.log(JSON.stringify(report, null, 2));
+      else {
+        console.log(`\n${report.status.toUpperCase()} · dependency usage · one execution per task`);
+        for (const task of report.tasks) {
+          if (task.capture_status === 'not_run') console.log(`  ${task.task}: not observed`);
+          else console.log(`  ${task.task}: ${task.loaded_packages.length}/${task.inventory.packages.length} installed package instances observed · task ${task.verdict} · capture ${task.capture_status}`);
+        }
+        if (report.comparison) for (const t of report.comparison.tasks) console.log(`  ${t.task}: ${t.state}; newly observed ${t.added.length}, no longer observed ${t.removed.length}, version changes ${t.version_changes.length}`);
+        console.log('Module-load observations only. Unobserved does not mean unused or safe to remove.');
+        console.log(`Usage: ${path.join(report.output, 'usage.md')}`);
+        console.log(`Execution evidence: ${path.join(report.output, 'report.md')}`);
+      }
+      process.exitCode = controller.signal.aborted ? 130 : report.status === 'observed' ? 0 : report.status === 'failed' ? 1 : 2;
+      return;
+    }
     if (mode === 'check') {
       const report = await runRegression({ configPath: values.config!, limitsPath: values.limits!, baselinePath: values.baseline!, output: values.output, keepWorkspaces: values['keep-workspaces'], signal: controller.signal, onProgress: message => console.error(message) });
       if (values.json) console.log(JSON.stringify(report, null, 2));
