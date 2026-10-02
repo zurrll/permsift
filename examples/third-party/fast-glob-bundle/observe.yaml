@@ -1,0 +1,29 @@
+schema_version: 1
+project: ../../../.permsift/third-party/fast-glob-bundle
+exclude: [.git, .npmrc, node_modules, dist, reports]
+scenarios:
+  - id: bundle
+    command: [node, build.cjs]
+    install:
+      manager: npm
+      cache: cold
+      initial_write_grants: ['@workspace/node_modules', '@cache', '@tmp']
+      auto_discover: false
+    initial_network_grants: [registry.npmjs.org]
+    initial_read_grants: ['@workspace']
+    initial_write_grants: ['@workspace/dist']
+    auto_discover: false
+    observation:
+      esbuild:
+        bundler: '@workspace/node_modules/esbuild'
+        metafile: '@workspace/dist/meta.json'
+        output_root: '@workspace/dist'
+    assertions:
+      - type: json_equals
+        path: '@workspace/dist/smoke.json'
+        pointer: /passed
+        value: true
+      - type: json_equals
+        path: '@workspace/dist/smoke.json'
+        pointer: /count
+        value: 9

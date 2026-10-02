@@ -28,7 +28,7 @@ export const TYPESCRIPT_SCOPE = [
 
 /** Appended only for observe; locale and pretty affect diagnostics, not emit. */
 export function compilationCommand(scenario: Scenario): string[] {
-  return scenario.observation ? [...scenario.command, '--explainFiles', '--locale', 'en', '--pretty', 'false'] : scenario.command;
+  return scenario.observation?.typescript ? [...scenario.command, '--explainFiles', '--locale', 'en', '--pretty', 'false'] : scenario.command;
 }
 
 function location(file: string, roots: Roots): string {
@@ -45,7 +45,7 @@ const fileLine = /\.(?:[cm]?tsx?|[cm]?jsx?|json)$/i;
 const knownReason = /^(?:Imported via |Library referenced via |Type library referenced via |Referenced via |Entry point (?:for|of) |Matched by (?:include|files) pattern |Part of 'files' list |Root file specified |File is (?:CommonJS|ECMAScript) module |Default library for |Source from referenced project |Output from referenced project )/;
 
 export function collectCompilation(scenario: Scenario, inventory: DependencyInventory, roots: Roots, process?: ProcessResult): CompilationObservation | undefined {
-  if (!scenario.observation) return undefined;
+  if (!scenario.observation?.typescript) return undefined;
   const compilerPath = scenario.observation.typescript.compiler;
   const installed = inventory.packages.find(p => p.path === compilerPath && p.name === 'typescript');
   const issues: string[] = [];

@@ -60,6 +60,7 @@ async function main() {
           else {
             console.log(`  ${task.task}: installed ${task.inventory.packages.length} instances; Node module-load records ${task.loaded_packages.length} · task ${task.verdict} · module capture ${task.capture_status}`);
             console.log(task.compilation ? `    TypeScript inputs: ${task.compilation.files.length} files / ${task.compilation.packages.length} package instances · capture ${task.compilation.capture_status}` : '    TypeScript inputs: not collected');
+            console.log(task.bundling ? `    esbuild: ${task.bundling.inputs.length} inputs / ${task.bundling.outputs.length} outputs / ${task.bundling.packages.length} input package instances · capture ${task.bundling.capture_status}` : '    esbuild: not collected');
             console.log('    Module hooks miss types, resource reads and native internals. Missing module records do not mean unused packages.');
           }
         }
@@ -69,6 +70,10 @@ async function main() {
           for (const warning of t.compilation.warnings) console.log(`    ${warning}`);
         }
         console.log('Sources are reported separately. Missing observations do not justify deletion or permission removal.');
+        if (report.comparison) for (const t of report.comparison.tasks) if (t.bundling) {
+          console.log(`  ${t.task}: build-metadata comparison ${t.bundling.state}; package versions changed ${t.bundling.version_changes.length}; output contributions changed ${t.bundling.contribution_changes.length}; external references changed ${t.bundling.external_changes.length}`);
+          for (const warning of t.bundling.warnings) console.log(`    ${warning}`);
+        }
         console.log(`Usage: ${path.join(report.output, 'usage.md')}`);
         console.log(`Execution evidence: ${path.join(report.output, 'report.md')}`);
       }

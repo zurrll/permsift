@@ -32,6 +32,16 @@ typescript-observation.test.ts 验证直接任务配置、真实本地编译器�
 
 ## 测试分层
 
+v0.11 的 esbuild-observation.test.ts 覆盖配置、真实宿主构建与各来源关系、完整产物新鲜度、未知/损坏/超限、链接/FIFO、输入/输出/边/链上限、对比和历史导入一致性。integration/bundling.test.ts 在真实沙箱验证单次构建、权限/边界、代码与版本改动、旧记录及分块、失败和范围外输出。esbuild 与平台包作为开发依赖，测试只复制工具及明确的受控包，不复制整个宿主依赖树。
+
+```sh
+npm run bundle:verify
+npm run bundle:prepare
+npm run bundle:verify -- --real
+```
+
+默认受控样例进入常规 macOS CI；公开注册表与真实源码用 --real 手动验收，不让每次小改动重复联网。每个项目普通一次、观察一次、变更后观察一次，不搜索权限。真实样例及旧 CommonJS 转换适配、收获与限制见 [bundle-inputs.md](bundle-inputs.md)。
+
 ```sh
 # 单元和宿主组件测试
 npm test

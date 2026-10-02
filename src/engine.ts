@@ -17,8 +17,9 @@ import { Timings, summarizeTimings, type TimingSummary } from './timing.js';
 import { inspectInstall, executeInstall, prepareInstallCache, npmVersion, type InstallInput } from './install.js';
 import { prepareObservation, collectObservation, type ObservationSetup, type TaskObservation } from './observation.js';
 import { compilationCommand, collectCompilation } from './typescript-observation.js';
+import { prepareBundling, collectBundling } from './esbuild-observation.js';
 
-export const VERSION = '0.10.0';
+export const VERSION = '0.11.0';
 export type Trial = { id: string; scenario: string; phase: string; grants: string[]; read_grants: string[]; read_mode: 'explicit' | 'legacy'; network_grants: string[]; verdict: TrialVerdict; duration_ms: number; evidence: string; reason?: string; diagnosis?: Diagnosis; install_grants?: string[]; execution_stage?: 'install' | 'task'; installation_reused?: boolean; timings?: TimingSummary };
 type SearchSummary = { stop: string; steps: SearchStep[]; rounds: number; reuses: SearchReuse[] };
 export type Report = {
@@ -152,7 +153,7 @@ export async function runExperiment(options: {
   requirePlatform();
   const input = options.input ? { ...options.input, config: configSchema.parse(options.input.config), limits: limitsSchema.parse(options.input.limits) } : await loadConfiguration(options.configPath!, options.limitsPath!);
   const { config, limits, project } = input;
-  validatePolicy(config, limits);
+  validatePolicy(config, limits, options.mode === 'observe');
   const id = new Date().toISOString().replaceAll(/[:.]/g, '-') + '-' + randomUUID().slice(0, 8);
   const output = path.resolve(options.output ?? path.join('.permsift', id));
   await fs.mkdir(path.dirname(output), { recursive: true });
@@ -365,10 +366,12 @@ export async function runExperiment(options: {
             }
             trial.execution_stage = 'task';
             if (options.mode === 'observe') {
+              await timings.measure('preparation', () => prepareBundling(scenario, roots!));
               observer = await timings.measure('discovery', () => prepareObservation(roots!, options.signal));
               evidence.observer = { source: 'node_module_hooks', bootstrap: observer.bootstrap, collector: observer.directory, bootstrap_hash: observer.bootstrap_hash,
                 internal_write_exception: '@tmp/.permsift-observer/logs', instrumentation_applies_to: 'offline task only; not install or boundary probes',
-                ...(scenario.observation ? { compilation: { source: 'typescript_explain_files', output: 'same execution stdout', executed_command: compilationCommand(scenario) } } : {}) };
+                ...(scenario.observation?.typescript ? { compilation: { source: 'typescript_explain_files', output: 'same execution stdout', executed_command: compilationCommand(scenario) } } : {}),
+                ...(scenario.observation?.esbuild ? { bundling: { source: 'esbuild_metafile', ...scenario.observation.esbuild, output_directory_cleared: true, executed_command: compilationCommand(scenario) } } : {}) };
             }
             task = await timings.measure('task', () => executeSandbox(options.mode === 'observe' ? compilationCommand(scenario) : scenario.command, { ...offlineContext,
               ...observer ? { observer: { bootstrap: observer.bootstrap, directory: observer.directory } } : {},
@@ -400,8 +403,9 @@ export async function runExperiment(options: {
       if (observer && roots) {
         const observation = await timings.measure('reporting', () => collectObservation(observer!, roots!));
         const compilation = await timings.measure('reporting', async () => collectCompilation(scenario, observer!.inventory, roots!, task?.process));
+        const bundling = await timings.measure('reporting', () => collectBundling(scenario, observer!.inventory, roots!, task?.process));
         report.dependency_observations![scenario.id] = { ...observation, task: scenario.id, trial: trialId, command: scenario.command,
-          task_definition_hash: hash(scenario), verdict: trial.verdict, duration_ms: task?.process.duration_ms, ...(compilation ? { compilation } : {}) };
+          task_definition_hash: hash(scenario), verdict: trial.verdict, duration_ms: task?.process.duration_ms, ...(compilation ? { compilation } : {}), ...(bundling ? { bundling } : {}) };
         evidence.dependency_observation = report.dependency_observations![scenario.id];
       }
       trial.duration_ms = Date.now() - started;

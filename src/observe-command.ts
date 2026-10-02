@@ -6,6 +6,8 @@ import { saveJson } from './filesystem.js';
 import { OBSERVATION_LIMITS, OBSERVATION_SCOPE, type TaskObservation } from './observation.js';
 import { OBSERVER_VERSION } from './observation-runtime.js';
 import { compilationSchema, type CompilationObservation } from './typescript-observation.js';
+import { bundlingSchema, validateBundling } from './esbuild-observation.js';
+import { compareBundling, bundlingMarkdown, bundlingComparisonMarkdown, type BundlingComparison } from './esbuild-comparison.js';
 
 type NotRun = { task: string; capture_status: 'not_run'; reason: string };
 export type UsageReport = { schema_version: 1; kind: 'dependency_usage'; version: string; observer_version: string;
@@ -16,7 +18,7 @@ type PackageRef = { path: string; name: string; version: string };
 export type UsageComparison = { baseline: string; conditions: { input_changed: boolean; config_changed: boolean; limits_changed: boolean; environment_changed: string[]; observer_changed: boolean };
   tasks: { task: string; state: 'compared' | 'added_task' | 'removed_task' | 'unavailable'; warnings: string[];
     added: PackageRef[]; removed: PackageRef[]; version_changes: { path: string; name: string; before: string; after: string }[];
-    compilation?: CompilationComparison }[];
+    compilation?: CompilationComparison; bundling?: BundlingComparison }[];
   limitations: string[] };
 export type CompilationComparison = { state: 'compared' | 'unavailable'; warnings: string[]; added: PackageRef[]; removed: PackageRef[];
   version_changes: { path: string; name: string; before: string; after: string }[];
@@ -27,7 +29,7 @@ const pkg = z.object({ path: text.regex(/^@workspace\//), name: text, version: t
 const taskSchema = z.union([
   z.object({ task: text, capture_status: z.literal('not_run'), reason: text }),
   z.object({ task: text, capture_status: z.enum(['captured', 'incomplete', 'unavailable']), task_definition_hash: digest,
-    verdict: z.enum(['pass', 'fail', 'unknown']), loaded_packages: z.array(pkg).max(2048), compilation: compilationSchema.optional() }),
+    verdict: z.enum(['pass', 'fail', 'unknown']), loaded_packages: z.array(pkg).max(2048), compilation: compilationSchema.optional(), bundling: bundlingSchema.optional() }),
 ]);
 const usageSchema = z.object({ schema_version: z.literal(1), kind: z.literal('dependency_usage'), observer_version: text,
   status: z.enum(['observed', 'failed', 'incomplete']), environment: z.record(text),
@@ -51,6 +53,7 @@ export async function loadUsage(file: string): Promise<Comparable> {
       if (!pkg.path.startsWith('@workspace/') || !expected.length || JSON.stringify([...pkg.files].sort()) !== JSON.stringify(expected)) throw new Error('Compiler package files do not match attributed inputs');
     }
   }
+  for (const task of parsed.tasks) if (task.capture_status !== 'not_run' && task.bundling) validateBundling(task.bundling);
   return parsed;
 }
 function compareCompilation(a: CompilationObservation | undefined, b: CompilationObservation | undefined): CompilationComparison {
@@ -97,6 +100,7 @@ export function compareUsage(previous: Comparable, current: UsageReport, baselin
     if (conditions.limits_changed) warnings.push('Trusted execution limits changed');
     if (conditions.observer_changed) warnings.push('Observer version changed');
     if (a.compilation || b.compilation) row.compilation = compareCompilation(a.compilation, b.compilation);
+    if (a.bundling || b.bundling) row.bundling = compareBundling(a.bundling, b.bundling);
     const oldPackages = new Map(a.loaded_packages.map(p => [p.path, p]));
     const newPackages = new Map(b.loaded_packages.map(p => [p.path, p]));
     const ref = (p: PackageRef): PackageRef => ({ path: p.path, name: p.name, version: p.version });
@@ -108,29 +112,33 @@ export function compareUsage(previous: Comparable, current: UsageReport, baselin
     for (const [p, v] of oldPackages) if (!newPackages.has(p) || newPackages.get(p)!.name !== v.name) row.removed.push(ref(v));
     return row;
   });
-  return { baseline, conditions, tasks, limitations: ['Differences describe module loads and separately collected compiler inputs at installed locations. They do not establish unused dependencies, necessity, causality or safe permission removals.', 'A package absent from a partial/failed observation may still be used. Entry paths and versions can change with installation layout.'] };
+  return { baseline, conditions, tasks, limitations: ['Differences describe module loads, compiler inputs and build metadata as separate sources. They do not establish unused dependencies, necessity, causality or safe permission removals.', 'A package absent from a partial/failed observation may still be used. Entry paths and versions can change with installation layout.'] };
 }
 const escape = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replace(/[\u0000-\u001f]/g, ' ').replace(/[|`\[\]]/g, '\\$&');
 export function usageMarkdown(report: UsageReport) {
   return ['# Permsift dependency usage', '', `Status: **${report.status}**. Observer: ${report.observer_version}.`, '',
-    'Each configured task runs once, with no permission search. Task outcome and each source\'s capture health are separate. Node module loads and optional TypeScript compilation inputs are independent observations, not all build inputs or final bundle dependencies.', '',
+    'Each configured task runs once, with no permission search. Task outcome and each source\'s capture health are separate. Node module loads, optional TypeScript inputs and esbuild metadata are independent observations with different coverage.', '',
     '## Coverage', '', ...report.limitations.map(s => '- ' + escape(s)), '',
     ...report.tasks.flatMap(task => {
       if (task.capture_status === 'not_run') return [`## ${escape(task.task)}`, '', `Not observed: ${escape(task.reason)}`, ''];
       const uniqueNames = new Set(task.inventory.packages.map(p => p.name)).size;
       const uniqueVersions = new Set(task.inventory.packages.map(p => `${p.name}@${p.version}`)).size;
       const compilation = task.compilation;
-      const facts = [...new Map([...task.loaded_packages, ...compilation?.packages ?? []].map(p => [p.path, p])).values()].sort((a, b) => a.path.localeCompare(b.path));
+      const bundling = task.bundling;
+      const facts = [...new Map([...task.loaded_packages, ...compilation?.packages ?? [], ...bundling?.packages ?? []].map(p => [p.path, p])).values()].sort((a, b) => a.path.localeCompare(b.path));
       return [`## ${escape(task.task)}`, '', `Task: **${task.verdict}**; module-hook capture: **${task.capture_status}**; ${task.processes.length} instrumented processes/threads; ${task.events} events.`,
         `Installed: **${task.inventory.packages.length} instances**, ${uniqueNames} names, ${uniqueVersions} name/version pairs. Observed module loads: **${task.loaded_packages.length} package instances**.`,
         compilation ? `TypeScript compilation inputs: **${compilation.files.length} files**, **${compilation.packages.length} package instances**; compiler capture: **${compilation.capture_status}**.` : 'TypeScript compilation inputs: **not collected**.',
+        bundling ? `esbuild metadata: **${bundling.inputs.length} input files**, **${bundling.outputs.length} outputs**, **${bundling.packages.length} input package instances**; build capture: **${bundling.capture_status}**.` : 'esbuild metadata: **not collected**.',
         '**Module hooks do not cover declaration files, arbitrary resource reads or native tool internals. Packages without a module-load record may still participate in this task; the counts do not measure unused dependencies.**',
         `Inventory complete within limits: ${task.inventory.complete}; lock records: ${task.inventory.locked_instances ?? 'unavailable'}; locked locations not installed: ${task.inventory.locked_not_installed?.length ?? 'unavailable'}.`, '',
         ...task.issues.map(s => '- Capture issue: ' + escape(s)), '',
         ...task.coverage_gaps.map(s => '- Coverage gap: ' + escape(s)), '',
-        '### Package evidence by source', '', 'The same package can appear in both columns. A missing record does not classify a package as tool-only or unused.', '',
-        '| Package | Version | Installed location | Node module-load records | TypeScript input files |', '| --- | --- | --- | --- | --- |',
-        ...facts.map(p => `| ${escape(p.name)} | ${escape(p.version)} | ${escape(p.path)} | ${task.loaded_packages.find(x => x.path === p.path)?.modules.length ?? 'no record'} | ${compilation ? compilation.packages.find(x => x.path === p.path)?.files.length ?? 'no record' : 'not collected'} |`), '',
+        '### Package evidence by source', '', 'The same package can appear in several columns. Missing records do not classify a package as tool-only or unused; counts cannot be added as used-package totals.', '',
+        '| Package | Version | Installed location | Node module-load records | TypeScript input files | esbuild input files | Per-output byte contribution |', '| --- | --- | --- | --- | --- | --- | --- |',
+        ...facts.map(p => { const b = bundling?.packages.find(x => x.path === p.path);
+          return `| ${escape(p.name)} | ${escape(p.version)} | ${escape(p.path)} | ${task.loaded_packages.find(x => x.path === p.path)?.modules.length ?? 'no record'} | ${compilation ? compilation.packages.find(x => x.path === p.path)?.files.length ?? 'no record' : 'not collected'} | ${bundling ? b?.files.length ?? 'no record' : 'not collected'} | ${bundling ? b?.contributions.map(c => `${escape(c.output)}: ${c.bytes_in_output}`).join('<br>') || 'no reported contribution' : 'not collected'} |`; }), '',
+        ...bundling ? bundlingMarkdown(bundling) : [],
         ...compilation ? ['### TypeScript compilation inputs', '', `Source: ${compilation.source}; collector: ${compilation.collector_version}; compiler: ${compilation.compiler ? escape(compilation.compiler.name + ' ' + compilation.compiler.version) : 'unidentified'}.`,
           'Collected from this task execution\'s stdout, with --explainFiles --locale en --pretty false. Raw output and executed command are in trial evidence; no second compilation was run.', '',
           ...compilation.issues.map(s => '- Compiler capture issue: ' + escape(s)), ...compilation.limitations.map(s => '- ' + escape(s)), '',
@@ -146,7 +154,7 @@ export function usageMarkdown(report: UsageReport) {
         '### Child launch attempts', '', '| Method | Executable | Preload environment retained |', '| --- | --- | --- |',
         ...task.child_launches.map(c => `| ${escape(c.method)} | ${escape(c.executable)} | ${c.preload_inherited} |`), '',
         'Native executable internals are outside module-hook coverage, even when the preload environment is retained. A launch attempt does not establish successful process creation.', '',
-        '### No Node module-load record', '', `**${task.not_observed.length} package instances have no module-hook record. This is not an unused-package count.** This list is specific to module hooks; some entries may have TypeScript input evidence above or supply native tools, assets or other behavior. No deletion or permission recommendation follows.`, '',
+        '### No Node module-load record', '', `**${task.not_observed.length} package instances have no module-hook record. This is not an unused-package count.** This list is specific to module hooks; entries may have compiler/build evidence above or supply native tools, assets or other behavior. No deletion or permission recommendation follows.`, '',
         ...task.not_observed.map(p => `- ${escape(p.name)} ${escape(p.version)} — ${escape(p.path)}`), '',
         `Execution evidence: [trial](evidence/${task.trial}.json).`, ''];
     }),
@@ -164,6 +172,7 @@ export function usageMarkdown(report: UsageReport) {
         ...t.compilation.added_files.map(p => '- Newly recorded compilation file: ' + escape(p)),
         ...t.compilation.removed_files.map(p => '- No longer recorded compilation file: ' + escape(p)),
         ...t.compilation.explanation_changes.map(f => `- Compilation explanation changed: ${escape(f.path)} — ${f.before.map(escape).join('; ')} → ${f.after.map(escape).join('; ')}`), ''] : []),
+      ...report.comparison.tasks.flatMap(t => t.bundling ? bundlingComparisonMarkdown(t.task, t.bundling) : []),
       ...report.comparison.limitations.map(s => '- ' + escape(s)), ''] : [],
     '## Cost', '', 'Execution timings, installation counts, boundary checks and file changes are in report.json/report.md. Task duration includes instrumentation; collection/inventory are measured separately. An overhead comparison requires a matching ordinary run.', '',
   ].join('\n');
@@ -174,7 +183,7 @@ export async function runObservation(options: { configPath: string; limitsPath: 
   const execution = await runExperiment({ ...options, mode: 'observe' });
   const tasks: UsageReport['tasks'] = Object.keys(execution.policies).map(task => execution.dependency_observations?.[task] ?? { task, capture_status: 'not_run', reason: 'Task did not reach instrumented execution; inspect execution report' });
   const report: UsageReport = { schema_version: 1, kind: 'dependency_usage', version: VERSION, observer_version: OBSERVER_VERSION,
-    status: execution.status === 'failed' ? 'failed' : execution.status === 'verified' && tasks.every(t => t.capture_status === 'captured' && (!t.compilation || t.compilation.capture_status === 'captured')) ? 'observed' : 'incomplete',
+    status: execution.status === 'failed' ? 'failed' : execution.status === 'verified' && tasks.every(t => t.capture_status === 'captured' && (!t.compilation || t.compilation.capture_status === 'captured') && (!t.bundling || t.bundling.capture_status === 'captured')) ? 'observed' : 'incomplete',
     output: execution.output, execution_report: 'report.json', started_at: execution.started_at, finished_at: execution.finished_at,
     environment: execution.environment, inputs: execution.inputs, limits: OBSERVATION_LIMITS, tasks, limitations: [...OBSERVATION_SCOPE,
       'The task gains one private collector-directory write exception under @tmp. The preload is write-denied; install and boundary probes are not instrumented. Instrumentation can affect execution and timing.'],

@@ -38,7 +38,7 @@ usage.md 的“Package evidence by source”并列每个包的 Node 模块加载
 
 例如，fast-glob 本次有 1 个包的 Node 模块加载记录；TypeScript 4.9.5 输出 216 个编译文件、归属 25 个包实例，包含安装的 11 个 @types 包。`@types/micromatch/index.d.ts` 的原因包括从 `@workspace/src/utils/pattern.ts` 导入。这说明类型文件参与编译，不说明该包 JS 已执行或完整进入了产物。
 
-工具包、编译输入、产物依赖不是互斥类别。当前只展示前两种证据，不自动判断工具用途或产物贡献；打包元数据仍未接入。
+工具包、编译输入、产物依赖不是互斥类别。v0.11 增加可选 [esbuild 打包来源](bundle-inputs.md)，按各自任务并列显示记录，仍不自动判断工具专用、依赖必要性或权限。
 
 ## 状态、格式与上限
 

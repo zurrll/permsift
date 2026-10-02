@@ -6,7 +6,7 @@ Test tasks. Trim permissions.
 
 Permsift 是一个面向项目任务的沙箱权限调试器。你提供可工作的初始策略和安装、测试、构建等任务，它在干净副本中反复执行，尝试缩小文件和安装网络权限，用任务断言和边界探针判断是否接受修改，并保留每一步的证据。
 
-当前为 **v0.10，macOS 本地 CLI**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。支持目录写权限、可选的项目文件读取收缩，以及 npm 安装阶段的精确域名撤销。安装后断网测试和构建，冷缓存与固定暖缓存分别验证。显式分阶段配置可分别收缩安装写权限和任务读写，任务候选复用本次实验内的安装快照，最终仍重新安装完整验收。工作区优先使用写时复制，保持各轮文件独立。改代码、锁文件或依赖后，可用 check 验证旧规则并尝试受限补充。系统运行时、缓存和临时目录读取仍固定开放；结果限定于本次环境和测试集合，不代表全局最小权限。
+当前为 **v0.11，macOS 本地 CLI**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。支持目录写权限、可选的项目文件读取收缩，以及 npm 安装阶段的精确域名撤销。安装后断网测试和构建，冷缓存与固定暖缓存分别验证。显式分阶段配置可分别收缩安装写权限和任务读写，任务候选复用本次实验内的安装快照，最终仍重新安装完整验收。工作区优先使用写时复制，保持各轮文件独立。改代码、锁文件或依赖后，可用 check 验证旧规则并尝试受限补充。系统运行时、缓存和临时目录读取仍固定开放；结果限定于本次环境和测试集合，不代表全局最小权限。
 
 ## 快速开始
 
@@ -37,15 +37,15 @@ VERIFIED · ... executions
 
 ## 依赖使用观察
 
-`observe` 每个任务运行一次，记录已安装的 npm 包、Node 模块加载与本次解析来源；可比较改动前后的新增加载和版本变化。v0.10 可为直接运行项目内 tsc 的任务开启编译输入观察，解释声明文件等为何进入同一次编译，并单独比较输入包、文件和原因变化。不启动权限搜索。
+`observe` 每个任务运行一次，记录已安装的 npm 包、Node 模块加载与本次解析来源；可比较改动前后的新增加载和版本变化。v0.10 可为直接运行项目内 tsc 的任务开启编译输入观察，解释声明文件等为何进入同一次编译，并单独比较输入包、文件和原因变化。v0.11 可读回同一次任务新生成的 esbuild metafile，解释输入、全部报告输出、每个包的字节贡献、引入链及外部引用，并比较前后变化。不启动权限搜索。
 
 ```sh
-node dist/cli.js observe --config examples/projects/bundle-kit/permsift.yaml --limits examples/limits.json
+node dist/cli.js observe --config examples/projects/bundle-kit/observe.yaml --limits examples/limits.json
 # 用上一次 usage.json 对比当前观察
-node dist/cli.js observe --config examples/projects/bundle-kit/permsift.yaml --limits examples/limits.json --baseline .permsift/PREVIOUS/usage.json
+node dist/cli.js observe --config examples/projects/bundle-kit/observe.yaml --limits examples/limits.json --baseline .permsift/PREVIOUS/usage.json
 ```
 
-示例需先 `npm run examples:prepare`。报告位于 usage.md / usage.json，任务断言和真实边界证据仍在 report.md。模块观察需要 Node 22.15+ 或 23.5+；类型、任意资源读取和原生工具内部不由模块钩子覆盖。**没有模块加载记录，不表示依赖无用或可以删除。** 编译输入是另一种证据，两列不能相加成“实际用了几个包”，也不能据此认定某包仅是工具。详见 [依赖使用报告](docs/dependency-usage.md)、[TypeScript 编译输入](docs/typescript-inputs.md) 和 [收益取舍](docs/value-and-scope.md)。
+示例需先 `npm run examples:prepare`。报告位于 usage.md / usage.json，任务断言和真实边界证据仍在 report.md。模块观察需要 Node 22.15+ 或 23.5+；类型、任意资源读取和原生工具内部不由模块钩子覆盖。**没有模块加载记录，不表示依赖无用或可以删除。** 编译输入和打包记录是另两种证据，各列不能相加成“实际用了几个包”，也不能据此认定某包仅是工具或可以撤权。详见 [依赖使用报告](docs/dependency-usage.md)、[TypeScript 编译输入](docs/typescript-inputs.md)、[esbuild 产物依赖](docs/bundle-inputs.md) 和 [收益取舍](docs/value-and-scope.md)。
 
 ```sh
 # 准备固定上游源码；安装发生在 observe 的沙箱内

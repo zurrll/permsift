@@ -6,6 +6,7 @@ import { dependencyInventory, packageForModule, type DependencyInventory, type P
 import { observationPreload, OBSERVER_VERSION } from './observation-runtime.js';
 import { hash, within, type Roots } from './filesystem.js';
 import type { CompilationObservation } from './typescript-observation.js';
+import type { BundlingObservation } from './esbuild-observation.js';
 
 export const OBSERVATION_LIMITS = { max_events_per_process: 10_000, max_bytes_per_process: 2_000_000, max_process_logs: 64, max_total_bytes: 32_000_000, max_packages: 2048 };
 export type ObserverContext = { bootstrap: string; directory: string };
@@ -22,6 +23,7 @@ export type TaskObservation = {
   coverage_gaps: string[];
   issues: string[]; limitations: string[]; duration_ms?: number;
   compilation?: CompilationObservation;
+  bundling?: BundlingObservation;
 };
 export const OBSERVATION_SCOPE = [
   'Records successful Node module resolution/load hooks, not function execution, every file read, necessity or bundle contents.',

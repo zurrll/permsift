@@ -34,6 +34,7 @@ jobs:
       - run: npm run examples:prepare
       - run: npm run observe:verify
       - run: npm run compile:verify
+      - run: npm run bundle:verify
       - run: npm run examples:verify
       - run: npm run self:verify
       - run: npm run third-party:prepare

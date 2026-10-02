@@ -129,4 +129,10 @@ JSONL 是任务可写的合作式诊断数据，不能作为防篡改审计证�
 
 TaskObservation.compilation 为独立来源，Node capture_status 仍保持原义。observe-command 的总体 observed 要求任务及每个开启来源都通过；JSON schema 1 保留可选扩展，导入 v0.9 无 compilation 时不推断新增输入。编译来源按包/文件/解释比较，parser 和 compiler 版本、命令、限制变化单独提醒。用途只展示证据列，不自动生成互斥分类或权限候选。
 
+## v0.11 esbuild 产物记录
+
+esbuild-observation.ts 在 observe 的离线任务前清空声明的产物目录，恢复显式准备和断言父目录；任务后有界读回项目自己保存的完整 metafile。工具版本绑定任务前 npm 清单，路径按工作区规范化，输入按最长安装根归属；输出必须在声明范围内，检查新文件类型与大小，保留全部报告输出及 external 请求。有界输入图提供一条入口链，按包分别聚合各输出的 bytesInOutput，包括 0 的记录。虚拟/外部路径、未知归属、未完成任务或截断均明确报缺口。
+
+TaskObservation.bundling 与模块、compilation 各自保持来源和健康度；顶层 observed 要求所有开启来源完整。esbuild-comparison.ts 比较输入/输出、包版本与贡献、链和 external，生成来源报告；loadUsage 校验引用、聚合、链和整体上限。旧 schema 1 没有 bundling 时不产生整组新增结论。原始 JSON 只记录文本摘要/字节数，规范化数据写入 trial 与 usage；保留副本可检查原文件。CLI 和报告不生成权限候选或必要性评分。见 [产物观察](bundle-inputs.md)。
+
 预加载增加 process.execve 启动尝试，仍不记录参数/环境内容。进程替换导致没有 exit footer 时，Node 来源保持 incomplete；原生编译器可同时给出完整的 explainFiles。详细范围和版本限制见 [typescript-inputs.md](typescript-inputs.md)。

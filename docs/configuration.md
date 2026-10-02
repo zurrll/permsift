@@ -204,3 +204,9 @@ install.initial_write_grants（可选，最多 32 项）显式开启分阶段模
 ## 可选 TypeScript 编译观察（v0.10）
 
 scenario.observation.typescript.compiler 为项目内已安装 TypeScript 包目录，如 @workspace/node_modules/typescript。仅直接 node node_modules/typescript/bin/tsc 支持；npm scripts、shell 包装、build/watch、response files 及其他诊断输出模式拒绝。字段不授予读写权限、不运行额外任务；observe 才追加 explainFiles、locale en、pretty false。run/tighten/check 命令保持。可信 max_output_bytes 同时限制诊断 stdout/stderr，超限终止；详细例子、来源语义与上限见 [typescript-inputs.md](typescript-inputs.md)。
+
+## 可选 esbuild 产物观察（v0.11）
+
+scenario.observation.esbuild 要求 bundler（项目内已安装 esbuild 包根）、metafile（完整 JSON 文件）和 output_root（专用产物目录）。均为 @workspace 下路径，metafile 必须在 output_root 内；仅 observe 要求整个 output_root 已有任务写授权，不能包含 node_modules 或配置工具；没有隐式授权。run/check/tighten 不因未使用的采集设置拒绝已有更窄的任务规则，导出配置继续可读取。
+
+仅 observe 清空隔离副本中声明的 output_root，并恢复显式准备目录与断言父目录。该目录不可包含任务需要的输入；原项目不清理。任务自己在一次执行中生成完整 metafile，命令不因该来源而改写，也不再构建一次。相对记录按工作区解析；检查报告输出在声明范围内、新文件及大小，并明确来源、版本、上限和缺口。完整示例与比较见 [bundle-inputs.md](bundle-inputs.md)。observation 至少选择一种来源；可选来源分别保留健康度。

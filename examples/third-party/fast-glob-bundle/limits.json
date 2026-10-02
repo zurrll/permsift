@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "allowed_write_roots": ["@workspace/node_modules", "@workspace/dist", "@cache", "@tmp"],
+  "allowed_read_roots": ["@workspace"],
+  "allowed_network_domains": ["registry.npmjs.org"],
+  "repetitions": 1,
+  "max_candidates": 0,
+  "budget_seconds": 180
+}

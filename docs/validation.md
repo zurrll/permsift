@@ -1,5 +1,39 @@
 # 实测记录
 
+## v0.11 — 2026-10-02
+
+单元/宿主组件 125 项、真实 macOS 沙箱 61 项不同用例通过，0 失败、0 跳过，合计 186。完整集成套件先通过 60 项；末次新增更窄规则的导出兼容检查，并复跑全部 6 项打包集成，因此不重复累计复跑。日志 `.permsift/v0.11-unit-delivery.log`、`.permsift/v0.11-integration.log`、`.permsift/v0.11-bundling-delivery.log`。构建、类型检查、脚本语法与文档链接检查通过；远端 CI 未运行。
+
+新增 8 项单元/宿主用例验证来源配置、真实构建/模块关系、应用/间接/纯类型/代码移除/external/动态分块、0 字节记录、空格/Unicode 产物名、全文摘要身份、陈旧/未知/损坏/超大记录、链接/FIFO、输入/输出/边/链上限、部分执行、历史报告引用/聚合/链一致性、来源缺失和前后比较。新增 6 项真实集成验证单次构建、既有授权/边界/断网、变更引入链与版本、旧 metafile/分块不能替代新文件、失败保留部分记录、范围外输出不获得权限，以及普通较窄规则和导出配置不被未使用的观察设置阻断。
+
+### 解释产物与一次真实升级
+
+`npm run bundle:verify -- --real` 每个项目普通一次、观察一次、改动后观察一次，没有权限搜索。成功实测证据 `.permsift/bundle-inputs-NwlbFo/summary.json`，日志 `.permsift/v0.11-bundle-delivery.log`。早期直接打包旧 TypeScript 源码的尝试失败，记录在 `.permsift/v0.11-bundle-verification.log`；最终显式语法转换保留其 CommonJS 语义，不把构建兼容错误归因于权限。
+
+| 项目 | 安装包实例 | Node 加载包 | metafile 输入文件 | 输入包实例 | 报告输出 |
+| --- | --- | --- | --- | --- | --- |
+| 受控应用样例 | 9 | 2 | 4 | 3 | 4（入口、延迟分块及两份 map） |
+| 固定 fast-glob 源码的适配打包任务 | 20 | 2 | 73 | 17 | 2（JS 与 map） |
+
+受控样例加载工具 esbuild 与 smoke 执行的 external-pkg；app-a、shared、lazy-pkg 的打包输入由独立来源记录。app-a 是纯转发输入，贡献为 0，shared 在主输出贡献 17 字节，lazy-pkg 在单独输出贡献 19 字节。type-only 和未使用的 dropped 不进入该次 metafile；不能由此判定可删除。替换 app-a → app-b 并改变 shared 元数据版本后，工具/外置加载集合保持、输入包和 shared 引入链变化，0 字节记录与“没有记录”保持区别。产物字节数不变，报告没有声称内容相同。
+
+真实项目使用 fast-glob 3.3.3 固定提交 `48687898dd26d4e935a0e5ecf6720e7c5aeac15d` 的原样 src/fixtures/LICENSE，加最小锁定运行依赖与 TypeScript 4.9.5/esbuild 0.28.2 工具。先用 transpileModule 保留旧 CommonJS 导入及 ES2017 字段语义，再打包；不是类型检查或上游 npm run build，未重跑上游 246 项测试。同步/异步/流式产物 API 各核对固定 9 个文件，安装在沙箱内、任务断网。
+
+来源链示例：`src/index.ts → src/utils/index.ts → src/utils/pattern.ts → glob-parent/index.js → is-glob/index.js → is-extglob/index.js`。glob-parent 从 5.1.2 升至 6.0.2 后，Node 加载工具仍是 esbuild/typescript；17 个打包输入包没有整组增减，版本变化准确落在 glob-parent。其 JS 贡献 **934 → 1560 字节**，整体 JS **195084 → 195710**、map **333614 → 334602** 字节，输出引用不变，三种 API smoke 继续通过。用户可以据此定位升级审阅范围，体积变化不能证明风险、必要性或因果解释。
+
+| 项目 | 普通 / 观察任务耗时 | 普通 / 观察完整流程耗时 | 普通 / 观察安装阶段 |
+| --- | --- | --- | --- |
+| 受控样例 | 438.80 / 417.29 ms | 905.77 / 877.06 ms | 无安装 |
+| fast-glob 适配任务 | 740.85 / 732.21 ms | 40.49 / 11.09 s | 38.52 / 9.09 s |
+
+这些是单机顺序样本；冷安装分别使用空缓存，但注册表/网络耗时明显不同，不能据流程差异声称采集加速，也不能与原先 507 开发包的编译任务比较。开发验收额外运行普通对照，日常 observe 一任务一次，前后比较不重跑旧任务。证明了来源和一次升级影响可被解释；尚无外部用户人工时间或自动权限候选收益数据。
+
+### 实际 CLI 与历史来源兼容
+
+bundle-kit 使用新增 observe.yaml，读取 v0.9 模块报告作基线，退出 0，模块包没有变化；旧记录无打包来源，打包比较明确 unavailable，没有假报整组新增。证据 `.permsift/v0.11-cli-bundle/usage.json`，终端日志 `.permsift/v0.11-cli-bundle.stdout.log`。
+
+fast-glob 使用公开冷安装配置及 --json，退出 0；stdout 是合法 usage JSON，2 个加载工具、73 个输入、17 个输入包、2 个输出均 captured。与相同基线的打包输入、版本、输出、贡献、链和 external 差异全部为空，来源条件无缺口；进度仅在 stderr。证据 `.permsift/v0.11-cli-real/usage.json`，日志 `.permsift/v0.11-cli-real.stdout.json`。最终导入校验读回上述报告及受控/真实变更的六份 usage；说明与范围见 [bundle-inputs.md](bundle-inputs.md)。
+
 ## v0.10 — 2026-10-02
 
 单元/宿主组件 117 项、完整真实 macOS 沙箱集成 55 项通过，0 失败、0 跳过；末次编译解析/导入一致性修改后复跑全部 10 项观察与编译集成通过。合计 172 个不同用例，不重复累计复跑。构建、类型检查与 97 个文档本地链接检查通过；日志 `.permsift/v0.10-unit-delivery.log`、`.permsift/v0.10-integration.log`、`.permsift/v0.10-observation-delivery.log`。远端 CI 未运行。
