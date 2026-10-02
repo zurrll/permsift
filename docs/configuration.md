@@ -200,3 +200,7 @@ check 共用整体时间预算、候选数量上限和 repetitions；修复候�
 install.initial_write_grants（可选，最多 32 项）显式开启分阶段模式，空数组也开启；install.narrower_candidates 为安装写候选，install.auto_discover 默认为 true。后两项需要显式的安装写字段。顶层读写和候选字段用于任务，网络仍仅用于安装，两段写规则都必须在 allowed_write_roots 内。
 
 原始输入、安装配置/规则、缓存条件、目录准备、上限或环境改变会使安装快照失效。本版只在一次实验内复用，最终 repetitions 和 run/check 都重新安装。旧共用策略配置和历史基线保持兼容；切换阶段/读取模式须建立新基线。完整流程、报告及生成读取限制见 [staged-permissions.md](staged-permissions.md)。
+
+## 可选 TypeScript 编译观察（v0.10）
+
+scenario.observation.typescript.compiler 为项目内已安装 TypeScript 包目录，如 @workspace/node_modules/typescript。仅直接 node node_modules/typescript/bin/tsc 支持；npm scripts、shell 包装、build/watch、response files 及其他诊断输出模式拒绝。字段不授予读写权限、不运行额外任务；observe 才追加 explainFiles、locale en、pretty false。run/tighten/check 命令保持。可信 max_output_bytes 同时限制诊断 stdout/stderr，超限终止；详细例子、来源语义与上限见 [typescript-inputs.md](typescript-inputs.md)。

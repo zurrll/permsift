@@ -1,6 +1,6 @@
 {
   "name": "permsift",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Test tasks. Trim permissions. Evidence-driven sandbox policy experiments.",
   "type": "module",
   "private": true,
@@ -31,7 +31,8 @@
     "medium:verify": "npm run build && node scripts/verify-fast-glob.mjs",
     "hashes:benchmark": "npm run build && node scripts/benchmark-hashes.mjs",
     "search:benchmark": "npm run build && node scripts/compare-search-budget.mjs",
-    "observe:verify": "npm run build && node scripts/verify-observation.mjs"
+    "observe:verify": "npm run build && node scripts/verify-observation.mjs",
+    "compile:verify": "npm run build && node scripts/verify-compilation.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.77",

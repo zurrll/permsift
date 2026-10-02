@@ -39,6 +39,7 @@ export const scenarioSchema = z.object({
   initial_read_grants: z.array(readAliasSchema).max(32).optional(),
   initial_network_grants: z.array(domainSchema).max(32).optional(),
   install: installSchema.optional(),
+  observation: z.object({ typescript: z.object({ compiler: readAliasSchema.refine(p => p.startsWith('@workspace/'), 'Compiler must be a project package directory') }).strict() }).strict().optional(),
   auto_read_discover: z.boolean().default(true),
   narrower_read_candidates: z.array(z.object({ from: readAliasSchema, to: z.array(readAliasSchema).min(1).max(32) }).strict()).max(32).default([]),
   auto_discover: z.boolean().default(true),
@@ -76,6 +77,13 @@ export const contains = (parent: string, child: string) => child === parent || c
 export function validatePolicy(config: Config, limits: Limits): void {
   const ids = new Set<string>();
   for (const scenario of config.scenarios) {
+    if (scenario.observation) {
+      if (scenario.command.length > 1000 || scenario.command.some(arg => arg.length > 4096) || scenario.observation.typescript.compiler.length > 4096) throw new Error('TypeScript observation command exceeds collector bounds');
+      const compiler = scenario.observation.typescript.compiler.slice('@workspace/'.length);
+      if (path.basename(scenario.command[0]) !== 'node' || path.isAbsolute(scenario.command[1] ?? '') || path.posix.normalize(scenario.command[1] ?? '') !== compiler + '/bin/tsc') throw new Error('TypeScript observation requires direct node <compiler>/bin/tsc execution');
+      const unsupported = new Set(['--build', '-b', '--watch', '-w', '--listfilesonly', '--listfiles', '--showconfig', '--help', '-h', '-?', '--version', '-v', '--all', '--init', '--extendeddiagnostics', '--diagnostics', '--traceresolution']);
+      if (scenario.command.slice(2).some(arg => arg.startsWith('@') || unsupported.has(arg.toLowerCase().split('=')[0]))) throw new Error('TypeScript observation does not support build/watch, response files or alternate diagnostic modes');
+    }
     if (ids.has(scenario.id)) throw new Error(`Duplicate scenario id: ${scenario.id}`);
     ids.add(scenario.id);
     if (scenario.initial_network_grants !== undefined && !scenario.install) throw new Error('Network grants require an install stage; task commands always run offline');

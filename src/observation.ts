@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { dependencyInventory, packageForModule, type DependencyInventory, type PackageInstance } from './dependency-inventory.js';
 import { observationPreload, OBSERVER_VERSION } from './observation-runtime.js';
 import { hash, within, type Roots } from './filesystem.js';
+import type { CompilationObservation } from './typescript-observation.js';
 
 export const OBSERVATION_LIMITS = { max_events_per_process: 10_000, max_bytes_per_process: 2_000_000, max_process_logs: 64, max_total_bytes: 32_000_000, max_packages: 2048 };
 export type ObserverContext = { bootstrap: string; directory: string };
@@ -20,6 +21,7 @@ export type TaskObservation = {
   child_launches: { method: string; executable: string; preload_inherited: boolean }[];
   coverage_gaps: string[];
   issues: string[]; limitations: string[]; duration_ms?: number;
+  compilation?: CompilationObservation;
 };
 export const OBSERVATION_SCOPE = [
   'Records successful Node module resolution/load hooks, not function execution, every file read, necessity or bundle contents.',

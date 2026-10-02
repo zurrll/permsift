@@ -16,8 +16,9 @@ import { InstalledSnapshots, installationKey, rootHashes, type InstalledSnapshot
 import { Timings, summarizeTimings, type TimingSummary } from './timing.js';
 import { inspectInstall, executeInstall, prepareInstallCache, npmVersion, type InstallInput } from './install.js';
 import { prepareObservation, collectObservation, type ObservationSetup, type TaskObservation } from './observation.js';
+import { compilationCommand, collectCompilation } from './typescript-observation.js';
 
-export const VERSION = '0.9.0';
+export const VERSION = '0.10.0';
 export type Trial = { id: string; scenario: string; phase: string; grants: string[]; read_grants: string[]; read_mode: 'explicit' | 'legacy'; network_grants: string[]; verdict: TrialVerdict; duration_ms: number; evidence: string; reason?: string; diagnosis?: Diagnosis; install_grants?: string[]; execution_stage?: 'install' | 'task'; installation_reused?: boolean; timings?: TimingSummary };
 type SearchSummary = { stop: string; steps: SearchStep[]; rounds: number; reuses: SearchReuse[] };
 export type Report = {
@@ -366,9 +367,10 @@ export async function runExperiment(options: {
             if (options.mode === 'observe') {
               observer = await timings.measure('discovery', () => prepareObservation(roots!, options.signal));
               evidence.observer = { source: 'node_module_hooks', bootstrap: observer.bootstrap, collector: observer.directory, bootstrap_hash: observer.bootstrap_hash,
-                internal_write_exception: '@tmp/.permsift-observer/logs', instrumentation_applies_to: 'offline task only; not install or boundary probes' };
+                internal_write_exception: '@tmp/.permsift-observer/logs', instrumentation_applies_to: 'offline task only; not install or boundary probes',
+                ...(scenario.observation ? { compilation: { source: 'typescript_explain_files', output: 'same execution stdout', executed_command: compilationCommand(scenario) } } : {}) };
             }
-            task = await timings.measure('task', () => executeSandbox(scenario.command, { ...offlineContext,
+            task = await timings.measure('task', () => executeSandbox(options.mode === 'observe' ? compilationCommand(scenario) : scenario.command, { ...offlineContext,
               ...observer ? { observer: { bootstrap: observer.bootstrap, directory: observer.directory } } : {},
               timeoutMs: Math.max(1, taskDeadline - Date.now()) })); evidence.task = task;
           } else evidence.task_skipped = 'Install did not pass; offline command was not executed';
@@ -397,8 +399,9 @@ export async function runExperiment(options: {
       if (!hasTime()) { trial.verdict = 'unknown'; trial.reason = options.signal?.aborted ? 'Experiment interrupted' : 'Experiment budget exhausted before evidence completion'; }
       if (observer && roots) {
         const observation = await timings.measure('reporting', () => collectObservation(observer!, roots!));
+        const compilation = await timings.measure('reporting', async () => collectCompilation(scenario, observer!.inventory, roots!, task?.process));
         report.dependency_observations![scenario.id] = { ...observation, task: scenario.id, trial: trialId, command: scenario.command,
-          task_definition_hash: hash(scenario), verdict: trial.verdict, duration_ms: task?.process.duration_ms };
+          task_definition_hash: hash(scenario), verdict: trial.verdict, duration_ms: task?.process.duration_ms, ...(compilation ? { compilation } : {}) };
         evidence.dependency_observation = report.dependency_observations![scenario.id];
       }
       trial.duration_ms = Date.now() - started;

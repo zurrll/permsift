@@ -1,5 +1,36 @@
 # 实测记录
 
+## v0.10 — 2026-10-02
+
+单元/宿主组件 117 项、完整真实 macOS 沙箱集成 55 项通过，0 失败、0 跳过；末次编译解析/导入一致性修改后复跑全部 10 项观察与编译集成通过。合计 172 个不同用例，不重复累计复跑。构建、类型检查与 97 个文档本地链接检查通过；日志 `.permsift/v0.10-unit-delivery.log`、`.permsift/v0.10-integration.log`、`.permsift/v0.10-observation-delivery.log`。远端 CI 未运行。
+
+新增 6 个单元/宿主组件用例覆盖：直接任务配置与拒绝的模式、真实 TypeScript 7.0.2 的类型专用/ambient 输入及编译产物 smoke、经典两空格与原生三空格解释、作用域/嵌套归属、缺输出/未知格式/截断/失败/时间与数量边界，以及 v0.9 基线兼容和包/文件/原因/版本对比。新增 4 个真实集成用例验证一次沙箱编译与 stdout 身份、产物/边界/写例外、类型引用与版本变化、陈旧文件不能替代缺失 stdout、可信输出上限停止任务。
+
+### 解释真实任务中的类型输入
+
+`npm run compile:verify -- --medium-baseline .permsift/fast-glob-profile-3chtEs/summary.json` 不搜索权限：小型受控夹具普通一次、观察一次、改类型引用后观察一次；固定 fast-glob 暖输入普通编译一次、观察编译一次。末次证据 `.permsift/compiler-inputs-hdWTUK/summary.json`，日志 `.permsift/v0.10-compile-delivery.log`。各来源独立健康度，不能将计数相加成“实际用包总数”。
+
+| 项目 / 编译器 | 安装包实例 | 有 Node 模块加载记录的包 | 编译输入文件 | 编译输入包实例 | 编译来源 / 模块来源 |
+| --- | --- | --- | --- | --- | --- |
+| 受控类型夹具 / 7.0.2 | 5 | 1 | 66 | 3 | captured / incomplete |
+| fast-glob / 4.9.5 | 507 | 1 | 216 | 25 | captured / captured |
+
+fast-glob 的 25 个输入包包含 11 个 @types，及依赖自身提供的声明文件。`@types/micromatch/index.d.ts` 的解释包含从 `@workspace/src/utils/pattern.ts` 导入；`@types/node/index.d.ts` 包含由 `@nodelib/fs.macchiato/out/dirent.d.ts` 的类型引用引入。这补上原来只能看到 TypeScript JS 加载的缺口，不表示 216 个文件都进入了产物或具有必要读权限。示例任务仅直接编译，不执行 Mocha；v0.9 的 compile-test 验证仍保留。
+
+夹具的 type-a/type-b JS 入口会抛错，但 source 仅 import type，编译产物 smoke 验证 answer({value:42})=42。改引用到 type-b 并将 @types/ambient-a 版本从 1.0.0 改为 2.0.0 后，模块加载包集合保持，编译来源准确报告 type-b 新出现、type-a 不再记录及 ambient 版本变化；不将编译输入视为执行模块。
+
+本机 TypeScript 7.0.2 的 Node 包装层通过 execve 替换成原生编译器，66 个解释输入完整收到；Node 日志缺 footer。记录 execve 启动尝试与原生覆盖缺口，模块捕获与顶层保持 incomplete，不为“通过”降低日志完整性要求。类型专用声明和平台包标准库各按实际安装根归属。原始 stdout、实际命令、包版本、采集上限和摘要均保存。
+
+### 成本与边界
+
+末次固定 fast-glob 单任务全流程普通 12.38 s、观察 12.57 s；task 分项普通 944.64 ms、观察 940.76 ms，含后端启动/退出。受控夹具全流程 1.37 / 1.34 s、task 549.37 / 553.24 ms。每个观察任务仍只有一轮编译；输出解释没有启动第二次编译。单机顺序样本不构成普遍开销保证，也不能与 v0.9 的两个任务约 25 秒直接比较。
+
+本次验证收益是解释类型输入和受控改动；尚未证明节省人工时间或降低权限搜索次数。诊断文本未知/损坏/超限保留部分记录并提示；无 stdout 不能解释为零输入，旧说明文件不会被读取。实际功能与局限见 [typescript-inputs.md](typescript-inputs.md)，产品取舍见 [value-and-scope.md](value-and-scope.md)。
+
+实际 CLI 使用新的上游冷安装 observe.yaml、旧 v0.9 usage 基线执行一次，退出 0；产物、模块与编译来源均通过，仍为 216 个文件/25 个包。旧基线没有编译采集，比较记 unavailable，新增输入包计数为 0；不把能力新增当成项目依赖新增。证据 `.permsift/v0.10-cli-cold/`、`.permsift/v0.10-cli-cold.stdout.log` 和 stderr 日志。
+
+实际 CLI --json 再用固定暖输入与上述 v0.10 冷报告比较，退出 0、stdout 为合法 dependency_usage JSON；编译包/文件/版本/解释变化均为 0，当前 usage 能由严格基线导入器读回。配置、安装条件和输入变化仍在公共 conditions/warnings 中保留，编译来源没有额外条件变化。证据 `.permsift/v0.10-cli-json/`、`.permsift/v0.10-cli-json.stdout.json`。
+
 ## v0.9 — 2026-10-02
 
 新增依赖使用观察，不运行权限搜索。单元/宿主组件 111 项通过；真实 macOS 完整集成 50 项通过，新增失败后继续其他任务用例及末次观察采集修改后复跑全部 6 项观察集成通过，合计覆盖 51 个不同真实集成用例。0 失败、0 跳过。类型检查/构建通过；日志 `.permsift/v0.9-unit-delivery.log`、`.permsift/v0.9-integration.log`、`.permsift/v0.9-observation-delivery.log`。开发测试证明实现约定，测试总数不作为用户收益指标。

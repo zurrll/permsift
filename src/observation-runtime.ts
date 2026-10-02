@@ -57,13 +57,24 @@ function preload(settings: { directory: string; maxEvents: number; maxBytes: num
     };
   }
   mod.syncBuiltinESMExports();
+  // execve replaces Node without firing its exit handlers. Keep that launch
+  // attempt visible; the missing footer still marks module capture incomplete.
+  if (typeof process.execve === 'function') {
+    const original = process.execve;
+    process.execve = function (file, args, environment) {
+      const env = environment ?? process.env;
+      unique({ kind: 'child', method: 'execve', executable: short(file),
+        preload_inherited: typeof env.NODE_OPTIONS === 'string' && env.NODE_OPTIONS.includes(__filename) });
+      return Reflect.apply(original, this, [file, args, environment]);
+    };
+  }
   process.once('exit', () => {
     emit({ kind: 'end', count, truncated, io_error: ioError }, true);
     try { fs.closeSync(fd); } catch { /* The reader requires a valid footer. */ }
   });
 }
 
-export const OBSERVER_VERSION = 'node-module-load-v1';
+export const OBSERVER_VERSION = 'node-module-load-v2';
 export function observationPreload(directory: string, maxEvents: number, maxBytes: number): string {
   return `'use strict';\ntry { (${preload.toString()})(${JSON.stringify({ directory, maxEvents, maxBytes })}); } catch (error) { console.error('Permsift observer could not start:', error.code || error.message); }\n`;
 }

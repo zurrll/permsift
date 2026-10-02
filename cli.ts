@@ -57,10 +57,18 @@ async function main() {
         console.log(`\n${report.status.toUpperCase()} · dependency usage · one execution per task`);
         for (const task of report.tasks) {
           if (task.capture_status === 'not_run') console.log(`  ${task.task}: not observed`);
-          else console.log(`  ${task.task}: ${task.loaded_packages.length}/${task.inventory.packages.length} installed package instances observed · task ${task.verdict} · capture ${task.capture_status}`);
+          else {
+            console.log(`  ${task.task}: installed ${task.inventory.packages.length} instances; Node module-load records ${task.loaded_packages.length} · task ${task.verdict} · module capture ${task.capture_status}`);
+            console.log(task.compilation ? `    TypeScript inputs: ${task.compilation.files.length} files / ${task.compilation.packages.length} package instances · capture ${task.compilation.capture_status}` : '    TypeScript inputs: not collected');
+            console.log('    Module hooks miss types, resource reads and native internals. Missing module records do not mean unused packages.');
+          }
         }
         if (report.comparison) for (const t of report.comparison.tasks) console.log(`  ${t.task}: ${t.state}; newly observed ${t.added.length}, no longer observed ${t.removed.length}, version changes ${t.version_changes.length}`);
-        console.log('Module-load observations only. Unobserved does not mean unused or safe to remove.');
+        if (report.comparison) for (const t of report.comparison.tasks) if (t.compilation) {
+          console.log(`  ${t.task}: compiler-input comparison ${t.compilation.state}; newly recorded packages ${t.compilation.added.length}, no longer recorded ${t.compilation.removed.length}, changed explanations ${t.compilation.explanation_changes.length}`);
+          for (const warning of t.compilation.warnings) console.log(`    ${warning}`);
+        }
+        console.log('Sources are reported separately. Missing observations do not justify deletion or permission removal.');
         console.log(`Usage: ${path.join(report.output, 'usage.md')}`);
         console.log(`Execution evidence: ${path.join(report.output, 'report.md')}`);
       }

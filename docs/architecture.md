@@ -122,3 +122,11 @@ observe-command.ts 复用 engine 的 observe 模式，每个配置任务一次�
 dependency-inventory.ts 在任务前读取 npm 安装位置和包元数据；observation.ts 有界读回各进程/线程的 JSONL，区分解析、加载、子进程启动尝试与 footer 健康度，映射归属最长匹配安装根。引擎证据保存原始任务/边界和观察摘要，observe-command.ts 生成独立的 usage.json/md 并比较历史观察。报告模式不能作为 regression 的 run/tighten 基线；观察不生成 Rule，不把加载升级为必需权限。
 
 JSONL 是任务可写的合作式诊断数据，不能作为防篡改审计证据。安装/探针保持清洁环境；Task verdict 和 capture_status 分开，详细限制见 [dependency-usage.md](dependency-usage.md)。
+
+## v0.10 编译输入
+
+可选 scenario.observation.typescript.compiler 绑定一个项目安装根；配置限定直接 node <compiler>/bin/tsc。typescript-observation.ts 仅为 observe 生成带 explainFiles / locale en / pretty false 的实际命令，并有界解析该次 process.stdout。无需额外日志目录或读取授权，也不执行第二次编译。compiler 版本来自任务前已安装清单，文件归属按最长包根，多个解释保留；stdout 原始内容、摘要及实际命令写入 trial/compilation。
+
+TaskObservation.compilation 为独立来源，Node capture_status 仍保持原义。observe-command 的总体 observed 要求任务及每个开启来源都通过；JSON schema 1 保留可选扩展，导入 v0.9 无 compilation 时不推断新增输入。编译来源按包/文件/解释比较，parser 和 compiler 版本、命令、限制变化单独提醒。用途只展示证据列，不自动生成互斥分类或权限候选。
+
+预加载增加 process.execve 启动尝试，仍不记录参数/环境内容。进程替换导致没有 exit footer 时，Node 来源保持 incomplete；原生编译器可同时给出完整的 explainFiles。详细范围和版本限制见 [typescript-inputs.md](typescript-inputs.md)。

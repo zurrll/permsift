@@ -1,0 +1,23 @@
+schema_version: 1
+project: ../../../.permsift/third-party/fast-glob
+exclude: [.git, .npmrc, node_modules, out, reports]
+scenarios:
+  - id: compile
+    install:
+      manager: npm
+      cache: cold
+      initial_write_grants: ['@workspace/node_modules', '@cache', '@tmp']
+      auto_discover: false
+    initial_network_grants: [registry.npmjs.org]
+    initial_write_grants: ['@workspace/out']
+    initial_read_grants: ['@workspace']
+    auto_discover: false
+    command: [node, node_modules/typescript/bin/tsc, --pretty, 'false', --skipLibCheck]
+    observation:
+      typescript:
+        compiler: '@workspace/node_modules/typescript'
+    timeout_seconds: 120
+    assertions:
+      - type: file_contains
+        path: '@workspace/out/index.d.ts'
+        text: declare

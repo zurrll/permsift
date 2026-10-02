@@ -21,6 +21,15 @@ npm run observe:verify -- --medium-baseline .permsift/fast-glob-profile-XXXXXX/s
 
 新增 observation.test.ts 验证清单、CJS/ESM/Node 子进程、记录截断和对比；integration/observation.test.ts 验证真实写保护、前后边界、任务与记录状态分离、受控依赖变化和超时保存。CLI 观察的完整边界见 [dependency-usage.md](dependency-usage.md)。
 
+```sh
+# 类型专用受控夹具；没有权限搜索
+npm run compile:verify
+# 增加固定上游暖输入的直接编译
+npm run compile:verify -- --medium-baseline .permsift/fast-glob-profile-XXXXXX/summary.json
+```
+
+typescript-observation.test.ts 验证直接任务配置、真实本地编译器、两种解释格式、归属、未知输出和上限、兼容对比；integration/compilation.test.ts 验证同一次沙箱编译、原始输出身份、权限/边界、类型引用与版本变化、缺输出及输出预算。TypeScript 7 的 execve 缺 footer 预期为 Node 来源不完整，不能为测试通过而忽略；编译来源仍可完整。细节见 [typescript-inputs.md](typescript-inputs.md)。
+
 ## 测试分层
 
 ```sh
