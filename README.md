@@ -222,6 +222,7 @@ npm run check
 
 ## 文档
 
+- [整体重构计划](docs/refactoring-plan.md)：共同实验底座、两条独立使用路径、多轮交付与迁移验收。
 - [耗时与中等规模实测](docs/performance.md)：计时口径、可复现对比与配置限制。
 - [完整校验与一致性](docs/hash-validation.md)：有界扫描、历史摘要兼容、暖安装观察及同预算对照。
 - [配置参考](docs/configuration.md)：全部字段、成功断言与 limits。
