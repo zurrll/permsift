@@ -1,5 +1,25 @@
 # 实测记录
 
+## v0.12 — 2026-10-02
+
+全量单元/宿主组件 **135 项通过**，相关真实 macOS 观察/编译/打包集成 **16 项通过**，均 0 失败、0 跳过。末次读回边界整理后相关 **32 项组件测试通过**；不重复累计。日志 `.permsift/v0.12-unit-delivery.log`、`.permsift/v0.12-integration-delivery.log`、`.permsift/v0.12-reader-final.log`。构建、类型检查、脚本语法与 diff 检查通过；远端 CI 未执行。
+
+新增 10 项单元/CLI 用例覆盖共享比较/渲染、已有输入不变与导出不覆盖、旧来源缺失/失败/未执行、作用域/嵌套及同版本不同实例、安装但无记录、来源不完整与明确 0、未保存清单/文件、损坏/重复/冲突身份/越界模块、32 MB/符号链接/目录/FIFO、CLI 参数/JSON/退出码和 Markdown 转义。既有真实观察比较用例同时校验离线与 observe --baseline 结果完全一致，不增加项目执行次数。129 个原生启动覆盖提示仍可导入，没有误用 issues 的 128 条上限截断覆盖说明。
+
+### 默认离线回放
+
+`npm run offline:verify` 的末次证据 `.permsift/offline-usage-ZinKBM/summary.json`，日志 `.permsift/v0.12-offline-delivery.log`。读取仓库中有来源说明的真实报告字段投影，检查 fast-glob 跨任务 glob-parent 记录、934 → 1560 字节升级比较、当前包记录、同报告比较和输入摘要不变。公开 CLI 在没有外部工具的 PATH 下完成；项目任务执行数 0，安装数 0。
+
+### 新项目接入及升级
+
+固定 glob-parent 6.0.2 上游提交 `26ce5ecec10c687cffb9891c108fb2d2800b9140`，源码、测试与 package.json 不变；保留 npm test（含原 pretest lint），追加 xunit reporter 两项诊断参数。新配置 82 行，独立 limits 17 行；锁文件仅生成元数据，宿主没有安装依赖。另配置两项 API smoke。
+
+前后各执行两个任务，各冷安装一次，共 4 次任务 / 4 次真实沙箱安装。报告均 observed，每任务 435 个已安装实例；上游测试和 API 模块记录分别涉及 268 / 2 个包。两次 JUnit 均读回 **20 项通过测试**，明确预期名称列表覆盖其中 16 项，不声称逐名约束全部 20 项。Mocha 7.1.2 → 7.2.0 是锁文件唯一安装版本变化，模块比较只在 upstream-tests 列出该变化；API 模块增减及版本变化为空。配置、limits、环境和采集器摘要一致。离线 compare / inspect 读取完整原报告成功，未增加安装或任务执行。
+
+完整观察流程前后 137.70 / 77.56 s，其中两任务安装分项合计 124.61 / 64.55 s；测试 task 2.54 / 2.46 s，API task 0.16 / 0.18 s。空缓存冷安装受网络影响，不能据此报告升级或观察提速。证据 `.permsift/native-pilot-Io8TQF/summary.json`、`comparison/comparison.md`、`mocha.md` 及 v6-before / v6-after 完整报告。
+
+最初 glob-parent 5.1.2 的 nyc 13 包含内嵌依赖，锁中子条目缺少当前安装器要求的独立 URL / integrity，在任务前被拒绝，执行数 0；失败报告和锁保留，未放宽安装能力。配置成本、采用障碍和收益界限见 [使用检验](offline-pilot.md)，命令/状态见 [离线分析](offline-usage.md)。证明已有事实能集中查找和重复比较；没有外部用户人工时间或权限试验节省数据。
+
 ## v0.11 — 2026-10-02
 
 单元/宿主组件 125 项、真实 macOS 沙箱 61 项不同用例通过，0 失败、0 跳过，合计 186。完整集成套件先通过 60 项；末次新增更窄规则的导出兼容检查，并复跑全部 6 项打包集成，因此不重复累计复跑。日志 `.permsift/v0.11-unit-delivery.log`、`.permsift/v0.11-integration.log`、`.permsift/v0.11-bundling-delivery.log`。构建、类型检查、脚本语法与文档链接检查通过；远端 CI 未运行。

@@ -19,7 +19,8 @@ import { prepareObservation, collectObservation, type ObservationSetup, type Tas
 import { compilationCommand, collectCompilation } from './typescript-observation.js';
 import { prepareBundling, collectBundling } from './esbuild-observation.js';
 
-export const VERSION = '0.11.0';
+import { VERSION } from './version.js';
+export { VERSION } from './version.js';
 export type Trial = { id: string; scenario: string; phase: string; grants: string[]; read_grants: string[]; read_mode: 'explicit' | 'legacy'; network_grants: string[]; verdict: TrialVerdict; duration_ms: number; evidence: string; reason?: string; diagnosis?: Diagnosis; install_grants?: string[]; execution_stage?: 'install' | 'task'; installation_reused?: boolean; timings?: TimingSummary };
 type SearchSummary = { stop: string; steps: SearchStep[]; rounds: number; reuses: SearchReuse[] };
 export type Report = {

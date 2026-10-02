@@ -141,3 +141,9 @@ CI 配置包含 Linux 单元测试与 macOS 完整测试。新增 CI 文件不�
 `test/hash-scan.test.ts` 用独立 v0.7 扫描器核对不同并发下的历史摘要，覆盖大文件、空目录、Unicode、内部链接、模式、同大小内容修改及恢复时间戳、异常类型、大小上限、取消和超时。`timing.test.ts` 检查并行操作 service time 不会重复计入墙钟；真实分阶段测试仍要求每轮两次完整核对、六次根扫描和独立变化清单。
 
 `npm run hashes:benchmark` 观察三次暖安装及交替顺序的扫描成本。`npm run search:benchmark -- --baseline <summary.json> --seconds 300` 对同一暖输入和预算运行本地 v0.7 与当前代码，结束时清理参考 checkout。完整方法与字段见 [hash-validation.md](hash-validation.md)。
+
+## 离线报告回放
+
+`npm run offline:verify` 只调用 compare / inspect 处理 examples/reports 中的已有真实记录投影，不安装示例依赖或启动沙箱。输出保存到新的 .permsift/offline-usage-*；检查跨任务事实、升级比较、相同报告比较和输入未变。单元 CI 的 Node 22 / 24 作业也执行此脚本。输入来源见 [样例说明](../examples/reports/README.md)。
+
+变更覆盖新增的 offline-usage.test.ts，并扩展原观察集成用例，使同一对真实沙箱记录的 observe --baseline 与 compare 结果相同，不为比较额外执行任务。离线退出码与部分来源场景见 [离线分析](offline-usage.md)。

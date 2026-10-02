@@ -1,0 +1,1164 @@
+{
+  "schema_version": 1,
+  "kind": "dependency_usage",
+  "observer_version": "node-module-load-v2",
+  "version": "0.11.0",
+  "status": "observed",
+  "environment": {"platform": "darwin", "release": "24.6.0", "arch": "arm64", "node": "v24.21.0", "permsift": "0.11.0", "sandbox_runtime": "0.0.77", "npm": "11.19.0"},
+  "inputs": {
+    "snapshot_hash": "af69b0d69702d7d617ea83e2b654a24292f6be288aac42a160fd034550748d98",
+    "config_hash": "3cf3062917c92e01ef6f6b4a9b28b570a2e56ebb0d9d9882afcb678a72546d4b",
+    "limits_hash": "90dce1c1029f493931a05dec031d29e4794ae7659242b44da3a62cb65b97a725"
+  },
+  "tasks": [
+    {
+      "task": "bundle",
+      "capture_status": "captured",
+      "task_definition_hash": "6409aa8c451b309ba9a0e53efbf5503c5ef2807649de50d9326dfe77333bfd55",
+      "verdict": "pass",
+      "loaded_packages": [
+        {"path": "@workspace/node_modules/esbuild", "name": "esbuild", "version": "0.28.2", "modules": ["@workspace/node_modules/esbuild/lib/main.js"]},
+        {"path": "@workspace/node_modules/typescript", "name": "typescript", "version": "4.9.5", "modules": ["@workspace/node_modules/typescript/lib/typescript.js"]}
+      ],
+      "inventory": {
+        "packages": [
+          {"path": "@workspace/node_modules/@esbuild/darwin-arm64", "name": "@esbuild/darwin-arm64", "version": "0.28.2"},
+          {"path": "@workspace/node_modules/@nodelib/fs.scandir", "name": "@nodelib/fs.scandir", "version": "2.1.5"},
+          {"path": "@workspace/node_modules/@nodelib/fs.stat", "name": "@nodelib/fs.stat", "version": "2.0.5"},
+          {"path": "@workspace/node_modules/@nodelib/fs.walk", "name": "@nodelib/fs.walk", "version": "1.2.8"},
+          {"path": "@workspace/node_modules/braces", "name": "braces", "version": "3.0.3"},
+          {"path": "@workspace/node_modules/esbuild", "name": "esbuild", "version": "0.28.2"},
+          {"path": "@workspace/node_modules/fastq", "name": "fastq", "version": "1.20.3"},
+          {"path": "@workspace/node_modules/fill-range", "name": "fill-range", "version": "7.1.1"},
+          {"path": "@workspace/node_modules/glob-parent", "name": "glob-parent", "version": "6.0.2"},
+          {"path": "@workspace/node_modules/is-extglob", "name": "is-extglob", "version": "2.1.1"},
+          {"path": "@workspace/node_modules/is-glob", "name": "is-glob", "version": "4.0.3"},
+          {"path": "@workspace/node_modules/is-number", "name": "is-number", "version": "7.0.0"},
+          {"path": "@workspace/node_modules/merge2", "name": "merge2", "version": "1.4.1"},
+          {"path": "@workspace/node_modules/micromatch", "name": "micromatch", "version": "4.0.8"},
+          {"path": "@workspace/node_modules/picomatch", "name": "picomatch", "version": "2.3.2"},
+          {"path": "@workspace/node_modules/queue-microtask", "name": "queue-microtask", "version": "1.2.3"},
+          {"path": "@workspace/node_modules/reusify", "name": "reusify", "version": "1.1.0"},
+          {"path": "@workspace/node_modules/run-parallel", "name": "run-parallel", "version": "1.2.0"},
+          {"path": "@workspace/node_modules/to-regex-range", "name": "to-regex-range", "version": "5.0.1"},
+          {"path": "@workspace/node_modules/typescript", "name": "typescript", "version": "4.9.5"}
+        ],
+        "complete": true,
+        "issues": []
+      },
+      "issues": [],
+      "coverage_gaps": ["Child launch may execute native/shell code outside module-hook coverage: @workspace/node_modules/@esbuild/darwin-arm64/bin/esbuild"],
+      "bundling": {
+        "source": "esbuild_metafile",
+        "collector_version": "esbuild-metafile-v1",
+        "capture_status": "captured",
+        "bundler": {"path": "@workspace/node_modules/esbuild", "name": "esbuild", "version": "0.28.2"},
+        "metafile": "@workspace/dist/meta.json",
+        "output_root": "@workspace/dist",
+        "raw_metadata_hash": "cd15e6b9fe226b4bdbdd641f342737953f286a6e5db1760a9aac2537ed90024f",
+        "raw_metadata_bytes": 23364,
+        "executed_command": ["node", "build.cjs"],
+        "limits": {"max_bytes": 4000000, "max_inputs": 4096, "max_outputs": 256, "max_edges": 16384, "max_chain": 64},
+        "inputs": [
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.scandir/out/adapters/fs.js",
+            "bytes": 640,
+            "package": "@workspace/node_modules/@nodelib/fs.scandir",
+            "imports": [{"path": "fs", "kind": "require-call", "external": true}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/settings.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/settings.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/adapters/fs.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.scandir/out/constants.js",
+            "bytes": 990,
+            "package": "@workspace/node_modules/@nodelib/fs.scandir",
+            "imports": [],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/settings.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/providers/async.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/constants.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.scandir/out/index.js",
+            "bytes": 1009,
+            "package": "@workspace/node_modules/@nodelib/fs.scandir",
+            "imports": [
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/providers/async.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/providers/sync.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/settings.js", "kind": "require-call", "external": false}
+            ],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/settings.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/index.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.scandir/out/providers/async.js",
+            "bytes": 3686,
+            "package": "@workspace/node_modules/@nodelib/fs.scandir",
+            "imports": [
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/constants.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/providers/common.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/utils/index.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.stat/out/index.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/run-parallel/index.js", "kind": "require-call", "external": false}
+            ],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/settings.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/providers/async.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.scandir/out/providers/common.js",
+            "bytes": 419,
+            "package": "@workspace/node_modules/@nodelib/fs.scandir",
+            "imports": [],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/settings.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/providers/async.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/providers/common.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.scandir/out/providers/sync.js",
+            "bytes": 1990,
+            "package": "@workspace/node_modules/@nodelib/fs.scandir",
+            "imports": [
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/constants.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/providers/common.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/utils/index.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.stat/out/index.js", "kind": "require-call", "external": false}
+            ],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/settings.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/providers/sync.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.scandir/out/settings.js",
+            "bytes": 1076,
+            "package": "@workspace/node_modules/@nodelib/fs.scandir",
+            "imports": [
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/adapters/fs.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.stat/out/index.js", "kind": "require-call", "external": false},
+              {"path": "path", "kind": "require-call", "external": true}
+            ],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/settings.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/settings.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.scandir/out/utils/fs.js",
+            "bytes": 756,
+            "package": "@workspace/node_modules/@nodelib/fs.scandir",
+            "imports": [],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/settings.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/providers/async.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/utils/index.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/utils/fs.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.scandir/out/utils/index.js",
+            "bytes": 143,
+            "package": "@workspace/node_modules/@nodelib/fs.scandir",
+            "imports": [{"path": "@workspace/node_modules/@nodelib/fs.scandir/out/utils/fs.js", "kind": "require-call", "external": false}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/settings.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/providers/async.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/utils/index.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.stat/out/adapters/fs.js",
+            "bytes": 582,
+            "package": "@workspace/node_modules/@nodelib/fs.stat",
+            "imports": [{"path": "fs", "kind": "require-call", "external": true}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/stream.ts",
+              "@workspace/src/readers/stream.ts",
+              "@workspace/node_modules/@nodelib/fs.stat/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.stat/out/settings.js",
+              "@workspace/node_modules/@nodelib/fs.stat/out/adapters/fs.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.stat/out/index.js",
+            "bytes": 985,
+            "package": "@workspace/node_modules/@nodelib/fs.stat",
+            "imports": [
+              {"path": "@workspace/node_modules/@nodelib/fs.stat/out/providers/async.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.stat/out/providers/sync.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.stat/out/settings.js", "kind": "require-call", "external": false}
+            ],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/stream.ts", "@workspace/src/readers/stream.ts", "@workspace/node_modules/@nodelib/fs.stat/out/index.js"]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.stat/out/providers/async.js",
+            "bytes": 1172,
+            "package": "@workspace/node_modules/@nodelib/fs.stat",
+            "imports": [],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/stream.ts", "@workspace/src/readers/stream.ts", "@workspace/node_modules/@nodelib/fs.stat/out/index.js", "@workspace/node_modules/@nodelib/fs.stat/out/providers/async.js"]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.stat/out/providers/sync.js",
+            "bytes": 619,
+            "package": "@workspace/node_modules/@nodelib/fs.stat",
+            "imports": [],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/stream.ts", "@workspace/src/readers/stream.ts", "@workspace/node_modules/@nodelib/fs.stat/out/index.js", "@workspace/node_modules/@nodelib/fs.stat/out/providers/sync.js"]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.stat/out/settings.js",
+            "bytes": 696,
+            "package": "@workspace/node_modules/@nodelib/fs.stat",
+            "imports": [{"path": "@workspace/node_modules/@nodelib/fs.stat/out/adapters/fs.js", "kind": "require-call", "external": false}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/stream.ts", "@workspace/src/readers/stream.ts", "@workspace/node_modules/@nodelib/fs.stat/out/index.js", "@workspace/node_modules/@nodelib/fs.stat/out/settings.js"]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+            "bytes": 1390,
+            "package": "@workspace/node_modules/@nodelib/fs.walk",
+            "imports": [
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/providers/async.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/providers/stream.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/providers/sync.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/settings.js", "kind": "require-call", "external": false}
+            ],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/async.ts", "@workspace/src/readers/async.ts", "@workspace/node_modules/@nodelib/fs.walk/out/index.js"]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.walk/out/providers/async.js",
+            "bytes": 895,
+            "package": "@workspace/node_modules/@nodelib/fs.walk",
+            "imports": [{"path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/async.js", "kind": "require-call", "external": false}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/async.ts", "@workspace/src/readers/async.ts", "@workspace/node_modules/@nodelib/fs.walk/out/index.js", "@workspace/node_modules/@nodelib/fs.walk/out/providers/async.js"]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.walk/out/providers/stream.js",
+            "bytes": 1021,
+            "package": "@workspace/node_modules/@nodelib/fs.walk",
+            "imports": [{"path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/async.js", "kind": "require-call", "external": false}, {"path": "stream", "kind": "require-call", "external": true}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/async.ts", "@workspace/src/readers/async.ts", "@workspace/node_modules/@nodelib/fs.walk/out/index.js", "@workspace/node_modules/@nodelib/fs.walk/out/providers/stream.js"]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.walk/out/providers/sync.js",
+            "bytes": 407,
+            "package": "@workspace/node_modules/@nodelib/fs.walk",
+            "imports": [{"path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/sync.js", "kind": "require-call", "external": false}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/async.ts", "@workspace/src/readers/async.ts", "@workspace/node_modules/@nodelib/fs.walk/out/index.js", "@workspace/node_modules/@nodelib/fs.walk/out/providers/sync.js"]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/async.js",
+            "bytes": 3157,
+            "package": "@workspace/node_modules/@nodelib/fs.walk",
+            "imports": [
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/index.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/common.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/reader.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/fastq/queue.js", "kind": "require-call", "external": false},
+              {"path": "events", "kind": "require-call", "external": true}
+            ],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/providers/async.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/readers/async.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/common.js",
+            "bytes": 1052,
+            "package": "@workspace/node_modules/@nodelib/fs.walk",
+            "imports": [],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/providers/async.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/readers/async.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/readers/common.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/reader.js",
+            "bytes": 358,
+            "package": "@workspace/node_modules/@nodelib/fs.walk",
+            "imports": [{"path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/common.js", "kind": "require-call", "external": false}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/providers/async.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/readers/async.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/readers/reader.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/sync.js",
+            "bytes": 1911,
+            "package": "@workspace/node_modules/@nodelib/fs.walk",
+            "imports": [
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/index.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/common.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/reader.js", "kind": "require-call", "external": false}
+            ],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/providers/sync.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/readers/sync.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.walk/out/settings.js",
+            "bytes": 1250,
+            "package": "@workspace/node_modules/@nodelib/fs.walk",
+            "imports": [{"path": "@workspace/node_modules/@nodelib/fs.scandir/out/index.js", "kind": "require-call", "external": false}, {"path": "path", "kind": "require-call", "external": true}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/async.ts", "@workspace/src/readers/async.ts", "@workspace/node_modules/@nodelib/fs.walk/out/index.js", "@workspace/node_modules/@nodelib/fs.walk/out/settings.js"]
+          },
+          {
+            "path": "@workspace/node_modules/braces/index.js",
+            "bytes": 4380,
+            "package": "@workspace/node_modules/braces",
+            "imports": [
+              {"path": "@workspace/node_modules/braces/lib/compile.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/braces/lib/expand.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/braces/lib/parse.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/braces/lib/stringify.js", "kind": "require-call", "external": false}
+            ],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts", "@workspace/src/utils/pattern.ts", "@workspace/node_modules/micromatch/index.js", "@workspace/node_modules/braces/index.js"]
+          },
+          {
+            "path": "@workspace/node_modules/braces/lib/compile.js",
+            "bytes": 1501,
+            "package": "@workspace/node_modules/braces",
+            "imports": [{"path": "@workspace/node_modules/braces/lib/utils.js", "kind": "require-call", "external": false}, {"path": "@workspace/node_modules/fill-range/index.js", "kind": "require-call", "external": false}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/utils/index.ts",
+              "@workspace/src/utils/pattern.ts",
+              "@workspace/node_modules/micromatch/index.js",
+              "@workspace/node_modules/braces/index.js",
+              "@workspace/node_modules/braces/lib/compile.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/braces/lib/constants.js",
+            "bytes": 1589,
+            "package": "@workspace/node_modules/braces",
+            "imports": [],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/utils/index.ts",
+              "@workspace/src/utils/pattern.ts",
+              "@workspace/node_modules/micromatch/index.js",
+              "@workspace/node_modules/braces/index.js",
+              "@workspace/node_modules/braces/lib/parse.js",
+              "@workspace/node_modules/braces/lib/constants.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/braces/lib/expand.js",
+            "bytes": 2797,
+            "package": "@workspace/node_modules/braces",
+            "imports": [
+              {"path": "@workspace/node_modules/braces/lib/stringify.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/braces/lib/utils.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/fill-range/index.js", "kind": "require-call", "external": false}
+            ],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/utils/index.ts",
+              "@workspace/src/utils/pattern.ts",
+              "@workspace/node_modules/micromatch/index.js",
+              "@workspace/node_modules/braces/index.js",
+              "@workspace/node_modules/braces/lib/expand.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/braces/lib/parse.js",
+            "bytes": 6899,
+            "package": "@workspace/node_modules/braces",
+            "imports": [{"path": "@workspace/node_modules/braces/lib/constants.js", "kind": "require-call", "external": false}, {"path": "@workspace/node_modules/braces/lib/stringify.js", "kind": "require-call", "external": false}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/utils/index.ts",
+              "@workspace/src/utils/pattern.ts",
+              "@workspace/node_modules/micromatch/index.js",
+              "@workspace/node_modules/braces/index.js",
+              "@workspace/node_modules/braces/lib/parse.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/braces/lib/stringify.js",
+            "bytes": 708,
+            "package": "@workspace/node_modules/braces",
+            "imports": [{"path": "@workspace/node_modules/braces/lib/utils.js", "kind": "require-call", "external": false}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/utils/index.ts",
+              "@workspace/src/utils/pattern.ts",
+              "@workspace/node_modules/micromatch/index.js",
+              "@workspace/node_modules/braces/index.js",
+              "@workspace/node_modules/braces/lib/stringify.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/braces/lib/utils.js",
+            "bytes": 2518,
+            "package": "@workspace/node_modules/braces",
+            "imports": [],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/utils/index.ts",
+              "@workspace/src/utils/pattern.ts",
+              "@workspace/node_modules/micromatch/index.js",
+              "@workspace/node_modules/braces/index.js",
+              "@workspace/node_modules/braces/lib/compile.js",
+              "@workspace/node_modules/braces/lib/utils.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/fastq/queue.js",
+            "bytes": 7103,
+            "package": "@workspace/node_modules/fastq",
+            "imports": [{"path": "@workspace/node_modules/reusify/reusify.js", "kind": "require-call", "external": false}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/providers/async.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/readers/async.js",
+              "@workspace/node_modules/fastq/queue.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/fill-range/index.js",
+            "bytes": 6406,
+            "package": "@workspace/node_modules/fill-range",
+            "imports": [{"path": "@workspace/node_modules/to-regex-range/index.js", "kind": "require-call", "external": false}, {"path": "util", "kind": "require-call", "external": true}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/utils/index.ts",
+              "@workspace/src/utils/pattern.ts",
+              "@workspace/node_modules/micromatch/index.js",
+              "@workspace/node_modules/braces/index.js",
+              "@workspace/node_modules/braces/lib/compile.js",
+              "@workspace/node_modules/fill-range/index.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/glob-parent/index.js",
+            "bytes": 1614,
+            "package": "@workspace/node_modules/glob-parent",
+            "imports": [{"path": "@workspace/node_modules/is-glob/index.js", "kind": "require-call", "external": false}, {"path": "os", "kind": "require-call", "external": true}, {"path": "path", "kind": "require-call", "external": true}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts", "@workspace/src/utils/pattern.ts", "@workspace/node_modules/glob-parent/index.js"]
+          },
+          {
+            "path": "@workspace/node_modules/is-extglob/index.js",
+            "bytes": 441,
+            "package": "@workspace/node_modules/is-extglob",
+            "imports": [],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/utils/index.ts",
+              "@workspace/src/utils/pattern.ts",
+              "@workspace/node_modules/glob-parent/index.js",
+              "@workspace/node_modules/is-glob/index.js",
+              "@workspace/node_modules/is-extglob/index.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/is-glob/index.js",
+            "bytes": 3628,
+            "package": "@workspace/node_modules/is-glob",
+            "imports": [{"path": "@workspace/node_modules/is-extglob/index.js", "kind": "require-call", "external": false}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts", "@workspace/src/utils/pattern.ts", "@workspace/node_modules/glob-parent/index.js", "@workspace/node_modules/is-glob/index.js"]
+          },
+          {
+            "path": "@workspace/node_modules/is-number/index.js",
+            "bytes": 411,
+            "package": "@workspace/node_modules/is-number",
+            "imports": [],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/utils/index.ts",
+              "@workspace/src/utils/pattern.ts",
+              "@workspace/node_modules/micromatch/index.js",
+              "@workspace/node_modules/braces/index.js",
+              "@workspace/node_modules/braces/lib/compile.js",
+              "@workspace/node_modules/fill-range/index.js",
+              "@workspace/node_modules/to-regex-range/index.js",
+              "@workspace/node_modules/is-number/index.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/merge2/index.js",
+            "bytes": 3241,
+            "package": "@workspace/node_modules/merge2",
+            "imports": [{"path": "stream", "kind": "require-call", "external": true}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts", "@workspace/src/utils/stream.ts", "@workspace/node_modules/merge2/index.js"]
+          },
+          {
+            "path": "@workspace/node_modules/micromatch/index.js",
+            "bytes": 13898,
+            "package": "@workspace/node_modules/micromatch",
+            "imports": [
+              {"path": "@workspace/node_modules/braces/index.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/picomatch/index.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/picomatch/lib/utils.js", "kind": "require-call", "external": false},
+              {"path": "util", "kind": "require-call", "external": true}
+            ],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts", "@workspace/src/utils/pattern.ts", "@workspace/node_modules/micromatch/index.js"]
+          },
+          {
+            "path": "@workspace/node_modules/picomatch/index.js",
+            "bytes": 60,
+            "package": "@workspace/node_modules/picomatch",
+            "imports": [{"path": "@workspace/node_modules/picomatch/lib/picomatch.js", "kind": "require-call", "external": false}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts", "@workspace/src/utils/pattern.ts", "@workspace/node_modules/micromatch/index.js", "@workspace/node_modules/picomatch/index.js"]
+          },
+          {
+            "path": "@workspace/node_modules/picomatch/lib/constants.js",
+            "bytes": 4563,
+            "package": "@workspace/node_modules/picomatch",
+            "imports": [{"path": "path", "kind": "require-call", "external": true}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/utils/index.ts",
+              "@workspace/src/utils/pattern.ts",
+              "@workspace/node_modules/micromatch/index.js",
+              "@workspace/node_modules/picomatch/lib/utils.js",
+              "@workspace/node_modules/picomatch/lib/constants.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/picomatch/lib/parse.js",
+            "bytes": 33950,
+            "package": "@workspace/node_modules/picomatch",
+            "imports": [{"path": "@workspace/node_modules/picomatch/lib/constants.js", "kind": "require-call", "external": false}, {"path": "@workspace/node_modules/picomatch/lib/utils.js", "kind": "require-call", "external": false}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/utils/index.ts",
+              "@workspace/src/utils/pattern.ts",
+              "@workspace/node_modules/micromatch/index.js",
+              "@workspace/node_modules/picomatch/index.js",
+              "@workspace/node_modules/picomatch/lib/picomatch.js",
+              "@workspace/node_modules/picomatch/lib/parse.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/picomatch/lib/picomatch.js",
+            "bytes": 9956,
+            "package": "@workspace/node_modules/picomatch",
+            "imports": [
+              {"path": "@workspace/node_modules/picomatch/lib/constants.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/picomatch/lib/parse.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/picomatch/lib/scan.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/picomatch/lib/utils.js", "kind": "require-call", "external": false},
+              {"path": "path", "kind": "require-call", "external": true}
+            ],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/utils/index.ts",
+              "@workspace/src/utils/pattern.ts",
+              "@workspace/node_modules/micromatch/index.js",
+              "@workspace/node_modules/picomatch/index.js",
+              "@workspace/node_modules/picomatch/lib/picomatch.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/picomatch/lib/scan.js",
+            "bytes": 9189,
+            "package": "@workspace/node_modules/picomatch",
+            "imports": [{"path": "@workspace/node_modules/picomatch/lib/constants.js", "kind": "require-call", "external": false}, {"path": "@workspace/node_modules/picomatch/lib/utils.js", "kind": "require-call", "external": false}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/utils/index.ts",
+              "@workspace/src/utils/pattern.ts",
+              "@workspace/node_modules/micromatch/index.js",
+              "@workspace/node_modules/picomatch/index.js",
+              "@workspace/node_modules/picomatch/lib/picomatch.js",
+              "@workspace/node_modules/picomatch/lib/scan.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/picomatch/lib/utils.js",
+            "bytes": 1885,
+            "package": "@workspace/node_modules/picomatch",
+            "imports": [{"path": "@workspace/node_modules/picomatch/lib/constants.js", "kind": "require-call", "external": false}, {"path": "path", "kind": "require-call", "external": true}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts", "@workspace/src/utils/pattern.ts", "@workspace/node_modules/micromatch/index.js", "@workspace/node_modules/picomatch/lib/utils.js"]
+          },
+          {
+            "path": "@workspace/node_modules/queue-microtask/index.js",
+            "bytes": 402,
+            "package": "@workspace/node_modules/queue-microtask",
+            "imports": [],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/settings.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/providers/async.js",
+              "@workspace/node_modules/run-parallel/index.js",
+              "@workspace/node_modules/queue-microtask/index.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/reusify/reusify.js",
+            "bytes": 454,
+            "package": "@workspace/node_modules/reusify",
+            "imports": [],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/providers/async.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/readers/async.js",
+              "@workspace/node_modules/fastq/queue.js",
+              "@workspace/node_modules/reusify/reusify.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/run-parallel/index.js",
+            "bytes": 1034,
+            "package": "@workspace/node_modules/run-parallel",
+            "imports": [{"path": "@workspace/node_modules/queue-microtask/index.js", "kind": "require-call", "external": false}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/readers/async.ts",
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/settings.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/providers/async.js",
+              "@workspace/node_modules/run-parallel/index.js"
+            ]
+          },
+          {
+            "path": "@workspace/node_modules/to-regex-range/index.js",
+            "bytes": 6481,
+            "package": "@workspace/node_modules/to-regex-range",
+            "imports": [{"path": "@workspace/node_modules/is-number/index.js", "kind": "require-call", "external": false}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/utils/index.ts",
+              "@workspace/src/utils/pattern.ts",
+              "@workspace/node_modules/micromatch/index.js",
+              "@workspace/node_modules/braces/index.js",
+              "@workspace/node_modules/braces/lib/compile.js",
+              "@workspace/node_modules/fill-range/index.js",
+              "@workspace/node_modules/to-regex-range/index.js"
+            ]
+          },
+          {
+            "path": "@workspace/src/index.ts",
+            "bytes": 4091,
+            "imports": [
+              {"path": "@workspace/src/managers/tasks.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/providers/async.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/providers/stream.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/providers/sync.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/settings.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/utils/index.ts", "kind": "require-call", "external": false}
+            ],
+            "entry_chain": ["@workspace/src/index.ts"]
+          },
+          {
+            "path": "@workspace/src/managers/tasks.ts",
+            "bytes": 5531,
+            "imports": [{"path": "@workspace/src/utils/index.ts", "kind": "require-call", "external": false}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/managers/tasks.ts"]
+          },
+          {
+            "path": "@workspace/src/providers/async.ts",
+            "bytes": 814,
+            "imports": [{"path": "@workspace/src/providers/provider.ts", "kind": "require-call", "external": false}, {"path": "@workspace/src/readers/async.ts", "kind": "require-call", "external": false}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/async.ts"]
+          },
+          {
+            "path": "@workspace/src/providers/filters/deep.ts",
+            "bytes": 2466,
+            "imports": [{"path": "@workspace/src/providers/matchers/partial.ts", "kind": "require-call", "external": false}, {"path": "@workspace/src/utils/index.ts", "kind": "require-call", "external": false}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/async.ts", "@workspace/src/providers/provider.ts", "@workspace/src/providers/filters/deep.ts"]
+          },
+          {
+            "path": "@workspace/src/providers/filters/entry.ts",
+            "bytes": 3556,
+            "imports": [{"path": "@workspace/src/utils/index.ts", "kind": "require-call", "external": false}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/async.ts", "@workspace/src/providers/provider.ts", "@workspace/src/providers/filters/entry.ts"]
+          },
+          {
+            "path": "@workspace/src/providers/filters/error.ts",
+            "bytes": 441,
+            "imports": [{"path": "@workspace/src/utils/index.ts", "kind": "require-call", "external": false}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/async.ts", "@workspace/src/providers/provider.ts", "@workspace/src/providers/filters/error.ts"]
+          },
+          {
+            "path": "@workspace/src/providers/matchers/matcher.ts",
+            "bytes": 1568,
+            "imports": [{"path": "@workspace/src/utils/index.ts", "kind": "require-call", "external": false}],
+            "entry_chain": [
+              "@workspace/src/index.ts",
+              "@workspace/src/providers/async.ts",
+              "@workspace/src/providers/provider.ts",
+              "@workspace/src/providers/filters/deep.ts",
+              "@workspace/src/providers/matchers/partial.ts",
+              "@workspace/src/providers/matchers/matcher.ts"
+            ]
+          },
+          {
+            "path": "@workspace/src/providers/matchers/partial.ts",
+            "bytes": 1421,
+            "imports": [{"path": "@workspace/src/providers/matchers/matcher.ts", "kind": "require-call", "external": false}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/async.ts", "@workspace/src/providers/provider.ts", "@workspace/src/providers/filters/deep.ts", "@workspace/src/providers/matchers/partial.ts"]
+          },
+          {
+            "path": "@workspace/src/providers/provider.ts",
+            "bytes": 2000,
+            "imports": [
+              {"path": "@workspace/src/providers/filters/deep.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/providers/filters/entry.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/providers/filters/error.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/providers/transformers/entry.ts", "kind": "require-call", "external": false},
+              {"path": "path", "kind": "require-call", "external": true}
+            ],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/async.ts", "@workspace/src/providers/provider.ts"]
+          },
+          {
+            "path": "@workspace/src/providers/stream.ts",
+            "bytes": 1198,
+            "imports": [
+              {"path": "@workspace/src/providers/provider.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/readers/stream.ts", "kind": "require-call", "external": false},
+              {"path": "stream", "kind": "require-call", "external": true}
+            ],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/stream.ts"]
+          },
+          {
+            "path": "@workspace/src/providers/sync.ts",
+            "bytes": 779,
+            "imports": [{"path": "@workspace/src/providers/provider.ts", "kind": "require-call", "external": false}, {"path": "@workspace/src/readers/sync.ts", "kind": "require-call", "external": false}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/sync.ts"]
+          },
+          {
+            "path": "@workspace/src/providers/transformers/entry.ts",
+            "bytes": 845,
+            "imports": [{"path": "@workspace/src/utils/index.ts", "kind": "require-call", "external": false}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/async.ts", "@workspace/src/providers/provider.ts", "@workspace/src/providers/transformers/entry.ts"]
+          },
+          {
+            "path": "@workspace/src/readers/async.ts",
+            "bytes": 1213,
+            "imports": [
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/index.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/readers/reader.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/readers/stream.ts", "kind": "require-call", "external": false}
+            ],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/async.ts", "@workspace/src/readers/async.ts"]
+          },
+          {
+            "path": "@workspace/src/readers/reader.ts",
+            "bytes": 1063,
+            "imports": [
+              {"path": "@workspace/node_modules/@nodelib/fs.stat/out/index.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/utils/index.ts", "kind": "require-call", "external": false},
+              {"path": "path", "kind": "require-call", "external": true}
+            ],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/async.ts", "@workspace/src/readers/async.ts", "@workspace/src/readers/reader.ts"]
+          },
+          {
+            "path": "@workspace/src/readers/stream.ts",
+            "bytes": 1870,
+            "imports": [
+              {"path": "@workspace/node_modules/@nodelib/fs.stat/out/index.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/index.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/readers/reader.ts", "kind": "require-call", "external": false},
+              {"path": "stream", "kind": "require-call", "external": true}
+            ],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/stream.ts", "@workspace/src/readers/stream.ts"]
+          },
+          {
+            "path": "@workspace/src/readers/sync.ts",
+            "bytes": 1330,
+            "imports": [
+              {"path": "@workspace/node_modules/@nodelib/fs.stat/out/index.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/index.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/readers/reader.ts", "kind": "require-call", "external": false}
+            ],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/providers/sync.ts", "@workspace/src/readers/sync.ts"]
+          },
+          {
+            "path": "@workspace/src/settings.ts",
+            "bytes": 2849,
+            "imports": [{"path": "fs", "kind": "require-call", "external": true}, {"path": "os", "kind": "require-call", "external": true}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/settings.ts"]
+          },
+          {"path": "@workspace/src/utils/array.ts", "bytes": 608, "imports": [], "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts", "@workspace/src/utils/array.ts"]},
+          {"path": "@workspace/src/utils/errno.ts", "bytes": 234, "imports": [], "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts", "@workspace/src/utils/errno.ts"]},
+          {"path": "@workspace/src/utils/fs.ts", "bytes": 756, "imports": [], "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts", "@workspace/src/utils/fs.ts"]},
+          {
+            "path": "@workspace/src/utils/index.ts",
+            "bytes": 596,
+            "imports": [
+              {"path": "@workspace/src/utils/array.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/utils/errno.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/utils/fs.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/utils/path.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/utils/pattern.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/utils/stream.ts", "kind": "require-call", "external": false},
+              {"path": "@workspace/src/utils/string.ts", "kind": "require-call", "external": false}
+            ],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts"]
+          },
+          {
+            "path": "@workspace/src/utils/path.ts",
+            "bytes": 3010,
+            "imports": [{"path": "os", "kind": "require-call", "external": true}, {"path": "path", "kind": "require-call", "external": true}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts", "@workspace/src/utils/path.ts"]
+          },
+          {
+            "path": "@workspace/src/utils/pattern.ts",
+            "bytes": 8520,
+            "imports": [
+              {"path": "@workspace/node_modules/glob-parent/index.js", "kind": "require-call", "external": false},
+              {"path": "@workspace/node_modules/micromatch/index.js", "kind": "require-call", "external": false},
+              {"path": "path", "kind": "require-call", "external": true}
+            ],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts", "@workspace/src/utils/pattern.ts"]
+          },
+          {
+            "path": "@workspace/src/utils/stream.ts",
+            "bytes": 629,
+            "imports": [{"path": "@workspace/node_modules/merge2/index.js", "kind": "require-call", "external": false}],
+            "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts", "@workspace/src/utils/stream.ts"]
+          },
+          {"path": "@workspace/src/utils/string.ts", "bytes": 298, "imports": [], "entry_chain": ["@workspace/src/index.ts", "@workspace/src/utils/index.ts", "@workspace/src/utils/string.ts"]}
+        ],
+        "outputs": [
+          {
+            "path": "@workspace/dist/fast-glob.cjs",
+            "bytes": 195710,
+            "entry_point": "@workspace/src/index.ts",
+            "inputs": [
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/adapters/fs.js", "bytes_in_output": 803},
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/constants.js", "bytes_in_output": 1087},
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/index.js", "bytes_in_output": 1166},
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/providers/async.js", "bytes_in_output": 3700},
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/providers/common.js", "bytes_in_output": 443},
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/providers/sync.js", "bytes_in_output": 2109},
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/settings.js", "bytes_in_output": 1198},
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/utils/fs.js", "bytes_in_output": 908},
+              {"path": "@workspace/node_modules/@nodelib/fs.scandir/out/utils/index.js", "bytes_in_output": 272},
+              {"path": "@workspace/node_modules/@nodelib/fs.stat/out/adapters/fs.js", "bytes_in_output": 738},
+              {"path": "@workspace/node_modules/@nodelib/fs.stat/out/index.js", "bytes_in_output": 1135},
+              {"path": "@workspace/node_modules/@nodelib/fs.stat/out/providers/async.js", "bytes_in_output": 1283},
+              {"path": "@workspace/node_modules/@nodelib/fs.stat/out/providers/sync.js", "bytes_in_output": 758},
+              {"path": "@workspace/node_modules/@nodelib/fs.stat/out/settings.js", "bytes_in_output": 830},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/index.js", "bytes_in_output": 1563},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/providers/async.js", "bytes_in_output": 1050},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/providers/stream.js", "bytes_in_output": 1150},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/providers/sync.js", "bytes_in_output": 546},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/async.js", "bytes_in_output": 3264},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/common.js", "bytes_in_output": 1128},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/reader.js", "bytes_in_output": 501},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/readers/sync.js", "bytes_in_output": 2041},
+              {"path": "@workspace/node_modules/@nodelib/fs.walk/out/settings.js", "bytes_in_output": 1369},
+              {"path": "@workspace/node_modules/braces/index.js", "bytes_in_output": 1950},
+              {"path": "@workspace/node_modules/braces/lib/compile.js", "bytes_in_output": 1768},
+              {"path": "@workspace/node_modules/braces/lib/constants.js", "bytes_in_output": 2153},
+              {"path": "@workspace/node_modules/braces/lib/expand.js", "bytes_in_output": 3214},
+              {"path": "@workspace/node_modules/braces/lib/parse.js", "bytes_in_output": 7199},
+              {"path": "@workspace/node_modules/braces/lib/stringify.js", "bytes_in_output": 907},
+              {"path": "@workspace/node_modules/braces/lib/utils.js", "bytes_in_output": 2497},
+              {"path": "@workspace/node_modules/fastq/queue.js", "bytes_in_output": 7784},
+              {"path": "@workspace/node_modules/fill-range/index.js", "bytes_in_output": 6996},
+              {"path": "@workspace/node_modules/glob-parent/index.js", "bytes_in_output": 1560},
+              {"path": "@workspace/node_modules/is-extglob/index.js", "bytes_in_output": 435},
+              {"path": "@workspace/node_modules/is-glob/index.js", "bytes_in_output": 4037},
+              {"path": "@workspace/node_modules/is-number/index.js", "bytes_in_output": 401},
+              {"path": "@workspace/node_modules/merge2/index.js", "bytes_in_output": 3482},
+              {"path": "@workspace/node_modules/micromatch/index.js", "bytes_in_output": 5985},
+              {"path": "@workspace/node_modules/picomatch/index.js", "bytes_in_output": 164},
+              {"path": "@workspace/node_modules/picomatch/lib/constants.js", "bytes_in_output": 5385},
+              {"path": "@workspace/node_modules/picomatch/lib/parse.js", "bytes_in_output": 34642},
+              {"path": "@workspace/node_modules/picomatch/lib/picomatch.js", "bytes_in_output": 5442},
+              {"path": "@workspace/node_modules/picomatch/lib/scan.js", "bytes_in_output": 9763},
+              {"path": "@workspace/node_modules/picomatch/lib/utils.js", "bytes_in_output": 2209},
+              {"path": "@workspace/node_modules/queue-microtask/index.js", "bytes_in_output": 386},
+              {"path": "@workspace/node_modules/reusify/reusify.js", "bytes_in_output": 643},
+              {"path": "@workspace/node_modules/run-parallel/index.js", "bytes_in_output": 1228},
+              {"path": "@workspace/node_modules/to-regex-range/index.js", "bytes_in_output": 6941},
+              {"path": "@workspace/src/index.ts", "bytes_in_output": 3377},
+              {"path": "@workspace/src/managers/tasks.ts", "bytes_in_output": 4371},
+              {"path": "@workspace/src/providers/async.ts", "bytes_in_output": 926},
+              {"path": "@workspace/src/providers/filters/deep.ts", "bytes_in_output": 2505},
+              {"path": "@workspace/src/providers/filters/entry.ts", "bytes_in_output": 3472},
+              {"path": "@workspace/src/providers/filters/error.ts", "bytes_in_output": 568},
+              {"path": "@workspace/src/providers/matchers/matcher.ts", "bytes_in_output": 1642},
+              {"path": "@workspace/src/providers/matchers/partial.ts", "bytes_in_output": 1182},
+              {"path": "@workspace/src/providers/provider.ts", "bytes_in_output": 2055},
+              {"path": "@workspace/src/providers/stream.ts", "bytes_in_output": 1270},
+              {"path": "@workspace/src/providers/sync.ts", "bytes_in_output": 889},
+              {"path": "@workspace/src/providers/transformers/entry.ts", "bytes_in_output": 971},
+              {"path": "@workspace/src/readers/async.ts", "bytes_in_output": 1209},
+              {"path": "@workspace/src/readers/reader.ts", "bytes_in_output": 1167},
+              {"path": "@workspace/src/readers/stream.ts", "bytes_in_output": 1865},
+              {"path": "@workspace/src/readers/sync.ts", "bytes_in_output": 1397},
+              {"path": "@workspace/src/settings.ts", "bytes_in_output": 2723},
+              {"path": "@workspace/src/utils/array.ts", "bytes_in_output": 723},
+              {"path": "@workspace/src/utils/errno.ts", "bytes_in_output": 339},
+              {"path": "@workspace/src/utils/fs.ts", "bytes_in_output": 874},
+              {"path": "@workspace/src/utils/index.ts", "bytes_in_output": 721},
+              {"path": "@workspace/src/utils/path.ts", "bytes_in_output": 2452},
+              {"path": "@workspace/src/utils/pattern.ts", "bytes_in_output": 7230},
+              {"path": "@workspace/src/utils/stream.ts", "bytes_in_output": 757},
+              {"path": "@workspace/src/utils/string.ts", "bytes_in_output": 421}
+            ],
+            "imports": [
+              {"path": "events", "kind": "require-call", "external": true},
+              {"path": "fs", "kind": "require-call", "external": true},
+              {"path": "fs", "kind": "require-call", "external": true},
+              {"path": "fs", "kind": "require-call", "external": true},
+              {"path": "os", "kind": "require-call", "external": true},
+              {"path": "os", "kind": "require-call", "external": true},
+              {"path": "os", "kind": "require-call", "external": true},
+              {"path": "path", "kind": "require-call", "external": true},
+              {"path": "path", "kind": "require-call", "external": true},
+              {"path": "path", "kind": "require-call", "external": true},
+              {"path": "path", "kind": "require-call", "external": true},
+              {"path": "path", "kind": "require-call", "external": true},
+              {"path": "path", "kind": "require-call", "external": true},
+              {"path": "path", "kind": "require-call", "external": true},
+              {"path": "path", "kind": "require-call", "external": true},
+              {"path": "path", "kind": "require-call", "external": true},
+              {"path": "path", "kind": "require-call", "external": true},
+              {"path": "stream", "kind": "require-call", "external": true},
+              {"path": "stream", "kind": "require-call", "external": true},
+              {"path": "stream", "kind": "require-call", "external": true},
+              {"path": "stream", "kind": "require-call", "external": true},
+              {"path": "util", "kind": "require-call", "external": true},
+              {"path": "util", "kind": "require-call", "external": true}
+            ],
+            "exports": []
+          },
+          {"path": "@workspace/dist/fast-glob.cjs.map", "bytes": 334602, "inputs": [], "imports": [], "exports": []}
+        ],
+        "packages": [
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.scandir",
+            "name": "@nodelib/fs.scandir",
+            "version": "2.1.5",
+            "files": [
+              "@workspace/node_modules/@nodelib/fs.scandir/out/adapters/fs.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/constants.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/providers/async.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/providers/common.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/providers/sync.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/settings.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/utils/fs.js",
+              "@workspace/node_modules/@nodelib/fs.scandir/out/utils/index.js"
+            ],
+            "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 11686}]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.stat",
+            "name": "@nodelib/fs.stat",
+            "version": "2.0.5",
+            "files": [
+              "@workspace/node_modules/@nodelib/fs.stat/out/adapters/fs.js",
+              "@workspace/node_modules/@nodelib/fs.stat/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.stat/out/providers/async.js",
+              "@workspace/node_modules/@nodelib/fs.stat/out/providers/sync.js",
+              "@workspace/node_modules/@nodelib/fs.stat/out/settings.js"
+            ],
+            "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 4744}]
+          },
+          {
+            "path": "@workspace/node_modules/@nodelib/fs.walk",
+            "name": "@nodelib/fs.walk",
+            "version": "1.2.8",
+            "files": [
+              "@workspace/node_modules/@nodelib/fs.walk/out/index.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/providers/async.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/providers/stream.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/providers/sync.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/readers/async.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/readers/common.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/readers/reader.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/readers/sync.js",
+              "@workspace/node_modules/@nodelib/fs.walk/out/settings.js"
+            ],
+            "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 12612}]
+          },
+          {
+            "path": "@workspace/node_modules/braces",
+            "name": "braces",
+            "version": "3.0.3",
+            "files": [
+              "@workspace/node_modules/braces/index.js",
+              "@workspace/node_modules/braces/lib/compile.js",
+              "@workspace/node_modules/braces/lib/constants.js",
+              "@workspace/node_modules/braces/lib/expand.js",
+              "@workspace/node_modules/braces/lib/parse.js",
+              "@workspace/node_modules/braces/lib/stringify.js",
+              "@workspace/node_modules/braces/lib/utils.js"
+            ],
+            "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 19688}]
+          },
+          {"path": "@workspace/node_modules/fastq", "name": "fastq", "version": "1.20.3", "files": ["@workspace/node_modules/fastq/queue.js"], "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 7784}]},
+          {
+            "path": "@workspace/node_modules/fill-range",
+            "name": "fill-range",
+            "version": "7.1.1",
+            "files": ["@workspace/node_modules/fill-range/index.js"],
+            "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 6996}]
+          },
+          {
+            "path": "@workspace/node_modules/glob-parent",
+            "name": "glob-parent",
+            "version": "6.0.2",
+            "files": ["@workspace/node_modules/glob-parent/index.js"],
+            "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 1560}]
+          },
+          {
+            "path": "@workspace/node_modules/is-extglob",
+            "name": "is-extglob",
+            "version": "2.1.1",
+            "files": ["@workspace/node_modules/is-extglob/index.js"],
+            "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 435}]
+          },
+          {"path": "@workspace/node_modules/is-glob", "name": "is-glob", "version": "4.0.3", "files": ["@workspace/node_modules/is-glob/index.js"], "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 4037}]},
+          {
+            "path": "@workspace/node_modules/is-number",
+            "name": "is-number",
+            "version": "7.0.0",
+            "files": ["@workspace/node_modules/is-number/index.js"],
+            "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 401}]
+          },
+          {"path": "@workspace/node_modules/merge2", "name": "merge2", "version": "1.4.1", "files": ["@workspace/node_modules/merge2/index.js"], "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 3482}]},
+          {
+            "path": "@workspace/node_modules/micromatch",
+            "name": "micromatch",
+            "version": "4.0.8",
+            "files": ["@workspace/node_modules/micromatch/index.js"],
+            "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 5985}]
+          },
+          {
+            "path": "@workspace/node_modules/picomatch",
+            "name": "picomatch",
+            "version": "2.3.2",
+            "files": [
+              "@workspace/node_modules/picomatch/index.js",
+              "@workspace/node_modules/picomatch/lib/constants.js",
+              "@workspace/node_modules/picomatch/lib/parse.js",
+              "@workspace/node_modules/picomatch/lib/picomatch.js",
+              "@workspace/node_modules/picomatch/lib/scan.js",
+              "@workspace/node_modules/picomatch/lib/utils.js"
+            ],
+            "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 57605}]
+          },
+          {
+            "path": "@workspace/node_modules/queue-microtask",
+            "name": "queue-microtask",
+            "version": "1.2.3",
+            "files": ["@workspace/node_modules/queue-microtask/index.js"],
+            "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 386}]
+          },
+          {"path": "@workspace/node_modules/reusify", "name": "reusify", "version": "1.1.0", "files": ["@workspace/node_modules/reusify/reusify.js"], "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 643}]},
+          {
+            "path": "@workspace/node_modules/run-parallel",
+            "name": "run-parallel",
+            "version": "1.2.0",
+            "files": ["@workspace/node_modules/run-parallel/index.js"],
+            "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 1228}]
+          },
+          {
+            "path": "@workspace/node_modules/to-regex-range",
+            "name": "to-regex-range",
+            "version": "5.0.1",
+            "files": ["@workspace/node_modules/to-regex-range/index.js"],
+            "contributions": [{"output": "@workspace/dist/fast-glob.cjs", "bytes_in_output": 6941}]
+          }
+        ],
+        "issues": [],
+        "limitations": [
+          "esbuild-reported inputs and per-output byte contributions for this task, not all filesystem reads, executed code or necessary permissions.",
+          "All reported outputs are included, including lazy chunks and assets. Byte contribution is not importance, necessity or sensitive-content detection.",
+          "External references are retained import requests, not identified installed packages or proof that a runtime path will execute.",
+          "One bounded entry-to-input chain is a graph witness, not every import path. Missing records never justify deletion or permission removal.",
+          "The declared output directory is cleared only in the isolated observe copy before execution. The task must write its own full metafile; no second build or implicit project grants.",
+          "Cooperative metadata from trusted tasks; fresh files and hashes do not authenticate the producer or prevent forged/replayed content. Plugin virtual inputs are outside first-version attribution."
+        ]
+      }
+    }
+  ],
+  "fixture_provenance": {
+    "upstream": "https://github.com/mrmlnc/fast-glob",
+    "commit": "48687898dd26d4e935a0e5ecf6720e7c5aeac15d",
+    "original_report": ".permsift/bundle-inputs-NwlbFo/fast-glob-changed/usage.json",
+    "note": "Projection of recorded facts for offline demonstration. Command/output paths, raw module edges and execution evidence are omitted. This is not a new observation or the original complete usage.json."
+  }
+}

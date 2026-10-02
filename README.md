@@ -6,7 +6,7 @@ Test tasks. Trim permissions.
 
 Permsift 是一个面向项目任务的沙箱权限调试器。你提供可工作的初始策略和安装、测试、构建等任务，它在干净副本中反复执行，尝试缩小文件和安装网络权限，用任务断言和边界探针判断是否接受修改，并保留每一步的证据。
 
-当前为 **v0.11，macOS 本地 CLI**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。支持目录写权限、可选的项目文件读取收缩，以及 npm 安装阶段的精确域名撤销。安装后断网测试和构建，冷缓存与固定暖缓存分别验证。显式分阶段配置可分别收缩安装写权限和任务读写，任务候选复用本次实验内的安装快照，最终仍重新安装完整验收。工作区优先使用写时复制，保持各轮文件独立。改代码、锁文件或依赖后，可用 check 验证旧规则并尝试受限补充。系统运行时、缓存和临时目录读取仍固定开放；结果限定于本次环境和测试集合，不代表全局最小权限。
+当前为 **v0.12，本地 CLI（任务执行限 macOS）**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。支持目录写权限、可选的项目文件读取收缩，以及 npm 安装阶段的精确域名撤销。安装后断网测试和构建，冷缓存与固定暖缓存分别验证。显式分阶段配置可分别收缩安装写权限和任务读写，任务候选复用本次实验内的安装快照，最终仍重新安装完整验收。工作区优先使用写时复制，保持各轮文件独立。改代码、锁文件或依赖后，可用 check 验证旧规则并尝试受限补充。系统运行时、缓存和临时目录读取仍固定开放；结果限定于本次环境和测试集合，不代表全局最小权限。
 
 ## 快速开始
 
@@ -34,6 +34,20 @@ VERIFIED · ... executions
 初始策略允许写整个工作区和缓存。工具将测试写入范围缩到 `reports/`，构建缩到 `dist/`，撤销不需要的缓存写权限；再尝试删除产物目录写权限时，任务失败，恢复后重新通过。基线和最终策略各独立重复三次。自动发现后还会使用统一的目录准备状态重新确认基线，因此运行次数随候选变化。
 
 完整报告位于命令输出的 `.permsift/<experiment-id>/` 目录。每次默认使用新目录，不覆盖历史证据。
+
+## 读取已有报告，不再运行项目
+
+```sh
+# 比较两份已经保存的 usage.json
+node dist/cli.js compare before/usage.json after/usage.json
+# 把一个包在所有任务中的记录放到一起
+node dist/cli.js inspect usage.json --package glob-parent
+# 仓库自带真实记录投影；无需准备或安装示例项目
+node dist/cli.js inspect examples/reports/fast-glob-tasks.json --package glob-parent
+npm run offline:verify
+```
+
+compare / inspect 不需要 config、limits、原项目或沙箱，默认输出 Markdown，--json 输出结构化结果。compare 可用 --output NEW_DIRECTORY 保存 comparison.json/md；它与 observe --baseline 共用比较逻辑。各任务、安装实例和来源健康度分别展示，明确区分未采集、不完整、没有记录和贡献 0 字节。差异不是自动回归判定；离线分析不能替代执行验证。用法和退出码见 [离线分析](docs/offline-usage.md)，接入与收益检验见 [使用记录](docs/offline-pilot.md)。
 
 ## 依赖使用观察
 

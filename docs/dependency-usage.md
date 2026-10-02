@@ -65,6 +65,8 @@ v0.10 明确开启后采集直接 tsc 的 explainFiles；详见 [编译输入](t
 
 ## 前后对比
 
+v0.12 可用 `permsift compare BEFORE_USAGE_JSON AFTER_USAGE_JSON` 离线比较已有记录，不再安装或执行任务；`permsift inspect USAGE_JSON --package NAME` 将同名包的全部安装实例按任务集中展示。来源状态和 0 字节记录保持区别，详见 [离线分析](offline-usage.md)。
+
 observe 的 --baseline 只读入 usage.json；check 的 --baseline 仍是 verified report.json，两者不能混用。对比按任务 ID 与安装位置匹配，列新增/不再观察到的包以及同位置同名包的版本变化；新增/移除任务单独列出。
 
 对比标出输入、配置、limits、Node/npm/系统/后端和 observer 版本变化。任务定义变化、未知执行和部分记录给出提示。编译输入有单独的包/文件/解释变化、编译器和采集器条件；打包有独立输入/输出、版本/贡献/链/external 变化与范围条件；旧版本未采集某来源时不推断整组新增。允许比较部分报告，但“没出现”不被升级为确定未使用。相同夹具应稳定；真实任务列表变化可以是有效信息，不强行要求全部场景相同，也不自动归因于依赖升级。

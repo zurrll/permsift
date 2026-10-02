@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.0 — 2026-10-02
+
+- 增加 compare BEFORE_USAGE_JSON AFTER_USAGE_JSON，复用 observe --baseline 的来源比较及 Markdown，无需沙箱、配置、安装或任务执行；可选导出独立 comparison.json/md，不覆盖已有目录。
+- 增加 inspect USAGE_JSON --package NAME，集中显示同名包的每任务安装实例，保留版本、嵌套位置、独立来源健康度及每输出 0 字节记录。未采集、不完整、没有记录、未保存清单分别说明。
+- 独立有界报告读回与身份/归属校验；CLI 离线入口先于执行器加载，退出码区别完整分析、无匹配和 partial，差异不自动当成回归。
+- 提供有来源说明的真实历史记录投影和无项目执行的回放脚本；新 glob-parent 上游测试/API 接入及 Mocha 升级试用记录配置代价和安装器限制。
+- 新增 10 项单元/CLI 用例，既有观察集成用例验证在线与离线比较一致，不增加该用例的任务执行。
+
 ## 0.11.0 — 2026-10-02
 
 - observe 可选读取任务自行生成的完整 esbuild metafile，保留输入、全部报告输出、每输出字节归因、一条入口链和 external 请求，与模块/编译来源独立展示。

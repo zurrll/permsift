@@ -119,7 +119,7 @@ Timings 记录单调时钟的独占跨度，实验聚合初始冻结、各轮操
 
 observe-command.ts 复用 engine 的 observe 模式，每个配置任务一次；不进入候选、恢复、快照搜索和推荐配置导出。执行器仅为离线任务准备内置 observation-runtime 的 CJS 预加载，backend 限定内部控制路径、追加日志目录写例外及预加载 denyWrite，清理后不保留工作副本。
 
-dependency-inventory.ts 在任务前读取 npm 安装位置和包元数据；observation.ts 有界读回各进程/线程的 JSONL，区分解析、加载、子进程启动尝试与 footer 健康度，映射归属最长匹配安装根。引擎证据保存原始任务/边界和观察摘要，observe-command.ts 生成独立的 usage.json/md 并比较历史观察。报告模式不能作为 regression 的 run/tighten 基线；观察不生成 Rule，不把加载升级为必需权限。
+dependency-inventory.ts 在任务前读取 npm 安装位置和包元数据；observation.ts 有界读回各进程/线程的 JSONL，区分解析、加载、子进程启动尝试与 footer 健康度，映射归属最长匹配安装根。引擎证据保存原始任务/边界和观察摘要，observe-command.ts 生成独立的 usage.json/md，usage-comparison.ts 比较历史观察。报告模式不能作为 regression 的 run/tighten 基线；观察不生成 Rule，不把加载升级为必需权限。
 
 JSONL 是任务可写的合作式诊断数据，不能作为防篡改审计证据。安装/探针保持清洁环境；Task verdict 和 capture_status 分开，详细限制见 [dependency-usage.md](dependency-usage.md)。
 
@@ -136,3 +136,9 @@ esbuild-observation.ts 在 observe 的离线任务前清空声明的产物目录
 TaskObservation.bundling 与模块、compilation 各自保持来源和健康度；顶层 observed 要求所有开启来源完整。esbuild-comparison.ts 比较输入/输出、包版本与贡献、链和 external，生成来源报告；loadUsage 校验引用、聚合、链和整体上限。旧 schema 1 没有 bundling 时不产生整组新增结论。原始 JSON 只记录文本摘要/字节数，规范化数据写入 trial 与 usage；保留副本可检查原文件。CLI 和报告不生成权限候选或必要性评分。见 [产物观察](bundle-inputs.md)。
 
 预加载增加 process.execve 启动尝试，仍不记录参数/环境内容。进程替换导致没有 exit footer 时，Node 来源保持 incomplete；原生编译器可同时给出完整的 explainFiles。详细范围和版本限制见 [typescript-inputs.md](typescript-inputs.md)。
+
+## 离线报告分析
+
+usage-report.ts 从普通文件有界读回 schema 1 的 usage，验证实例身份和来源引用；可选保留安装清单及模块文件，使旧比较输入也能用于跨任务查看。usage-comparison.ts 由 observe --baseline 和 compare 两个入口共用；原比较输出的段落也共用，避免实现漂移。offline-usage.ts 记录各侧来源状态、纯分析退出状态及可选工件导出。usage-inspection.ts 只投影匹配名称的每任务安装实例，不制造缺失来源、用途分类或权限建议。
+
+CLI 在加载 engine / backend 之前处理 compare / inspect，离线入口不依赖 SRT 或原项目。运行入口继续动态载入原执行器；version.ts 提供共享版本，engine 仍兼容导出 VERSION。没有改变快照、安装、边界探针、采集或搜索流程。

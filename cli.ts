@@ -4,9 +4,10 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { configSchema, limitsSchema } from './src/config.js';
-import { runExperiment, VERSION } from './src/engine.js';
-import { runRegression } from './src/regression.js';
-import { runObservation } from './src/observe-command.js';
+import { VERSION } from './src/version.js';
+import { loadUsage } from './src/usage-report.js';
+import { inspectPackage, inspectionMarkdown } from './src/usage-inspection.js';
+import { compareSavedUsage, offlineComparisonMarkdown, saveComparison } from './src/offline-usage.js';
 
 const help = `Permsift ${VERSION} — Test tasks. Trim permissions.
 
@@ -16,40 +17,66 @@ Usage:
   permsift tighten --config FILE --limits TRUSTED_FILE [options]
   permsift check --config FILE --baseline REPORT_JSON --limits TRUSTED_FILE [options]
   permsift observe --config FILE --limits TRUSTED_FILE [--baseline USAGE_JSON] [options]
+  permsift compare BEFORE_USAGE_JSON AFTER_USAGE_JSON [--output NEW_DIRECTORY] [--json]
+  permsift inspect USAGE_JSON --package NAME [--json]
 
 Options:
   --output DIR       Evidence directory; must not already exist
   --keep-workspaces  Preserve disposable workspaces for inspection
   --json             Print the full report as JSON (progress goes to stderr)
   --baseline FILE    check: verified report.json; observe: previous usage.json for comparison
+  --package NAME     inspect: exact package name, all installation instances across tasks
   --help             Show help
   --version          Print version
 
-macOS only. No unsandboxed fallback. Task commands run offline;
+Task execution requires macOS. No unsandboxed fallback. Task commands run offline;
 optional npm install stages use explicit trusted domain grants.
 Limits must be explicitly supplied from a location you trust.
+compare/inspect only read saved usage reports; no sandbox, installation or task execution.
 Exit: 0 verified/compatible/observed, 1 failure/regression, 2 invalid setup/inconclusive/incomplete capture, 130 interrupted.
+Offline exit: 0 complete analysis (differences allowed), 1 inspect found no instance,
+2 invalid report or partial analysis. Source not collected stays distinct from no record.
 `;
 async function main() {
   const { positionals, values } = parseArgs({ allowPositionals: true, options: {
     config: { type: 'string' }, limits: { type: 'string' }, output: { type: 'string' },
     'keep-workspaces': { type: 'boolean' }, json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' }, version: { type: 'boolean' },
     baseline: { type: 'string' },
+    package: { type: 'string' },
   } });
   if (values.version) { console.log(VERSION); return; }
   if (values.help || positionals.length === 0) { console.log(help); return; }
   const mode = positionals[0];
+  if (mode === 'compare' || mode === 'inspect') {
+    if (values.config || values.limits || values.baseline || values['keep-workspaces']) throw new Error('compare/inspect use saved reports only; execution options are not supported');
+    if (mode === 'compare') {
+      if (positionals.length !== 3 || values.package) throw new Error('Expected compare BEFORE_USAGE_JSON AFTER_USAGE_JSON');
+      const report = await compareSavedUsage(positionals[1], positionals[2]);
+      if (values.output) await saveComparison(values.output, report);
+      console.log(values.json ? JSON.stringify(report, null, 2) : offlineComparisonMarkdown(report));
+      process.exitCode = report.status === 'compared' ? 0 : 2;
+    } else {
+      if (positionals.length !== 2 || !values.package || values.output) throw new Error('Expected inspect USAGE_JSON --package NAME [--json]');
+      const file = path.resolve(positionals[1]), report = inspectPackage(await loadUsage(file), values.package, file);
+      console.log(values.json ? JSON.stringify(report, null, 2) : inspectionMarkdown(report));
+      process.exitCode = report.status === 'partial' ? 2 : report.found ? 0 : 1;
+    }
+    return;
+  }
   if (positionals.length !== 1 || !['run', 'tighten', 'doctor', 'check', 'observe'].includes(mode)) throw new Error('Expected doctor, run, tighten, check or observe. See --help.');
+  if (values.package) throw new Error('--package is only supported by inspect');
   if (mode !== 'doctor' && (!values.config || !values.limits)) throw new Error('--config and --limits are required');
   if (mode === 'doctor' && (values.config || values.limits)) throw new Error('doctor uses built-in fixtures; use run to check a project configuration');
   if (mode === 'check' && !values.baseline) throw new Error('check requires --baseline REPORT_JSON');
   if (mode !== 'check' && mode !== 'observe' && values.baseline) throw new Error('--baseline is only supported by check and observe');
+  const { runExperiment } = await import('./src/engine.js');
   const controller = new AbortController();
   const interrupt = () => controller.abort();
   process.on('SIGINT', interrupt); process.on('SIGTERM', interrupt);
   let doctorProject: string | undefined;
   try {
     if (mode === 'observe') {
+      const { runObservation } = await import('./src/observe-command.js');
       const report = await runObservation({ configPath: values.config!, limitsPath: values.limits!, baselinePath: values.baseline, output: values.output,
         keepWorkspaces: values['keep-workspaces'], signal: controller.signal, onProgress: message => console.error(message) });
       if (values.json) console.log(JSON.stringify(report, null, 2));
@@ -81,6 +108,7 @@ async function main() {
       return;
     }
     if (mode === 'check') {
+      const { runRegression } = await import('./src/regression.js');
       const report = await runRegression({ configPath: values.config!, limitsPath: values.limits!, baselinePath: values.baseline!, output: values.output, keepWorkspaces: values['keep-workspaces'], signal: controller.signal, onProgress: message => console.error(message) });
       if (values.json) console.log(JSON.stringify(report, null, 2));
       else {

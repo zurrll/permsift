@@ -7,6 +7,7 @@ import { runExperiment } from '../../src/engine.js';
 import { loadConfiguration } from '../../src/config.js';
 import { loadBaseline } from '../../src/regression.js';
 import { observationFixture } from '../support/observation-fixture.js';
+import { compareSavedUsage } from '../../src/offline-usage.js';
 
 const macOnly = { skip: process.platform !== 'darwin' ? 'Requires real macOS sandbox-exec' : false };
 
@@ -57,6 +58,8 @@ test('real usage comparison explains a newly loaded instance and a changed obser
   assert.equal(after.status, 'observed'); assert.equal(after.comparison!.conditions.input_changed, true);
   assert.deepEqual(after.comparison!.tasks[0].added.map(p => p.name), ['unused']);
   assert.deepEqual(after.comparison!.tasks[0].version_changes, [{ path: '@workspace/node_modules/alpha', name: 'alpha', before: '1.0.0', after: '2.0.0' }]);
+  const offline = await compareSavedUsage(path.join(before.output, 'usage.json'), path.join(after.output, 'usage.json'));
+  assert.equal(offline.status, 'compared'); assert.deepEqual(offline.comparison, after.comparison);
 });
 
 test('observer preload is write-denied even with broad temp writes; cleared child environments are visible gaps', macOnly, async t => {
