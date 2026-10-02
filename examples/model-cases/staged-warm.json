@@ -1,0 +1,3613 @@
+{
+  "fixture_provenance": {
+    "kind": "real_record_field_projection",
+    "source": ".permsift/staged-workflow-7UVedm/warm/report.json",
+    "producer_version": "0.6.0",
+    "original_report_file_sha256": "475d56a1a5c4ef8995a1538c82167d4c75e62e9581f3962b3fece157dd3007ab",
+    "original_inputs_file_sha256": "39c5ef38ec50fb22ff60db7aa3475a5fc1d99dd5568746cb9762bf9c8dac2c64",
+    "retained_evidence": [
+      {
+        "record": "evidence/802938f3-005a-42ee-99d6-ad4a4ed0a3b5.json",
+        "original_file_sha256": "ec1f432a8705ab4559b1efda474f8ee2b8253531a6e90b2d1b9d1e39a6a8bbb3"
+      },
+      {
+        "record": "evidence/4b85b511-d32f-45f1-b63c-3e699c818f8f.json",
+        "original_file_sha256": "865001a3a79a5b2c61ef18ad89bae3430dc0efd46b5016ce3fc41898fc85d422"
+      },
+      {
+        "record": "evidence/3f2a9bdc-0e89-40bd-8274-bd15e462c2f3.json",
+        "original_file_sha256": "6c56f8207654c806ae49699fec79b627716bc4afc90e15784212dbae5d9167f9"
+      },
+      {
+        "record": "evidence/25b95161-6630-41ae-9667-e0c647966dfa.json",
+        "original_file_sha256": "e149ec6a3c827c42ec71ff37c90b1e4bf7e4db857b998dbd6dd3844041bc6d51"
+      },
+      {
+        "record": "evidence/fb39e9a8-32e9-4764-9eeb-4486ca15dbc4.json",
+        "original_file_sha256": "7eb3bf72a652ab34e882c80c01fc447d5e0ccce7bb699f913483c8447b6d3402"
+      }
+    ],
+    "omissions": [
+      "execution logs, generated backend rules, file scans and timings",
+      "unselected execution sidecars"
+    ],
+    "redactions": [
+      "absolute host/temporary paths in check names/details only; raw config/limits and their historical hashes unchanged"
+    ]
+  },
+  "report": {
+    "schema_version": 1,
+    "id": "2026-10-01T01-29-49-078Z-d9c15a6f",
+    "mode": "tighten",
+    "status": "verified",
+    "environment": {
+      "platform": "darwin",
+      "release": "24.6.0",
+      "arch": "arm64",
+      "node": "v24.21.0",
+      "permsift": "0.6.0",
+      "sandbox_runtime": "0.0.77",
+      "npm": "11.19.0"
+    },
+    "inputs": {
+      "project": "/Users/macbook/xm/sandbox/permsift/.permsift/staged-workflow-7UVedm/warm-project",
+      "config_file": "/Users/macbook/xm/sandbox/permsift/.permsift/staged-workflow-7UVedm/warm.yaml",
+      "limits_file": "/Users/macbook/xm/sandbox/permsift/examples/staged-install/limits.json",
+      "config_hash": "4fb9abbdf9cf499fdf07510a955e221c35437e39830463c5906b9dbad252b0bb",
+      "limits_hash": "4c177b5d1d1cc9f784d411fe0993100d6c5aeed879e3f34cd581badfa632188f",
+      "snapshot_hash": "adc95ecc6c0cb412f4d08578d8d011c2751b2a7f04d8502d7ff4bce7525ade99",
+      "installations": {
+        "install-build": {
+          "package_hash": "a0aaa1eab22a6e04c528109dae7d59faea082770f5534f83f1c90ef1956d2161",
+          "lock_hash": "d1c864514b518adf0c8a65d71a0093d7e38e0826c6575099a328c911908807a5",
+          "resolved_domains": [
+            "registry.npmjs.org"
+          ],
+          "cache": "warm",
+          "cache_seed_hash": "650f5a8d6d5f447276dff12f35cd432472df7deb4278bc5b94f61aae53c9cd07"
+        }
+      },
+      "read_probe_directories": [
+        ""
+      ]
+    },
+    "scope": [
+      "Separate install write policies opt into staged execution. Install retains broad reads; offline tasks search project reads and writes on a frozen installed state. Legacy install configs retain shared writes.",
+      "Explicit read mode retains workspace-root directory listing/access, system/runtime, cache and temp reads. It does not hide project names or minimize those fixed grants.",
+      "Fake project read fixtures test both allowed and denied expectations against the actual policy; they are write-protected, not explicitly read-denied.",
+      "Home directories, the original project and experiment evidence are denied, except explicit run directories and a home-installed Node runtime tree; system/runtime read access remains broad.",
+      "SRT device/stdio grants are fixed; its /tmp/claude write exceptions are explicitly denied. Inspect effective policy in evidence.",
+      "Network probes cover direct loopback denial and an authenticated proxy request to a reserved denied domain; they do not test every network channel.",
+      "Trusted/reviewed project scripts only. Task-produced test reports are not proof against a malicious project.",
+      "No global minimum or sandbox escape-resistance claim. Results apply to recorded inputs, assertions and environment.",
+      "Process-group cleanup handles normal descendants; deliberately detached/daemonized processes are outside the supported workload contract."
+    ],
+    "policies": {
+      "install-build": [
+        "@workspace/dist",
+        "@workspace/reports"
+      ]
+    },
+    "read_policies": {
+      "install-build": [
+        "@workspace/node_modules/clsx",
+        "@workspace/package.json",
+        "@workspace/verify.cjs"
+      ]
+    },
+    "read_modes": {
+      "install-build": "explicit"
+    },
+    "network_policies": {
+      "install-build": []
+    },
+    "install_policies": {
+      "install-build": [
+        "@workspace/node_modules"
+      ]
+    },
+    "baseline_verified": true,
+    "final_verified": true,
+    "search_complete": true,
+    "trials": [
+      {
+        "id": "802938f3-005a-42ee-99d6-ad4a4ed0a3b5",
+        "scenario": "install-build",
+        "phase": "baseline",
+        "grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [
+          "registry.npmjs.org",
+          "example.org"
+        ],
+        "install_grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/802938f3-005a-42ee-99d6-ad4a4ed0a3b5.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "e3bb3de0-f191-4018-9d26-4c62926daf53",
+        "scenario": "install-build",
+        "phase": "baseline",
+        "grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [
+          "registry.npmjs.org",
+          "example.org"
+        ],
+        "install_grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/e3bb3de0-f191-4018-9d26-4c62926daf53.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "8dd95e30-8c6a-44ad-8edc-1422cd2429a0",
+        "scenario": "install-build",
+        "phase": "baseline",
+        "grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [
+          "registry.npmjs.org",
+          "example.org"
+        ],
+        "install_grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/8dd95e30-8c6a-44ad-8edc-1422cd2429a0.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "505f5ee7-d15c-498b-8d6f-2f30cff93294",
+        "scenario": "install-build",
+        "phase": "candidate_network",
+        "grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [
+          "registry.npmjs.org"
+        ],
+        "install_grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/505f5ee7-d15c-498b-8d6f-2f30cff93294.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "676db571-ddde-4b94-afa7-f92c7efef5e8",
+        "scenario": "install-build",
+        "phase": "candidate_network",
+        "grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/676db571-ddde-4b94-afa7-f92c7efef5e8.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "a784a297-ed67-4328-bfeb-edbef11a4905",
+        "scenario": "install-build",
+        "phase": "candidate_install",
+        "grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@cache",
+          "@tmp",
+          "@workspace/node_modules"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/a784a297-ed67-4328-bfeb-edbef11a4905.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "dd0281bf-05a0-41bd-a576-d93f37a27a9b",
+        "scenario": "install-build",
+        "phase": "candidate_install",
+        "grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@cache/npm",
+          "@tmp",
+          "@workspace/node_modules"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/dd0281bf-05a0-41bd-a576-d93f37a27a9b.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "ab2d015f-75c0-4d5c-8874-3884a2799dec",
+        "scenario": "install-build",
+        "phase": "candidate_install",
+        "grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@tmp",
+          "@workspace/node_modules"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/ab2d015f-75c0-4d5c-8874-3884a2799dec.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "1b7d978d-3c7e-4547-972e-d1ba6c15ad38",
+        "scenario": "install-build",
+        "phase": "candidate_install",
+        "grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/1b7d978d-3c7e-4547-972e-d1ba6c15ad38.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "3f2a9bdc-0e89-40bd-8274-bd15e462c2f3",
+        "scenario": "install-build",
+        "phase": "candidate_install",
+        "grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [],
+        "installation_reused": false,
+        "verdict": "fail",
+        "evidence": "evidence/3f2a9bdc-0e89-40bd-8274-bd15e462c2f3.json",
+        "execution_stage": "install"
+      },
+      {
+        "id": "c4109ec6-be36-4526-9b68-6e4f2f1d1487",
+        "scenario": "install-build",
+        "phase": "recovery_install",
+        "grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/c4109ec6-be36-4526-9b68-6e4f2f1d1487.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "38f4d9ac-2935-41a6-8700-81b550059b36",
+        "scenario": "install-build",
+        "phase": "installation_snapshot",
+        "grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/38f4d9ac-2935-41a6-8700-81b550059b36.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "25b95161-6630-41ae-9667-e0c647966dfa",
+        "scenario": "install-build",
+        "phase": "candidate",
+        "grants": [
+          "@cache",
+          "@tmp",
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/25b95161-6630-41ae-9667-e0c647966dfa.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "3aabcceb-35e8-4173-bf40-79a9120e76e9",
+        "scenario": "install-build",
+        "phase": "candidate",
+        "grants": [
+          "@tmp",
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/3aabcceb-35e8-4173-bf40-79a9120e76e9.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "84325aba-87e4-46dd-8024-1f36899b853a",
+        "scenario": "install-build",
+        "phase": "candidate",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/84325aba-87e4-46dd-8024-1f36899b853a.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "a1b6f229-3d4a-4016-a189-622383e7030e",
+        "scenario": "install-build",
+        "phase": "candidate",
+        "grants": [
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/a1b6f229-3d4a-4016-a189-622383e7030e.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "fb39e9a8-32e9-4764-9eeb-4486ca15dbc4",
+        "scenario": "install-build",
+        "phase": "recovery",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/fb39e9a8-32e9-4764-9eeb-4486ca15dbc4.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "454fe762-f55a-4396-a8ed-aab1311df2c8",
+        "scenario": "install-build",
+        "phase": "candidate",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/454fe762-f55a-4396-a8ed-aab1311df2c8.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "0539a55f-3be8-40a0-8d43-b5f43caab57e",
+        "scenario": "install-build",
+        "phase": "recovery",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/0539a55f-3be8-40a0-8d43-b5f43caab57e.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "0754be8f-d2e5-4319-b891-af7177627f23",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/0754be8f-d2e5-4319-b891-af7177627f23.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "f759ea07-7097-4ccd-805f-034330acb67c",
+        "scenario": "install-build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/f759ea07-7097-4ccd-805f-034330acb67c.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "143c40f2-b7c7-469b-9720-06fa225a0986",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/dist",
+          "@workspace/node_modules",
+          "@workspace/package-lock.json",
+          "@workspace/package.json",
+          "@workspace/reports",
+          "@workspace/seed",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/143c40f2-b7c7-469b-9720-06fa225a0986.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "a49fe9bf-778d-4ca6-b335-12837a2eba82",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/package.json",
+          "@workspace/reports",
+          "@workspace/seed",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/a49fe9bf-778d-4ca6-b335-12837a2eba82.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "616daa02-1d6c-4920-8043-e57b021eb68c",
+        "scenario": "install-build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/dist",
+          "@workspace/node_modules",
+          "@workspace/package-lock.json",
+          "@workspace/package.json",
+          "@workspace/reports",
+          "@workspace/seed",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/616daa02-1d6c-4920-8043-e57b021eb68c.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "2d4d794b-5c9e-4fa6-b218-e1dccce19864",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules",
+          "@workspace/package-lock.json",
+          "@workspace/package.json",
+          "@workspace/reports",
+          "@workspace/seed",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/2d4d794b-5c9e-4fa6-b218-e1dccce19864.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "602fbcb9-b194-4184-91dc-123f5041c13e",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/package-lock.json",
+          "@workspace/package.json",
+          "@workspace/reports",
+          "@workspace/seed",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/602fbcb9-b194-4184-91dc-123f5041c13e.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "129b60dd-f9a5-458c-921d-eba19e6388a6",
+        "scenario": "install-build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules",
+          "@workspace/package-lock.json",
+          "@workspace/package.json",
+          "@workspace/reports",
+          "@workspace/seed",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/129b60dd-f9a5-458c-921d-eba19e6388a6.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "d47d7548-613c-4ba8-bba5-f1d436a59681",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules",
+          "@workspace/package.json",
+          "@workspace/reports",
+          "@workspace/seed",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/d47d7548-613c-4ba8-bba5-f1d436a59681.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "60a2a9a9-4731-4c55-9603-6e41e21fdb7e",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/60a2a9a9-4731-4c55-9603-6e41e21fdb7e.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "5045e043-2b02-4f20-9cb8-ab0c24280c40",
+        "scenario": "install-build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules",
+          "@workspace/package.json",
+          "@workspace/reports",
+          "@workspace/seed",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/5045e043-2b02-4f20-9cb8-ab0c24280c40.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "a279acfc-d16c-42c3-b38c-a7ea725aec6b",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules",
+          "@workspace/seed",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/a279acfc-d16c-42c3-b38c-a7ea725aec6b.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "b5d888bd-0794-45b4-9c3b-2ab37ad707b4",
+        "scenario": "install-build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules",
+          "@workspace/package.json",
+          "@workspace/reports",
+          "@workspace/seed",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/b5d888bd-0794-45b4-9c3b-2ab37ad707b4.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "edab4764-de71-4164-bfe3-b50b926fc8d1",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules",
+          "@workspace/reports",
+          "@workspace/seed",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/edab4764-de71-4164-bfe3-b50b926fc8d1.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "33d44f48-16d4-4a14-9ab9-6a529dc01918",
+        "scenario": "install-build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules",
+          "@workspace/package.json",
+          "@workspace/reports",
+          "@workspace/seed",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/33d44f48-16d4-4a14-9ab9-6a529dc01918.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "d811b84d-f51c-4195-ad57-769b630d2aa8",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules",
+          "@workspace/package.json",
+          "@workspace/seed",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/d811b84d-f51c-4195-ad57-769b630d2aa8.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "92a21c6a-304d-4509-b06b-b583d4adaa57",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules",
+          "@workspace/package.json"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/92a21c6a-304d-4509-b06b-b583d4adaa57.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "ee911183-3870-4175-9ff1-1872fb6c27bc",
+        "scenario": "install-build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules",
+          "@workspace/package.json",
+          "@workspace/seed",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/ee911183-3870-4175-9ff1-1872fb6c27bc.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "41d2aca7-b85b-4335-a363-6196755d9e4c",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/41d2aca7-b85b-4335-a363-6196755d9e4c.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "82aa4db0-09d4-4a34-b0cf-9e12920cfe34",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/.package-lock.json",
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/82aa4db0-09d4-4a34-b0cf-9e12920cfe34.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "29505c2c-6fae-4467-b825-f837c4fd4d1a",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/29505c2c-6fae-4467-b825-f837c4fd4d1a.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "9cff25fa-c394-4135-ba59-95a098d64202",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/9cff25fa-c394-4135-ba59-95a098d64202.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "9a75ad2c-44ab-40d6-9dce-b38294aac4e3",
+        "scenario": "install-build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/9a75ad2c-44ab-40d6-9dce-b38294aac4e3.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "8fc4235f-448f-44ba-be24-8c68896daf62",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/8fc4235f-448f-44ba-be24-8c68896daf62.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "42f37c9c-0642-4ef5-a6d3-2f34da6130d8",
+        "scenario": "install-build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/42f37c9c-0642-4ef5-a6d3-2f34da6130d8.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "50de50cf-8e20-4897-8b55-8d77dd30b16d",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/50de50cf-8e20-4897-8b55-8d77dd30b16d.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "6f97d1ff-7ede-4c58-abb0-266d65175463",
+        "scenario": "install-build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/6f97d1ff-7ede-4c58-abb0-266d65175463.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "8c70a670-f567-4ddf-9354-879950ddd613",
+        "scenario": "install-build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/8c70a670-f567-4ddf-9354-879950ddd613.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "737bdb62-5186-4398-80fb-8038a7e8d7f6",
+        "scenario": "install-build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/737bdb62-5186-4398-80fb-8038a7e8d7f6.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "d7fad474-addd-4b49-bb53-f9255b3f0e55",
+        "scenario": "install-build",
+        "phase": "candidate",
+        "grants": [
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/d7fad474-addd-4b49-bb53-f9255b3f0e55.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "e5cff791-8473-4871-9363-3c2e0f401322",
+        "scenario": "install-build",
+        "phase": "recovery",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/e5cff791-8473-4871-9363-3c2e0f401322.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "b67dcadc-21cb-4d81-88a4-1e11a27d52c5",
+        "scenario": "install-build",
+        "phase": "candidate",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "fail",
+        "evidence": "evidence/b67dcadc-21cb-4d81-88a4-1e11a27d52c5.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "2f36337a-12aa-4b61-bfaa-89a00a9d6d89",
+        "scenario": "install-build",
+        "phase": "recovery",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/2f36337a-12aa-4b61-bfaa-89a00a9d6d89.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "24796931-9579-438a-93cd-e0b79c7b5ef4",
+        "scenario": "install-build",
+        "phase": "final",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/24796931-9579-438a-93cd-e0b79c7b5ef4.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "a7d34cb1-67c6-4c24-8de0-f98dc5126204",
+        "scenario": "install-build",
+        "phase": "final",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/a7d34cb1-67c6-4c24-8de0-f98dc5126204.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "4b85b511-d32f-45f1-b63c-3e699c818f8f",
+        "scenario": "install-build",
+        "phase": "final",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/4b85b511-d32f-45f1-b63c-3e699c818f8f.json",
+        "execution_stage": "task"
+      }
+    ],
+    "searches": {
+      "install-build": {
+        "stop": "exhausted",
+        "steps": [
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "rejected"
+          }
+        ]
+      }
+    },
+    "read_searches": {
+      "install-build": {
+        "stop": "exhausted",
+        "steps": [
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "rejected"
+          }
+        ]
+      }
+    },
+    "network_searches": {
+      "install-build": {
+        "stop": "exhausted",
+        "steps": [
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "accepted"
+          }
+        ]
+      }
+    },
+    "install_searches": {
+      "install-build": {
+        "stop": "exhausted",
+        "steps": [
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "rejected"
+          }
+        ]
+      }
+    }
+  },
+  "inputs": {
+    "config": {
+      "schema_version": 1,
+      "project": "/Users/macbook/xm/sandbox/permsift/.permsift/staged-workflow-7UVedm/warm-project",
+      "exclude": [
+        ".git",
+        ".permsift",
+        "dist",
+        "reports",
+        "node_modules"
+      ],
+      "scenarios": [
+        {
+          "id": "install-build",
+          "command": [
+            "node",
+            "verify.cjs"
+          ],
+          "timeout_seconds": 120,
+          "initial_write_grants": [
+            "@workspace",
+            "@cache",
+            "@tmp"
+          ],
+          "initial_read_grants": [
+            "@workspace"
+          ],
+          "initial_network_grants": [
+            "registry.npmjs.org",
+            "example.org"
+          ],
+          "install": {
+            "manager": "npm",
+            "cache": "warm",
+            "initial_write_grants": [
+              "@workspace",
+              "@cache",
+              "@tmp"
+            ],
+            "narrower_candidates": [
+              {
+                "from": "@workspace",
+                "to": [
+                  "@workspace/node_modules"
+                ]
+              },
+              {
+                "from": "@cache",
+                "to": [
+                  "@cache/npm"
+                ]
+              }
+            ],
+            "auto_discover": false,
+            "cache_seed": "@workspace/seed",
+            "registry": "https://registry.npmjs.org/"
+          },
+          "auto_read_discover": true,
+          "narrower_read_candidates": [],
+          "auto_discover": false,
+          "prepare_directories": [],
+          "narrower_candidates": [
+            {
+              "from": "@workspace",
+              "to": [
+                "@workspace/dist",
+                "@workspace/reports"
+              ]
+            }
+          ],
+          "assertions": [
+            {
+              "type": "test_results",
+              "path": "@workspace/reports/tests.json",
+              "expected_tests": [
+                "strings",
+                "conditional",
+                "arrays",
+                "empty"
+              ]
+            },
+            {
+              "type": "json_equals",
+              "path": "@workspace/dist/classes.json",
+              "pointer": "/classes",
+              "value": "button active"
+            }
+          ]
+        }
+      ]
+    },
+    "limits": {
+      "schema_version": 1,
+      "allowed_write_roots": [
+        "@workspace",
+        "@cache",
+        "@tmp"
+      ],
+      "allowed_read_roots": [
+        "@workspace"
+      ],
+      "allowed_network_domains": [
+        "registry.npmjs.org",
+        "example.org"
+      ],
+      "max_candidates": 100,
+      "budget_seconds": 600,
+      "repetitions": 3,
+      "max_output_bytes": 262144,
+      "max_snapshot_bytes": 500000000,
+      "max_discovery_depth": 3,
+      "max_discovery_dirs": 64,
+      "max_read_discovery_entries": 128,
+      "max_read_discovery_depth": 3
+    }
+  },
+  "evidence": {
+    "evidence/802938f3-005a-42ee-99d6-ad4a4ed0a3b5.json": {
+      "id": "802938f3-005a-42ee-99d6-ad4a4ed0a3b5",
+      "scenario": "install-build",
+      "phase": "baseline",
+      "grants": [
+        "@workspace",
+        "@cache",
+        "@tmp"
+      ],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "explicit",
+      "network_grants": [
+        "registry.npmjs.org",
+        "example.org"
+      ],
+      "install_grants": [
+        "@workspace",
+        "@cache",
+        "@tmp"
+      ],
+      "installation_reused": false,
+      "verdict": "unknown",
+      "evidence": "evidence/802938f3-005a-42ee-99d6-ad4a4ed0a3b5.json",
+      "prepared_directories": [
+        "@cache",
+        "@cache/npm",
+        "@tmp",
+        "@workspace",
+        "@workspace/dist",
+        "@workspace/node_modules",
+        "@workspace/reports"
+      ],
+      "policy_hash": "ac20442dbd0d72d84f1761898a91d882f0a8691c6006e8073472dd5d2f95e127",
+      "task_policy_hash": "90f43c4b127c0458899c4ddd2c57ac190285fa934a7147d6685a5254c75bdca8",
+      "stage_policy_mode": "separate",
+      "read_grant_kinds": {
+        "@workspace": "directory"
+      },
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after_installation": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "before_offline_task": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 0
+        }
+      },
+      "assertions": [
+        {
+          "name": "test_results:@workspace/reports/tests.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        },
+        {
+          "name": "json_equals:@workspace/dist/classes.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        }
+      ],
+      "installation": {
+        "command": [
+          "/Users/macbook/.nvm/versions/node/v24.21.0/bin/npm",
+          "ci",
+          "--ignore-scripts",
+          "--no-audit",
+          "--no-fund",
+          "--fetch-retries=0",
+          "--fetch-timeout=15000",
+          "--userconfig=/dev/null",
+          "--globalconfig=/private/var/folders/_c/vmjyglz54nqcjn792ksq5n8h0000gn/T/permsift-SyblNB/runs/802938f3-005a-42ee-99d6-ad4a4ed0a3b5/tmp/.permsift-npm-global",
+          "--registry=https://registry.npmjs.org/",
+          "--offline"
+        ],
+        "execution": {
+          "process": {
+            "status": "completed",
+            "exit_code": 0
+          }
+        },
+        "verdict": "pass"
+      },
+      "summary": {
+        "id": "802938f3-005a-42ee-99d6-ad4a4ed0a3b5",
+        "scenario": "install-build",
+        "phase": "baseline",
+        "grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [
+          "registry.npmjs.org",
+          "example.org"
+        ],
+        "install_grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/802938f3-005a-42ee-99d6-ad4a4ed0a3b5.json",
+        "execution_stage": "task"
+      }
+    },
+    "evidence/4b85b511-d32f-45f1-b63c-3e699c818f8f.json": {
+      "id": "4b85b511-d32f-45f1-b63c-3e699c818f8f",
+      "scenario": "install-build",
+      "phase": "final",
+      "grants": [
+        "@workspace/dist",
+        "@workspace/reports"
+      ],
+      "read_grants": [
+        "@workspace/node_modules/clsx",
+        "@workspace/package.json",
+        "@workspace/verify.cjs"
+      ],
+      "read_mode": "explicit",
+      "network_grants": [],
+      "install_grants": [
+        "@workspace/node_modules"
+      ],
+      "installation_reused": false,
+      "verdict": "unknown",
+      "evidence": "evidence/4b85b511-d32f-45f1-b63c-3e699c818f8f.json",
+      "prepared_directories": [
+        "@cache",
+        "@cache/npm",
+        "@tmp",
+        "@workspace",
+        "@workspace/dist",
+        "@workspace/node_modules",
+        "@workspace/reports"
+      ],
+      "policy_hash": "bafb0ac8e30681bb61cdc443c8e22125356fcdfa8855d17b19ca1096e0a7008c",
+      "task_policy_hash": "73dbf91c8f2879b46e53e22b8886ad528042768076bf5570fddc29b1e190f7ee",
+      "stage_policy_mode": "separate",
+      "read_grant_kinds": {
+        "@workspace/node_modules/clsx": "directory",
+        "@workspace/package.json": "file",
+        "@workspace/verify.cjs": "file"
+      },
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after_installation": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "before_offline_task": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "EPERM; expected denied"
+          },
+          {
+            "name": "read_scope:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "EPERM; expected denied"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "EPERM; expected denied"
+          },
+          {
+            "name": "read_scope:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "EPERM; expected denied"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 0
+        }
+      },
+      "assertions": [
+        {
+          "name": "test_results:@workspace/reports/tests.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        },
+        {
+          "name": "json_equals:@workspace/dist/classes.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        }
+      ],
+      "installation": {
+        "command": [
+          "/Users/macbook/.nvm/versions/node/v24.21.0/bin/npm",
+          "ci",
+          "--ignore-scripts",
+          "--no-audit",
+          "--no-fund",
+          "--fetch-retries=0",
+          "--fetch-timeout=15000",
+          "--userconfig=/dev/null",
+          "--globalconfig=/private/var/folders/_c/vmjyglz54nqcjn792ksq5n8h0000gn/T/permsift-SyblNB/runs/4b85b511-d32f-45f1-b63c-3e699c818f8f/tmp/.permsift-npm-global",
+          "--registry=https://registry.npmjs.org/",
+          "--offline"
+        ],
+        "execution": {
+          "process": {
+            "status": "completed",
+            "exit_code": 0
+          }
+        },
+        "verdict": "pass"
+      },
+      "summary": {
+        "id": "4b85b511-d32f-45f1-b63c-3e699c818f8f",
+        "scenario": "install-build",
+        "phase": "final",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace/node_modules/clsx",
+          "@workspace/package.json",
+          "@workspace/verify.cjs"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": false,
+        "verdict": "pass",
+        "evidence": "evidence/4b85b511-d32f-45f1-b63c-3e699c818f8f.json",
+        "execution_stage": "task"
+      }
+    },
+    "evidence/3f2a9bdc-0e89-40bd-8274-bd15e462c2f3.json": {
+      "id": "3f2a9bdc-0e89-40bd-8274-bd15e462c2f3",
+      "scenario": "install-build",
+      "phase": "candidate_install",
+      "grants": [
+        "@workspace",
+        "@cache",
+        "@tmp"
+      ],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "explicit",
+      "network_grants": [],
+      "install_grants": [],
+      "installation_reused": false,
+      "verdict": "unknown",
+      "evidence": "evidence/3f2a9bdc-0e89-40bd-8274-bd15e462c2f3.json",
+      "prepared_directories": [
+        "@cache",
+        "@cache/npm",
+        "@tmp",
+        "@workspace",
+        "@workspace/dist",
+        "@workspace/node_modules",
+        "@workspace/reports"
+      ],
+      "policy_hash": "36da3a539b00bec6207d85841125af17287698bcdfe42b4c352b58c649fdadda",
+      "stage_policy_mode": "separate",
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after_installation": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task_skipped": "Install did not pass; offline command was not executed",
+      "assertions": [
+        {
+          "name": "test_results:@workspace/reports/tests.json",
+          "status": "fail",
+          "detail": "Error: ENOENT: no such file or directory, open '<temporary-path>'"
+        },
+        {
+          "name": "json_equals:@workspace/dist/classes.json",
+          "status": "fail",
+          "detail": "Error: ENOENT: no such file or directory, open '<temporary-path>'"
+        }
+      ],
+      "installation": {
+        "command": [
+          "/Users/macbook/.nvm/versions/node/v24.21.0/bin/npm",
+          "ci",
+          "--ignore-scripts",
+          "--no-audit",
+          "--no-fund",
+          "--fetch-retries=0",
+          "--fetch-timeout=15000",
+          "--userconfig=/dev/null",
+          "--globalconfig=/private/var/folders/_c/vmjyglz54nqcjn792ksq5n8h0000gn/T/permsift-SyblNB/runs/3f2a9bdc-0e89-40bd-8274-bd15e462c2f3/tmp/.permsift-npm-global",
+          "--registry=https://registry.npmjs.org/",
+          "--offline"
+        ],
+        "execution": {
+          "process": {
+            "status": "completed",
+            "exit_code": 255
+          }
+        },
+        "verdict": "fail"
+      },
+      "summary": {
+        "id": "3f2a9bdc-0e89-40bd-8274-bd15e462c2f3",
+        "scenario": "install-build",
+        "phase": "candidate_install",
+        "grants": [
+          "@workspace",
+          "@cache",
+          "@tmp"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [],
+        "installation_reused": false,
+        "verdict": "fail",
+        "evidence": "evidence/3f2a9bdc-0e89-40bd-8274-bd15e462c2f3.json",
+        "execution_stage": "install"
+      }
+    },
+    "evidence/25b95161-6630-41ae-9667-e0c647966dfa.json": {
+      "id": "25b95161-6630-41ae-9667-e0c647966dfa",
+      "scenario": "install-build",
+      "phase": "candidate",
+      "grants": [
+        "@cache",
+        "@tmp",
+        "@workspace/dist",
+        "@workspace/reports"
+      ],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "explicit",
+      "network_grants": [],
+      "install_grants": [
+        "@workspace/node_modules"
+      ],
+      "installation_reused": true,
+      "verdict": "unknown",
+      "evidence": "evidence/25b95161-6630-41ae-9667-e0c647966dfa.json",
+      "prepared_directories": [
+        "@cache",
+        "@cache/npm",
+        "@tmp",
+        "@workspace",
+        "@workspace/dist",
+        "@workspace/node_modules",
+        "@workspace/reports"
+      ],
+      "policy_hash": "8f7bc9db28fb3b06680d5faa42ecb9a2c2dabc7632b595e0770f944412f6fc5e",
+      "task_policy_hash": "8e4fbb19c384f48853abbcd26c9a5c821af3d5ea08bc1c1db54a597f874b09d9",
+      "stage_policy_mode": "separate",
+      "read_grant_kinds": {
+        "@workspace": "directory"
+      },
+      "installed_snapshot": {
+        "key": "639e4e75437f7dacb1138eac86253de193b3d44553c4aca1ece045d7b9c3e5b5",
+        "source_trial": "38f4d9ac-2935-41a6-8700-81b550059b36",
+        "hashes": {
+          "workspace": "1ed4ccd729bba9ca4207cbbe18b3dadc2911180a36273f5e089255313fc20ee1",
+          "cache": "39a84aecf839e12268b7b1089aa0d44f06b16ce02a71fd41209e3e4e018abfb4",
+          "tmp": "be1d1a73edcd37640bd4a7cf6dac13f34d2d3d0fa278db156fa138fac5e197f1"
+        },
+        "forks": {
+          "workspace": {
+            "strategy": "macos-clone-preferred",
+            "duration_ms": 12,
+            "preserved_dot_underscore_entries": 0,
+            "fallback": "Byte copy on filesystems without clone support; clone preference is not proof of physical block sharing"
+          },
+          "cache": {
+            "strategy": "macos-clone-preferred",
+            "duration_ms": 8,
+            "preserved_dot_underscore_entries": 0,
+            "fallback": "Byte copy on filesystems without clone support; clone preference is not proof of physical block sharing"
+          },
+          "tmp": {
+            "strategy": "macos-clone-preferred",
+            "duration_ms": 3,
+            "preserved_dot_underscore_entries": 0,
+            "fallback": "Byte copy on filesystems without clone support; clone preference is not proof of physical block sharing"
+          }
+        }
+      },
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "before_offline_task": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 0
+        }
+      },
+      "assertions": [
+        {
+          "name": "test_results:@workspace/reports/tests.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        },
+        {
+          "name": "json_equals:@workspace/dist/classes.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        }
+      ],
+      "summary": {
+        "id": "25b95161-6630-41ae-9667-e0c647966dfa",
+        "scenario": "install-build",
+        "phase": "candidate",
+        "grants": [
+          "@cache",
+          "@tmp",
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/25b95161-6630-41ae-9667-e0c647966dfa.json",
+        "execution_stage": "task"
+      }
+    },
+    "evidence/fb39e9a8-32e9-4764-9eeb-4486ca15dbc4.json": {
+      "id": "fb39e9a8-32e9-4764-9eeb-4486ca15dbc4",
+      "scenario": "install-build",
+      "phase": "recovery",
+      "grants": [
+        "@workspace/dist",
+        "@workspace/reports"
+      ],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "explicit",
+      "network_grants": [],
+      "install_grants": [
+        "@workspace/node_modules"
+      ],
+      "installation_reused": true,
+      "verdict": "unknown",
+      "evidence": "evidence/fb39e9a8-32e9-4764-9eeb-4486ca15dbc4.json",
+      "prepared_directories": [
+        "@cache",
+        "@cache/npm",
+        "@tmp",
+        "@workspace",
+        "@workspace/dist",
+        "@workspace/node_modules",
+        "@workspace/reports"
+      ],
+      "policy_hash": "e34bc1a76bb56edcd1dc4cf4657c52811ac5f55b37da2ed675f0bd9e2613512f",
+      "task_policy_hash": "eccdfbddec9379f4c7040ca07179b310f89fc380571371868b3af9e7300f6103",
+      "stage_policy_mode": "separate",
+      "read_grant_kinds": {
+        "@workspace": "directory"
+      },
+      "installed_snapshot": {
+        "key": "639e4e75437f7dacb1138eac86253de193b3d44553c4aca1ece045d7b9c3e5b5",
+        "source_trial": "38f4d9ac-2935-41a6-8700-81b550059b36",
+        "hashes": {
+          "workspace": "1ed4ccd729bba9ca4207cbbe18b3dadc2911180a36273f5e089255313fc20ee1",
+          "cache": "39a84aecf839e12268b7b1089aa0d44f06b16ce02a71fd41209e3e4e018abfb4",
+          "tmp": "be1d1a73edcd37640bd4a7cf6dac13f34d2d3d0fa278db156fa138fac5e197f1"
+        },
+        "forks": {
+          "workspace": {
+            "strategy": "macos-clone-preferred",
+            "duration_ms": 12,
+            "preserved_dot_underscore_entries": 0,
+            "fallback": "Byte copy on filesystems without clone support; clone preference is not proof of physical block sharing"
+          },
+          "cache": {
+            "strategy": "macos-clone-preferred",
+            "duration_ms": 7,
+            "preserved_dot_underscore_entries": 0,
+            "fallback": "Byte copy on filesystems without clone support; clone preference is not proof of physical block sharing"
+          },
+          "tmp": {
+            "strategy": "macos-clone-preferred",
+            "duration_ms": 3,
+            "preserved_dot_underscore_entries": 0,
+            "fallback": "Byte copy on filesystems without clone support; clone preference is not proof of physical block sharing"
+          }
+        }
+      },
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "before_offline_task": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/node_modules/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 0
+        }
+      },
+      "assertions": [
+        {
+          "name": "test_results:@workspace/reports/tests.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        },
+        {
+          "name": "json_equals:@workspace/dist/classes.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        }
+      ],
+      "summary": {
+        "id": "fb39e9a8-32e9-4764-9eeb-4486ca15dbc4",
+        "scenario": "install-build",
+        "phase": "recovery",
+        "grants": [
+          "@workspace/dist",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "network_grants": [],
+        "install_grants": [
+          "@workspace/node_modules"
+        ],
+        "installation_reused": true,
+        "verdict": "pass",
+        "evidence": "evidence/fb39e9a8-32e9-4764-9eeb-4486ca15dbc4.json",
+        "execution_stage": "task"
+      }
+    }
+  }
+}

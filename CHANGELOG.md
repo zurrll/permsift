@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — 整体重构第一轮
+
+- 新增版本化内部五对象模型、独立结论判断与只读旧实验/回归/观察报告适配；保留旧摘要和 composite verdict，明确未声明、未采集、未保存、未运行与未知结果。执行器与公开 CLI 暂保持原行为。
+- 建立内容身份、同任务引用检查、冻结结果与前后变化分类；分别保存安装、离线任务、采集设置和安装复用，不把成功或验证建议自动当作已采用基线。
+- 新增 9 份真实记录投影、17 项模型反例/契约测试及 model:verify 回放；复用 3 份既有依赖观察样本。
+- 新增 environment:verify 最小公共 CLI 复现及 CI 步骤，文档记录本机结果和跨环境/独立接入缺口。
+
 ## 0.12.0 — 2026-10-02
 
 - 增加 compare BEFORE_USAGE_JSON AFTER_USAGE_JSON，复用 observe --baseline 的来源比较及 Markdown，无需沙箱、配置、安装或任务执行；可选导出独立 comparison.json/md，不覆盖已有目录。

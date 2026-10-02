@@ -1,0 +1,392 @@
+{
+  "fixture_provenance": {
+    "kind": "real_record_field_projection",
+    "source": ".permsift/regression-upgrades-DnyNdu/ordinary-code-bug/tasks/build/control/report.json",
+    "producer_version": "0.4.0",
+    "original_report_file_sha256": "5c66b681743f9d3ee98e1e030f6b33bac02003c1b93c77ca27bccfd42cae35ea",
+    "original_inputs_file_sha256": "d5ddf4ac9eca0151802093e8066b49075c387c196fa68156c3a56ff97bc56925",
+    "retained_evidence": [
+      {
+        "record": "evidence/97319649-fcf9-4bb1-8a4e-ec5720be3c36.json",
+        "original_file_sha256": "155d449d3a8545ba01d70eb5637c7574b69c3ecc2e32e87219825605b248afe0"
+      }
+    ],
+    "omissions": [
+      "execution logs, generated backend rules, file scans and timings",
+      "unselected execution sidecars"
+    ],
+    "redactions": [
+      "absolute host/temporary paths in check names/details only; raw config/limits and their historical hashes unchanged"
+    ]
+  },
+  "report": {
+    "schema_version": 1,
+    "id": "2026-09-30T13-15-41-468Z-2510f254",
+    "mode": "run",
+    "status": "failed",
+    "environment": {
+      "platform": "darwin",
+      "release": "24.6.0",
+      "arch": "arm64",
+      "node": "v24.21.0",
+      "permsift": "0.4.0",
+      "sandbox_runtime": "0.0.77"
+    },
+    "inputs": {
+      "project": "/Users/macbook/xm/sandbox/permsift/.permsift/regression-upgrades-DnyNdu/project",
+      "config_file": "/Users/macbook/xm/sandbox/permsift/.permsift/regression-upgrades-DnyNdu/tasks.json",
+      "limits_file": "/Users/macbook/xm/sandbox/permsift/.permsift/regression-upgrades-DnyNdu/limits.json",
+      "config_hash": "c7edd46cb31edf9d8e87ebe3645e6495611b20982c18936bfcc50606cce2b984",
+      "limits_hash": "530d1a4ad2ef53bc95feeedb87162669f37951a3888a58d586c29247fd1eb258",
+      "snapshot_hash": "f2e3122a5d2d91008f7d80310a92aa16a3207d304a9c939555db788ef7059c9d",
+      "read_probe_directories": [
+        "",
+        "src"
+      ]
+    },
+    "scope": [
+      "Directory write grants and opt-in project file/directory read grants are searched jointly; network policy remains fixed. Legacy tasks without initial_read_grants retain full workspace reads.",
+      "Explicit read mode retains workspace-root directory listing/access, system/runtime, cache and temp reads. It does not hide project names or minimize those fixed grants.",
+      "Fake project read fixtures test both allowed and denied expectations against the actual policy; they are write-protected, not explicitly read-denied.",
+      "Home directories, the original project and experiment evidence are denied, except explicit run directories and a home-installed Node runtime tree; system/runtime read access remains broad.",
+      "SRT device/stdio grants are fixed; its /tmp/claude write exceptions are explicitly denied. Inspect effective policy in evidence.",
+      "Network tests cover a controlled loopback TCP endpoint, not every possible network channel.",
+      "Trusted/reviewed project scripts only. Task-produced test reports are not proof against a malicious project.",
+      "No global minimum or sandbox escape-resistance claim. Results apply to recorded inputs, assertions and environment.",
+      "Process-group cleanup handles normal descendants; deliberately detached/daemonized processes are outside the supported workload contract."
+    ],
+    "policies": {
+      "build": [
+        "@workspace"
+      ]
+    },
+    "read_policies": {
+      "build": [
+        "@workspace"
+      ]
+    },
+    "read_modes": {
+      "build": "explicit"
+    },
+    "baseline_verified": false,
+    "final_verified": false,
+    "search_complete": false,
+    "trials": [
+      {
+        "id": "97319649-fcf9-4bb1-8a4e-ec5720be3c36",
+        "scenario": "build",
+        "phase": "baseline",
+        "grants": [
+          "@workspace"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "verdict": "fail",
+        "evidence": "evidence/97319649-fcf9-4bb1-8a4e-ec5720be3c36.json"
+      }
+    ],
+    "searches": {},
+    "read_searches": {}
+  },
+  "inputs": {
+    "config": {
+      "schema_version": 1,
+      "project": "./project",
+      "exclude": [
+        ".git",
+        ".permsift",
+        "dist",
+        "reports"
+      ],
+      "scenarios": [
+        {
+          "id": "build",
+          "command": [
+            "node",
+            "build.cjs"
+          ],
+          "timeout_seconds": 120,
+          "initial_write_grants": [
+            "@workspace"
+          ],
+          "initial_read_grants": [
+            "@workspace"
+          ],
+          "auto_read_discover": false,
+          "narrower_read_candidates": [],
+          "auto_discover": false,
+          "prepare_directories": [
+            "@workspace",
+            "@workspace/dist"
+          ],
+          "narrower_candidates": [],
+          "assertions": [
+            {
+              "type": "json_equals",
+              "path": "@workspace/dist/result.json",
+              "pointer": "/classes",
+              "value": "alpha beta"
+            }
+          ]
+        }
+      ]
+    },
+    "limits": {
+      "schema_version": 1,
+      "allowed_write_roots": [
+        "@workspace"
+      ],
+      "allowed_read_roots": [
+        "@workspace"
+      ],
+      "max_candidates": 40,
+      "budget_seconds": 120,
+      "repetitions": 3,
+      "max_output_bytes": 262144,
+      "max_snapshot_bytes": 500000000,
+      "max_discovery_depth": 3,
+      "max_discovery_dirs": 64,
+      "max_read_discovery_entries": 128,
+      "max_read_discovery_depth": 3
+    }
+  },
+  "evidence": {
+    "evidence/97319649-fcf9-4bb1-8a4e-ec5720be3c36.json": {
+      "id": "97319649-fcf9-4bb1-8a4e-ec5720be3c36",
+      "scenario": "build",
+      "phase": "baseline",
+      "grants": [
+        "@workspace"
+      ],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "explicit",
+      "prepared_directories": [
+        "@workspace",
+        "@workspace/dist"
+      ],
+      "policy_hash": "66ab90f831b83ced5fc506afa1719e87c1978bb37edc33e7ea277c513d11aa9e",
+      "read_grant_kinds": {
+        "@workspace": "directory"
+      },
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 1
+        }
+      },
+      "assertions": [
+        {
+          "name": "json_equals:@workspace/dist/result.json",
+          "status": "fail",
+          "detail": "Error: ENOENT: no such file or directory, open '<temporary-path>'"
+        }
+      ],
+      "summary": {
+        "id": "97319649-fcf9-4bb1-8a4e-ec5720be3c36",
+        "scenario": "build",
+        "phase": "baseline",
+        "grants": [
+          "@workspace"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "verdict": "fail",
+        "evidence": "evidence/97319649-fcf9-4bb1-8a4e-ec5720be3c36.json"
+      }
+    }
+  }
+}

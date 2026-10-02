@@ -18,6 +18,8 @@ jobs:
       - run: npm test
       - run: npm run check
       - run: npm run offline:verify
+      - run: npm run model:verify
+      - run: npm run environment:verify -- --offline-only
   sandbox:
     runs-on: macos-latest
     timeout-minutes: 30
@@ -30,7 +32,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: npm run test:integration
-      - run: npm run demo
+      - run: npm run model:verify
+      - run: npm run environment:verify
       - run: npm run demo:read
       - run: npm run examples:prepare
       - run: npm run observe:verify

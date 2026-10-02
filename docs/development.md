@@ -32,6 +32,17 @@ typescript-observation.test.ts 验证直接任务配置、真实本地编译器�
 
 ## 测试分层
 
+第一轮内部模型位于 src/model/，尚未迁移执行器。model.test.ts 用真实记录投影及标明的合成反例检验身份、旧摘要、引用、未知结论和条件变化；不增加项目任务执行。回放及最小环境复现：
+
+```sh
+npm run model:verify
+npm run environment:verify
+# Linux/其他平台只检查保存报告，不表示后端隔离通过
+npm run environment:verify -- --offline-only
+```
+
+含义、映射与验证范围见 [内部模型](model.md)、[案例](model-cases.md) 和 [环境检验](environment-validation.md)。最小环境脚本同时将刚生成的 demo 报告和全部 sidecar 适配为模型，核对真实失败候选和通过结果的独立维度。
+
 v0.11 的 esbuild-observation.test.ts 覆盖配置、真实宿主构建与各来源关系、完整产物新鲜度、未知/损坏/超限、链接/FIFO、输入/输出/边/链上限、对比和历史导入一致性。integration/bundling.test.ts 在真实沙箱验证单次构建、权限/边界、代码与版本改动、旧记录及分块、失败和范围外输出。esbuild 与平台包作为开发依赖，测试只复制工具及明确的受控包，不复制整个宿主依赖树。
 
 ```sh

@@ -85,6 +85,8 @@
 
 ## 第一轮：模型、案例和兼容样本
 
+2026-10-02 已实现本轮内部适配层、真实样本与本机最小验证。交付及边界见 [模型](model.md)、[案例](model-cases.md) 和 [环境检验](environment-validation.md)。跨环境及独立接入仍未验证，执行底座迁移留在第二轮。
+
 **做什么**
 
 - 从 config、engine、regression、observation 和 usage 报告中整理上述角色，建立内部模型和结论判断表。

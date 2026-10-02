@@ -1,0 +1,1547 @@
+{
+  "fixture_provenance": {
+    "kind": "real_record_field_projection",
+    "source": ".permsift/regression-upgrades-DnyNdu/baseline/report.json",
+    "producer_version": "0.4.0",
+    "original_report_file_sha256": "3a1e5a1eaf9e80d55093a4e773363642441c095c79a6684aafb752787e361115",
+    "original_inputs_file_sha256": "e0ccb6887e45a3b7c143fae2bdc96df269a6841ba39b79ae7bca1967c0d642c8",
+    "retained_evidence": [
+      {
+        "record": "evidence/56b3fd6a-af58-487b-b852-ce2442dc91c2.json",
+        "original_file_sha256": "c11b30720ea7abd0b78b24eee0f9a1097e082e85ba351a8dbbb3c1871d3740fa"
+      },
+      {
+        "record": "evidence/d147139c-8399-465a-b6f3-73e9c3157abb.json",
+        "original_file_sha256": "6562425993a00def2656175c8b4f1603e0725210ac4dea757bb81a1d3cc0c8ed"
+      },
+      {
+        "record": "evidence/3091d776-9be0-4194-984a-b10cf1ee63fe.json",
+        "original_file_sha256": "2c95075ab7413d31b0b415a904bbb8f18b242df56c7a423fafca46f0ce0c5b65"
+      },
+      {
+        "record": "evidence/aa3a7f37-9ba4-4536-973c-2ccb88a0c2b1.json",
+        "original_file_sha256": "9526996c243915c6c86e257d69a2079fcdbf6eac759b82ec23f1f295155f56fc"
+      }
+    ],
+    "omissions": [
+      "execution logs, generated backend rules, file scans and timings",
+      "unselected execution sidecars"
+    ],
+    "redactions": [
+      "absolute host/temporary paths in check names/details only; raw config/limits and their historical hashes unchanged"
+    ]
+  },
+  "report": {
+    "schema_version": 1,
+    "id": "2026-09-30T13-15-28-007Z-4c66cdc1",
+    "mode": "tighten",
+    "status": "verified",
+    "environment": {
+      "platform": "darwin",
+      "release": "24.6.0",
+      "arch": "arm64",
+      "node": "v24.21.0",
+      "permsift": "0.4.0",
+      "sandbox_runtime": "0.0.77"
+    },
+    "inputs": {
+      "project": "/Users/macbook/xm/sandbox/permsift/.permsift/regression-upgrades-DnyNdu/project",
+      "config_file": "/Users/macbook/xm/sandbox/permsift/.permsift/regression-upgrades-DnyNdu/tasks.json",
+      "limits_file": "/Users/macbook/xm/sandbox/permsift/.permsift/regression-upgrades-DnyNdu/limits.json",
+      "config_hash": "aca18819dff7b3064016bfe61f780e79476a618a5df92c9e561b5cb7c78af2dc",
+      "limits_hash": "530d1a4ad2ef53bc95feeedb87162669f37951a3888a58d586c29247fd1eb258",
+      "snapshot_hash": "b109638791ce9d8c229f91d688f7afedf4692470ee19a24a838eb708b2e08b54",
+      "read_probe_directories": [
+        "",
+        "src"
+      ]
+    },
+    "scope": [
+      "Directory write grants and opt-in project file/directory read grants are searched jointly; network policy remains fixed. Legacy tasks without initial_read_grants retain full workspace reads.",
+      "Explicit read mode retains workspace-root directory listing/access, system/runtime, cache and temp reads. It does not hide project names or minimize those fixed grants.",
+      "Fake project read fixtures test both allowed and denied expectations against the actual policy; they are write-protected, not explicitly read-denied.",
+      "Home directories, the original project and experiment evidence are denied, except explicit run directories and a home-installed Node runtime tree; system/runtime read access remains broad.",
+      "SRT device/stdio grants are fixed; its /tmp/claude write exceptions are explicitly denied. Inspect effective policy in evidence.",
+      "Network tests cover a controlled loopback TCP endpoint, not every possible network channel.",
+      "Trusted/reviewed project scripts only. Task-produced test reports are not proof against a malicious project.",
+      "No global minimum or sandbox escape-resistance claim. Results apply to recorded inputs, assertions and environment.",
+      "Process-group cleanup handles normal descendants; deliberately detached/daemonized processes are outside the supported workload contract."
+    ],
+    "policies": {
+      "build": [
+        "@workspace/dist"
+      ]
+    },
+    "read_policies": {
+      "build": [
+        "@workspace/build.cjs",
+        "@workspace/src/input.json"
+      ]
+    },
+    "read_modes": {
+      "build": "explicit"
+    },
+    "baseline_verified": true,
+    "final_verified": true,
+    "search_complete": true,
+    "trials": [
+      {
+        "id": "56b3fd6a-af58-487b-b852-ce2442dc91c2",
+        "scenario": "build",
+        "phase": "baseline",
+        "grants": [
+          "@workspace"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/56b3fd6a-af58-487b-b852-ce2442dc91c2.json"
+      },
+      {
+        "id": "0101a477-3dd0-4b98-8558-11de5e2c18a0",
+        "scenario": "build",
+        "phase": "baseline",
+        "grants": [
+          "@workspace"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/0101a477-3dd0-4b98-8558-11de5e2c18a0.json"
+      },
+      {
+        "id": "260640f9-256f-49f4-9ed0-3f8347f1ea53",
+        "scenario": "build",
+        "phase": "baseline",
+        "grants": [
+          "@workspace"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/260640f9-256f-49f4-9ed0-3f8347f1ea53.json"
+      },
+      {
+        "id": "fd6a5024-89ff-4286-880a-f3e47da3a1d2",
+        "scenario": "build",
+        "phase": "candidate",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/fd6a5024-89ff-4286-880a-f3e47da3a1d2.json"
+      },
+      {
+        "id": "3091d776-9be0-4194-984a-b10cf1ee63fe",
+        "scenario": "build",
+        "phase": "candidate",
+        "grants": [],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "verdict": "fail",
+        "evidence": "evidence/3091d776-9be0-4194-984a-b10cf1ee63fe.json"
+      },
+      {
+        "id": "aa3a7f37-9ba4-4536-973c-2ccb88a0c2b1",
+        "scenario": "build",
+        "phase": "recovery",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/aa3a7f37-9ba4-4536-973c-2ccb88a0c2b1.json"
+      },
+      {
+        "id": "b10f3ab5-c6ed-45a6-9ad6-44c936b01253",
+        "scenario": "build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [],
+        "read_mode": "explicit",
+        "verdict": "fail",
+        "evidence": "evidence/b10f3ab5-c6ed-45a6-9ad6-44c936b01253.json"
+      },
+      {
+        "id": "cfaca85d-f78b-49a4-bf79-50f7e8e73df8",
+        "scenario": "build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/cfaca85d-f78b-49a4-bf79-50f7e8e73df8.json"
+      },
+      {
+        "id": "ee7532ed-f9e7-4c6d-a1ee-a042f9d38c63",
+        "scenario": "build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/dist",
+          "@workspace/package.json",
+          "@workspace/src"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/ee7532ed-f9e7-4c6d-a1ee-a042f9d38c63.json"
+      },
+      {
+        "id": "9210a5a9-2e01-482b-91d9-38ef5147a4d2",
+        "scenario": "build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/package.json",
+          "@workspace/src"
+        ],
+        "read_mode": "explicit",
+        "verdict": "fail",
+        "evidence": "evidence/9210a5a9-2e01-482b-91d9-38ef5147a4d2.json"
+      },
+      {
+        "id": "ab6719cd-26f7-41b6-b576-87bfc8c6aa17",
+        "scenario": "build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/dist",
+          "@workspace/package.json",
+          "@workspace/src"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/ab6719cd-26f7-41b6-b576-87bfc8c6aa17.json"
+      },
+      {
+        "id": "9d960ee1-57ac-436c-b9bc-e563620fa1b1",
+        "scenario": "build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/dist",
+          "@workspace/package.json",
+          "@workspace/src"
+        ],
+        "read_mode": "explicit",
+        "verdict": "fail",
+        "evidence": "evidence/9d960ee1-57ac-436c-b9bc-e563620fa1b1.json"
+      },
+      {
+        "id": "ba1cc424-be0c-4bb0-9fe5-f035dc4600a3",
+        "scenario": "build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/dist",
+          "@workspace/package.json",
+          "@workspace/src"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/ba1cc424-be0c-4bb0-9fe5-f035dc4600a3.json"
+      },
+      {
+        "id": "7558f548-06ed-4459-9a06-3c0b45676b59",
+        "scenario": "build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/package.json",
+          "@workspace/src"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/7558f548-06ed-4459-9a06-3c0b45676b59.json"
+      },
+      {
+        "id": "7232283a-f3e4-49ed-acb1-7b1cbf7f33e6",
+        "scenario": "build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs"
+        ],
+        "read_mode": "explicit",
+        "verdict": "fail",
+        "evidence": "evidence/7232283a-f3e4-49ed-acb1-7b1cbf7f33e6.json"
+      },
+      {
+        "id": "db419f4f-521e-4e4a-a7ff-36a56bdfcd7d",
+        "scenario": "build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/package.json",
+          "@workspace/src"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/db419f4f-521e-4e4a-a7ff-36a56bdfcd7d.json"
+      },
+      {
+        "id": "fd4495c5-b2d2-496c-807b-8e1681e9160c",
+        "scenario": "build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/src"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/fd4495c5-b2d2-496c-807b-8e1681e9160c.json"
+      },
+      {
+        "id": "952402c9-be0f-43db-8d2b-13d7f4603f43",
+        "scenario": "build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/src/input.json"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/952402c9-be0f-43db-8d2b-13d7f4603f43.json"
+      },
+      {
+        "id": "f624196a-3e8c-42d5-af00-6f1cf37a30a1",
+        "scenario": "build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/src/input.json"
+        ],
+        "read_mode": "explicit",
+        "verdict": "fail",
+        "evidence": "evidence/f624196a-3e8c-42d5-af00-6f1cf37a30a1.json"
+      },
+      {
+        "id": "595799e6-c314-4a35-8dcc-7d235be6a4c1",
+        "scenario": "build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/src/input.json"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/595799e6-c314-4a35-8dcc-7d235be6a4c1.json"
+      },
+      {
+        "id": "2b7fc583-f665-42c4-9a83-6b5ecd17f14e",
+        "scenario": "build",
+        "phase": "candidate_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs"
+        ],
+        "read_mode": "explicit",
+        "verdict": "fail",
+        "evidence": "evidence/2b7fc583-f665-42c4-9a83-6b5ecd17f14e.json"
+      },
+      {
+        "id": "def98237-3be1-451b-8f38-21155a617b66",
+        "scenario": "build",
+        "phase": "recovery_read",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/src/input.json"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/def98237-3be1-451b-8f38-21155a617b66.json"
+      },
+      {
+        "id": "b2ab7b16-c58f-43e1-8bd8-9b136d1464e5",
+        "scenario": "build",
+        "phase": "candidate",
+        "grants": [],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/src/input.json"
+        ],
+        "read_mode": "explicit",
+        "verdict": "fail",
+        "evidence": "evidence/b2ab7b16-c58f-43e1-8bd8-9b136d1464e5.json"
+      },
+      {
+        "id": "44eeb7d2-ac6b-44b7-b5c5-a08b797a0669",
+        "scenario": "build",
+        "phase": "recovery",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/src/input.json"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/44eeb7d2-ac6b-44b7-b5c5-a08b797a0669.json"
+      },
+      {
+        "id": "83bf22fa-26f7-49f4-a7aa-923465ff3fe0",
+        "scenario": "build",
+        "phase": "final",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/src/input.json"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/83bf22fa-26f7-49f4-a7aa-923465ff3fe0.json"
+      },
+      {
+        "id": "680b9508-1cc7-4e86-ab01-342d64083fa1",
+        "scenario": "build",
+        "phase": "final",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/src/input.json"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/680b9508-1cc7-4e86-ab01-342d64083fa1.json"
+      },
+      {
+        "id": "d147139c-8399-465a-b6f3-73e9c3157abb",
+        "scenario": "build",
+        "phase": "final",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/src/input.json"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/d147139c-8399-465a-b6f3-73e9c3157abb.json"
+      }
+    ],
+    "searches": {
+      "build": {
+        "stop": "exhausted",
+        "steps": [
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "rejected"
+          }
+        ]
+      }
+    },
+    "read_searches": {
+      "build": {
+        "stop": "exhausted",
+        "steps": [
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "rejected"
+          },
+          {
+            "decision": "rejected"
+          }
+        ]
+      }
+    }
+  },
+  "inputs": {
+    "config": {
+      "schema_version": 1,
+      "project": "./project",
+      "exclude": [
+        ".git",
+        ".permsift",
+        "dist",
+        "reports"
+      ],
+      "scenarios": [
+        {
+          "id": "build",
+          "command": [
+            "node",
+            "build.cjs"
+          ],
+          "timeout_seconds": 120,
+          "initial_write_grants": [
+            "@workspace"
+          ],
+          "initial_read_grants": [
+            "@workspace"
+          ],
+          "auto_read_discover": true,
+          "narrower_read_candidates": [],
+          "auto_discover": false,
+          "prepare_directories": [],
+          "narrower_candidates": [
+            {
+              "from": "@workspace",
+              "to": [
+                "@workspace/dist"
+              ]
+            }
+          ],
+          "assertions": [
+            {
+              "type": "json_equals",
+              "path": "@workspace/dist/result.json",
+              "pointer": "/classes",
+              "value": "alpha beta"
+            }
+          ]
+        }
+      ]
+    },
+    "limits": {
+      "schema_version": 1,
+      "allowed_write_roots": [
+        "@workspace"
+      ],
+      "allowed_read_roots": [
+        "@workspace"
+      ],
+      "max_candidates": 40,
+      "budget_seconds": 120,
+      "repetitions": 3,
+      "max_output_bytes": 262144,
+      "max_snapshot_bytes": 500000000,
+      "max_discovery_depth": 3,
+      "max_discovery_dirs": 64,
+      "max_read_discovery_entries": 128,
+      "max_read_discovery_depth": 3
+    }
+  },
+  "evidence": {
+    "evidence/56b3fd6a-af58-487b-b852-ce2442dc91c2.json": {
+      "id": "56b3fd6a-af58-487b-b852-ce2442dc91c2",
+      "scenario": "build",
+      "phase": "baseline",
+      "grants": [
+        "@workspace"
+      ],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "explicit",
+      "prepared_directories": [
+        "@workspace",
+        "@workspace/dist"
+      ],
+      "policy_hash": "66ab90f831b83ced5fc506afa1719e87c1978bb37edc33e7ea277c513d11aa9e",
+      "read_grant_kinds": {
+        "@workspace": "directory"
+      },
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 0
+        }
+      },
+      "assertions": [
+        {
+          "name": "json_equals:@workspace/dist/result.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        }
+      ],
+      "summary": {
+        "id": "56b3fd6a-af58-487b-b852-ce2442dc91c2",
+        "scenario": "build",
+        "phase": "baseline",
+        "grants": [
+          "@workspace"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/56b3fd6a-af58-487b-b852-ce2442dc91c2.json"
+      }
+    },
+    "evidence/d147139c-8399-465a-b6f3-73e9c3157abb.json": {
+      "id": "d147139c-8399-465a-b6f3-73e9c3157abb",
+      "scenario": "build",
+      "phase": "final",
+      "grants": [
+        "@workspace/dist"
+      ],
+      "read_grants": [
+        "@workspace/build.cjs",
+        "@workspace/src/input.json"
+      ],
+      "read_mode": "explicit",
+      "prepared_directories": [
+        "@workspace",
+        "@workspace/dist"
+      ],
+      "policy_hash": "b1c2601c658a808a31f6761d0d114fdde15406c27359c5c0238564c5c51390a7",
+      "read_grant_kinds": {
+        "@workspace/build.cjs": "file",
+        "@workspace/src/input.json": "file"
+      },
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "EPERM; expected denied"
+          },
+          {
+            "name": "read_scope:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "EPERM; expected denied"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "EPERM; expected denied"
+          },
+          {
+            "name": "read_scope:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "EPERM; expected denied"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 0
+        }
+      },
+      "assertions": [
+        {
+          "name": "json_equals:@workspace/dist/result.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        }
+      ],
+      "summary": {
+        "id": "d147139c-8399-465a-b6f3-73e9c3157abb",
+        "scenario": "build",
+        "phase": "final",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace/build.cjs",
+          "@workspace/src/input.json"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/d147139c-8399-465a-b6f3-73e9c3157abb.json"
+      }
+    },
+    "evidence/3091d776-9be0-4194-984a-b10cf1ee63fe.json": {
+      "id": "3091d776-9be0-4194-984a-b10cf1ee63fe",
+      "scenario": "build",
+      "phase": "candidate",
+      "grants": [],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "explicit",
+      "prepared_directories": [
+        "@workspace",
+        "@workspace/dist"
+      ],
+      "policy_hash": "4d84f903e93e496ee484c412e25e536a76fc68b935a8ebf0d0cf6c57c932ac6d",
+      "read_grant_kinds": {
+        "@workspace": "directory"
+      },
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 1
+        }
+      },
+      "assertions": [
+        {
+          "name": "json_equals:@workspace/dist/result.json",
+          "status": "fail",
+          "detail": "Error: ENOENT: no such file or directory, open '<temporary-path>'"
+        }
+      ],
+      "summary": {
+        "id": "3091d776-9be0-4194-984a-b10cf1ee63fe",
+        "scenario": "build",
+        "phase": "candidate",
+        "grants": [],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "verdict": "fail",
+        "evidence": "evidence/3091d776-9be0-4194-984a-b10cf1ee63fe.json"
+      }
+    },
+    "evidence/aa3a7f37-9ba4-4536-973c-2ccb88a0c2b1.json": {
+      "id": "aa3a7f37-9ba4-4536-973c-2ccb88a0c2b1",
+      "scenario": "build",
+      "phase": "recovery",
+      "grants": [
+        "@workspace/dist"
+      ],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "explicit",
+      "prepared_directories": [
+        "@workspace",
+        "@workspace/dist"
+      ],
+      "policy_hash": "5a506140e18c367569001fab5d3311a2217e9ca2deb858b9f38f05fc2559a1d9",
+      "read_grant_kinds": {
+        "@workspace": "directory"
+      },
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "read_scope:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "read_scope:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Read allowed; expected allowed"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:@workspace/src/.permsift-read-checks/fake-secret",
+            "status": "pass",
+            "detail": "Fake read fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 0
+        }
+      },
+      "assertions": [
+        {
+          "name": "json_equals:@workspace/dist/result.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        }
+      ],
+      "summary": {
+        "id": "aa3a7f37-9ba4-4536-973c-2ccb88a0c2b1",
+        "scenario": "build",
+        "phase": "recovery",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "explicit",
+        "verdict": "pass",
+        "evidence": "evidence/aa3a7f37-9ba4-4536-973c-2ccb88a0c2b1.json"
+      }
+    }
+  }
+}

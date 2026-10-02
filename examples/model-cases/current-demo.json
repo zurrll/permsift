@@ -1,0 +1,2259 @@
+{
+  "fixture_provenance": {
+    "kind": "real_record_field_projection",
+    "source": ".permsift/2026-10-02T12-19-37-768Z-8c6d0a96/report.json",
+    "producer_version": "0.12.0",
+    "original_report_file_sha256": "4756b48887d8441a47002ec269f06776c8880e32c5978c42389022717cd3a9cd",
+    "original_inputs_file_sha256": "4c04866120557fef24ba9662d93688d7b18de35615936497096a5d8455f4a9e7",
+    "retained_evidence": [
+      {
+        "record": "evidence/3c708998-2cbd-45c6-8be4-ef201fc8339a.json",
+        "original_file_sha256": "11bdd184010d12192aaf4d6e5b3e3bd0f1abb64c0b740b374680dbe15fe585b1"
+      },
+      {
+        "record": "evidence/445b7918-a995-4b21-9a84-e13d90e8ab31.json",
+        "original_file_sha256": "d24cbe82e285d63906d72b302fd32e1457eb17507d48b1337286be9b016d6d0b"
+      },
+      {
+        "record": "evidence/5321286d-8af6-453d-b3f7-900eca45f554.json",
+        "original_file_sha256": "a315297f6b3cffd1dbc70383d4ad6ec6238517686a3ff35960f9bf042e464196"
+      },
+      {
+        "record": "evidence/0008d6f7-d6cc-4e32-9812-5e2bd7864a28.json",
+        "original_file_sha256": "dcbde304c2e16070dfbb791e519e17e930137f0b83d6caa452ddfca6937a0f44"
+      },
+      {
+        "record": "evidence/9ab57087-2180-4251-95b0-9d8f764e4bb1.json",
+        "original_file_sha256": "e70431f0806fa78724c3407c263e77ec5dabcc87bca5fe5a964441b4be39fbed"
+      },
+      {
+        "record": "evidence/1868ec47-3776-4040-9333-d9e381876207.json",
+        "original_file_sha256": "9145784bf7a2957b03c166b0b647425e661571c77ce1cd498ae0298d77d6b930"
+      },
+      {
+        "record": "evidence/1df55c32-9864-498d-8e6e-950460fa16be.json",
+        "original_file_sha256": "96b2589508c24a06c52ca7412efaf5c2c161fc519263f951722869ded81d02ea"
+      },
+      {
+        "record": "evidence/a0611901-4fb5-4f24-9314-77b09fa8b8eb.json",
+        "original_file_sha256": "d71a3f6aa1092be5a21517da9c5abcb239c8e3161590682dbde9f23d6bbf0038"
+      }
+    ],
+    "omissions": [
+      "execution logs, generated backend rules, file scans and timings",
+      "unselected execution sidecars"
+    ],
+    "redactions": [
+      "absolute host/temporary paths in check names/details only; raw config/limits and their historical hashes unchanged"
+    ]
+  },
+  "report": {
+    "schema_version": 1,
+    "id": "2026-10-02T12-19-37-768Z-8c6d0a96",
+    "mode": "tighten",
+    "status": "verified",
+    "environment": {
+      "platform": "darwin",
+      "release": "24.6.0",
+      "arch": "arm64",
+      "node": "v24.21.0",
+      "permsift": "0.12.0",
+      "sandbox_runtime": "0.0.77"
+    },
+    "inputs": {
+      "project": "/Users/macbook/xm/sandbox/permsift/examples/demo",
+      "config_file": "/Users/macbook/xm/sandbox/permsift/examples/demo/permsift.yaml",
+      "limits_file": "/Users/macbook/xm/sandbox/permsift/examples/limits.json",
+      "config_hash": "81aabff11db77c6cf0a5ac3813c9f8dfba630d49028c84701b4f0e5aed0c0062",
+      "limits_hash": "edc187e44e206ef493016873ee1246a725692d72dd85240ef6710ea6f87c38b1",
+      "snapshot_hash": "ac11311bea147e94a51101bd8fe3b6aac151fe4c7b90d3574aaad82f87c04de6",
+      "read_probe_directories": [
+        "",
+        "src"
+      ]
+    },
+    "scope": [
+      "Separate install write policies opt into staged execution. Install retains broad reads; offline tasks search project reads and writes on a frozen installed state. Legacy install configs retain shared writes.",
+      "Explicit read mode retains workspace-root directory listing/access, system/runtime, cache and temp reads. It does not hide project names or minimize those fixed grants.",
+      "Fake project read fixtures test both allowed and denied expectations against the actual policy; they are write-protected, not explicitly read-denied.",
+      "Home directories, the original project and experiment evidence are denied, except explicit run directories and a home-installed Node runtime tree; system/runtime read access remains broad.",
+      "SRT device/stdio grants are fixed; its /tmp/claude write exceptions are explicitly denied. Inspect effective policy in evidence.",
+      "Network probes cover direct loopback denial and an authenticated proxy request to a reserved denied domain; they do not test every network channel.",
+      "Trusted/reviewed project scripts only. Task-produced test reports are not proof against a malicious project.",
+      "No global minimum or sandbox escape-resistance claim. Results apply to recorded inputs, assertions and environment.",
+      "Process-group cleanup handles normal descendants; deliberately detached/daemonized processes are outside the supported workload contract."
+    ],
+    "policies": {
+      "test": [
+        "@workspace/reports"
+      ],
+      "build": [
+        "@workspace/dist"
+      ]
+    },
+    "read_policies": {
+      "test": [
+        "@workspace"
+      ],
+      "build": [
+        "@workspace"
+      ]
+    },
+    "read_modes": {
+      "test": "legacy",
+      "build": "legacy"
+    },
+    "network_policies": {
+      "test": [],
+      "build": []
+    },
+    "install_policies": {},
+    "baseline_verified": true,
+    "final_verified": true,
+    "search_complete": true,
+    "trials": [
+      {
+        "id": "3c708998-2cbd-45c6-8be4-ef201fc8339a",
+        "scenario": "test",
+        "phase": "baseline",
+        "grants": [
+          "@workspace",
+          "@cache"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/3c708998-2cbd-45c6-8be4-ef201fc8339a.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "273652d8-2af1-453f-9dd5-648ebb0ab2c4",
+        "scenario": "test",
+        "phase": "baseline",
+        "grants": [
+          "@workspace",
+          "@cache"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/273652d8-2af1-453f-9dd5-648ebb0ab2c4.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "dbd65330-3d0a-4a29-84f1-cb2815697392",
+        "scenario": "test",
+        "phase": "baseline",
+        "grants": [
+          "@workspace",
+          "@cache"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/dbd65330-3d0a-4a29-84f1-cb2815697392.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "9ab57087-2180-4251-95b0-9d8f764e4bb1",
+        "scenario": "build",
+        "phase": "baseline",
+        "grants": [
+          "@workspace",
+          "@cache"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/9ab57087-2180-4251-95b0-9d8f764e4bb1.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "1919766f-8785-4b33-8df9-d42018f8983e",
+        "scenario": "build",
+        "phase": "baseline",
+        "grants": [
+          "@workspace",
+          "@cache"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/1919766f-8785-4b33-8df9-d42018f8983e.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "848d8d98-9286-41ab-9d0b-39a9a754de36",
+        "scenario": "build",
+        "phase": "baseline",
+        "grants": [
+          "@workspace",
+          "@cache"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/848d8d98-9286-41ab-9d0b-39a9a754de36.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "f28c32ed-96d8-4625-afc5-db8d8e6994d3",
+        "scenario": "test",
+        "phase": "discovery_baseline",
+        "grants": [
+          "@workspace",
+          "@cache"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/f28c32ed-96d8-4625-afc5-db8d8e6994d3.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "c7ddd48e-fe23-49a2-b958-60f2efdddde0",
+        "scenario": "test",
+        "phase": "discovery_baseline",
+        "grants": [
+          "@workspace",
+          "@cache"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/c7ddd48e-fe23-49a2-b958-60f2efdddde0.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "2dac31f6-50d5-423b-b217-7d24d0e46f23",
+        "scenario": "test",
+        "phase": "discovery_baseline",
+        "grants": [
+          "@workspace",
+          "@cache"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/2dac31f6-50d5-423b-b217-7d24d0e46f23.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "d1b03e70-fce0-43df-bc3e-84888e599df9",
+        "scenario": "build",
+        "phase": "discovery_baseline",
+        "grants": [
+          "@workspace",
+          "@cache"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/d1b03e70-fce0-43df-bc3e-84888e599df9.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "e46136ee-3af9-4192-952f-9a4979738501",
+        "scenario": "build",
+        "phase": "discovery_baseline",
+        "grants": [
+          "@workspace",
+          "@cache"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/e46136ee-3af9-4192-952f-9a4979738501.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "929bdea0-bc38-4d0d-bb8b-a7f5ff94c4b7",
+        "scenario": "build",
+        "phase": "discovery_baseline",
+        "grants": [
+          "@workspace",
+          "@cache"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/929bdea0-bc38-4d0d-bb8b-a7f5ff94c4b7.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "5f3c66af-8085-49dd-ae87-b1c9d09748c4",
+        "scenario": "test",
+        "phase": "candidate",
+        "grants": [
+          "@cache/npm/_logs",
+          "@workspace"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/5f3c66af-8085-49dd-ae87-b1c9d09748c4.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "4b912b65-614f-4a9b-9aee-281d5ef1c635",
+        "scenario": "test",
+        "phase": "candidate",
+        "grants": [
+          "@cache/npm/_logs",
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/4b912b65-614f-4a9b-9aee-281d5ef1c635.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "d14d54b9-be3b-4957-84ac-b086f2602657",
+        "scenario": "test",
+        "phase": "candidate",
+        "grants": [
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/d14d54b9-be3b-4957-84ac-b086f2602657.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "5321286d-8af6-453d-b3f7-900eca45f554",
+        "scenario": "test",
+        "phase": "candidate",
+        "grants": [],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "fail",
+        "evidence": "evidence/5321286d-8af6-453d-b3f7-900eca45f554.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "0008d6f7-d6cc-4e32-9812-5e2bd7864a28",
+        "scenario": "test",
+        "phase": "recovery",
+        "grants": [
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/0008d6f7-d6cc-4e32-9812-5e2bd7864a28.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "498a925a-6567-4e26-bfed-84782b5abe03",
+        "scenario": "build",
+        "phase": "candidate",
+        "grants": [
+          "@cache/npm/_logs",
+          "@workspace"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/498a925a-6567-4e26-bfed-84782b5abe03.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "b0cfc055-7a64-4ea5-94c2-df70609d76e5",
+        "scenario": "build",
+        "phase": "candidate",
+        "grants": [
+          "@cache/npm/_logs",
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/b0cfc055-7a64-4ea5-94c2-df70609d76e5.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "aedb3ba7-a540-4d3c-948c-f7fe4062c012",
+        "scenario": "build",
+        "phase": "candidate",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/aedb3ba7-a540-4d3c-948c-f7fe4062c012.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "1df55c32-9864-498d-8e6e-950460fa16be",
+        "scenario": "build",
+        "phase": "candidate",
+        "grants": [],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "fail",
+        "evidence": "evidence/1df55c32-9864-498d-8e6e-950460fa16be.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "a0611901-4fb5-4f24-9314-77b09fa8b8eb",
+        "scenario": "build",
+        "phase": "recovery",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/a0611901-4fb5-4f24-9314-77b09fa8b8eb.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "1ebe8b78-589d-4243-bbe6-c8460ebe6dd6",
+        "scenario": "test",
+        "phase": "final",
+        "grants": [
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/1ebe8b78-589d-4243-bbe6-c8460ebe6dd6.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "31f01146-29cd-4ce5-aaa0-9db5f16a21d4",
+        "scenario": "test",
+        "phase": "final",
+        "grants": [
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/31f01146-29cd-4ce5-aaa0-9db5f16a21d4.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "445b7918-a995-4b21-9a84-e13d90e8ab31",
+        "scenario": "test",
+        "phase": "final",
+        "grants": [
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/445b7918-a995-4b21-9a84-e13d90e8ab31.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "bf58d49b-b0d4-4568-80d4-f437bae826a9",
+        "scenario": "build",
+        "phase": "final",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/bf58d49b-b0d4-4568-80d4-f437bae826a9.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "7dbf51a7-5880-4480-971b-cb41e1c181ed",
+        "scenario": "build",
+        "phase": "final",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/7dbf51a7-5880-4480-971b-cb41e1c181ed.json",
+        "execution_stage": "task"
+      },
+      {
+        "id": "1868ec47-3776-4040-9333-d9e381876207",
+        "scenario": "build",
+        "phase": "final",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/1868ec47-3776-4040-9333-d9e381876207.json",
+        "execution_stage": "task"
+      }
+    ],
+    "searches": {
+      "test": {
+        "stop": "exhausted",
+        "steps": [
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "rejected"
+          }
+        ]
+      },
+      "build": {
+        "stop": "exhausted",
+        "steps": [
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "accepted"
+          },
+          {
+            "decision": "rejected"
+          }
+        ]
+      }
+    },
+    "read_searches": {},
+    "network_searches": {},
+    "install_searches": {}
+  },
+  "inputs": {
+    "config": {
+      "schema_version": 1,
+      "project": ".",
+      "exclude": [
+        ".git",
+        ".permsift",
+        "dist",
+        "reports"
+      ],
+      "scenarios": [
+        {
+          "id": "test",
+          "command": [
+            "npm",
+            "test"
+          ],
+          "timeout_seconds": 30,
+          "initial_write_grants": [
+            "@workspace",
+            "@cache"
+          ],
+          "auto_read_discover": true,
+          "narrower_read_candidates": [],
+          "auto_discover": true,
+          "prepare_directories": [],
+          "narrower_candidates": [],
+          "assertions": [
+            {
+              "type": "test_results",
+              "path": "@workspace/reports/tests.json",
+              "expected_tests": [
+                "empty-cart",
+                "quantity",
+                "tax-rounding",
+                "reject-negative-price"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "build",
+          "command": [
+            "npm",
+            "run",
+            "build"
+          ],
+          "timeout_seconds": 30,
+          "initial_write_grants": [
+            "@workspace",
+            "@cache"
+          ],
+          "auto_read_discover": true,
+          "narrower_read_candidates": [],
+          "auto_discover": true,
+          "prepare_directories": [],
+          "narrower_candidates": [],
+          "assertions": [
+            {
+              "type": "file_contains",
+              "path": "@workspace/dist/index.js",
+              "text": "demo-version: 1.0.0"
+            },
+            {
+              "type": "json_equals",
+              "path": "@workspace/dist/manifest.json",
+              "pointer": "/smoke_test",
+              "value": "passed"
+            }
+          ]
+        }
+      ]
+    },
+    "limits": {
+      "schema_version": 1,
+      "allowed_write_roots": [
+        "@workspace",
+        "@cache",
+        "@tmp"
+      ],
+      "max_candidates": 30,
+      "budget_seconds": 900,
+      "repetitions": 3,
+      "max_output_bytes": 262144,
+      "max_snapshot_bytes": 500000000,
+      "max_discovery_depth": 3,
+      "max_discovery_dirs": 64,
+      "max_read_discovery_entries": 128,
+      "max_read_discovery_depth": 3
+    }
+  },
+  "evidence": {
+    "evidence/3c708998-2cbd-45c6-8be4-ef201fc8339a.json": {
+      "id": "3c708998-2cbd-45c6-8be4-ef201fc8339a",
+      "scenario": "test",
+      "phase": "baseline",
+      "grants": [
+        "@workspace",
+        "@cache"
+      ],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "legacy",
+      "network_grants": [],
+      "verdict": "unknown",
+      "evidence": "evidence/3c708998-2cbd-45c6-8be4-ef201fc8339a.json",
+      "prepared_directories": [
+        "@cache",
+        "@workspace"
+      ],
+      "policy_hash": "6302ec8698a1aefc132bbb0018a97cedd563102c8face72f67d3b1711260ea29",
+      "stage_policy_mode": "shared",
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 0
+        }
+      },
+      "assertions": [
+        {
+          "name": "test_results:@workspace/reports/tests.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        }
+      ],
+      "summary": {
+        "id": "3c708998-2cbd-45c6-8be4-ef201fc8339a",
+        "scenario": "test",
+        "phase": "baseline",
+        "grants": [
+          "@workspace",
+          "@cache"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/3c708998-2cbd-45c6-8be4-ef201fc8339a.json",
+        "execution_stage": "task"
+      }
+    },
+    "evidence/445b7918-a995-4b21-9a84-e13d90e8ab31.json": {
+      "id": "445b7918-a995-4b21-9a84-e13d90e8ab31",
+      "scenario": "test",
+      "phase": "final",
+      "grants": [
+        "@workspace/reports"
+      ],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "legacy",
+      "network_grants": [],
+      "verdict": "unknown",
+      "evidence": "evidence/445b7918-a995-4b21-9a84-e13d90e8ab31.json",
+      "prepared_directories": [
+        "@cache",
+        "@cache/npm",
+        "@cache/npm/_logs",
+        "@workspace",
+        "@workspace/reports",
+        "@workspace/scripts",
+        "@workspace/src"
+      ],
+      "policy_hash": "977e3f8d60d4788ec3e570de7825e180e18fcfb17708c8f3f1c4557e026ec527",
+      "stage_policy_mode": "shared",
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 0
+        }
+      },
+      "assertions": [
+        {
+          "name": "test_results:@workspace/reports/tests.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        }
+      ],
+      "summary": {
+        "id": "445b7918-a995-4b21-9a84-e13d90e8ab31",
+        "scenario": "test",
+        "phase": "final",
+        "grants": [
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/445b7918-a995-4b21-9a84-e13d90e8ab31.json",
+        "execution_stage": "task"
+      }
+    },
+    "evidence/5321286d-8af6-453d-b3f7-900eca45f554.json": {
+      "id": "5321286d-8af6-453d-b3f7-900eca45f554",
+      "scenario": "test",
+      "phase": "candidate",
+      "grants": [],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "legacy",
+      "network_grants": [],
+      "verdict": "unknown",
+      "evidence": "evidence/5321286d-8af6-453d-b3f7-900eca45f554.json",
+      "prepared_directories": [
+        "@cache",
+        "@cache/npm",
+        "@cache/npm/_logs",
+        "@workspace",
+        "@workspace/reports",
+        "@workspace/scripts",
+        "@workspace/src"
+      ],
+      "policy_hash": "0344b9f81c513efd8daf07ee85f099d896984870723cb763c83e2472371bec06",
+      "stage_policy_mode": "shared",
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 1
+        }
+      },
+      "assertions": [
+        {
+          "name": "test_results:@workspace/reports/tests.json",
+          "status": "fail",
+          "detail": "Error: ENOENT: no such file or directory, open '<temporary-path>'"
+        }
+      ],
+      "summary": {
+        "id": "5321286d-8af6-453d-b3f7-900eca45f554",
+        "scenario": "test",
+        "phase": "candidate",
+        "grants": [],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "fail",
+        "evidence": "evidence/5321286d-8af6-453d-b3f7-900eca45f554.json",
+        "execution_stage": "task"
+      }
+    },
+    "evidence/0008d6f7-d6cc-4e32-9812-5e2bd7864a28.json": {
+      "id": "0008d6f7-d6cc-4e32-9812-5e2bd7864a28",
+      "scenario": "test",
+      "phase": "recovery",
+      "grants": [
+        "@workspace/reports"
+      ],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "legacy",
+      "network_grants": [],
+      "verdict": "unknown",
+      "evidence": "evidence/0008d6f7-d6cc-4e32-9812-5e2bd7864a28.json",
+      "prepared_directories": [
+        "@cache",
+        "@cache/npm",
+        "@cache/npm/_logs",
+        "@workspace",
+        "@workspace/reports",
+        "@workspace/scripts",
+        "@workspace/src"
+      ],
+      "policy_hash": "977e3f8d60d4788ec3e570de7825e180e18fcfb17708c8f3f1c4557e026ec527",
+      "stage_policy_mode": "shared",
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 0
+        }
+      },
+      "assertions": [
+        {
+          "name": "test_results:@workspace/reports/tests.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        }
+      ],
+      "summary": {
+        "id": "0008d6f7-d6cc-4e32-9812-5e2bd7864a28",
+        "scenario": "test",
+        "phase": "recovery",
+        "grants": [
+          "@workspace/reports"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/0008d6f7-d6cc-4e32-9812-5e2bd7864a28.json",
+        "execution_stage": "task"
+      }
+    },
+    "evidence/9ab57087-2180-4251-95b0-9d8f764e4bb1.json": {
+      "id": "9ab57087-2180-4251-95b0-9d8f764e4bb1",
+      "scenario": "build",
+      "phase": "baseline",
+      "grants": [
+        "@workspace",
+        "@cache"
+      ],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "legacy",
+      "network_grants": [],
+      "verdict": "unknown",
+      "evidence": "evidence/9ab57087-2180-4251-95b0-9d8f764e4bb1.json",
+      "prepared_directories": [
+        "@cache",
+        "@workspace"
+      ],
+      "policy_hash": "6302ec8698a1aefc132bbb0018a97cedd563102c8face72f67d3b1711260ea29",
+      "stage_policy_mode": "shared",
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 0
+        }
+      },
+      "assertions": [
+        {
+          "name": "file_contains:@workspace/dist/index.js",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        },
+        {
+          "name": "json_equals:@workspace/dist/manifest.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        }
+      ],
+      "summary": {
+        "id": "9ab57087-2180-4251-95b0-9d8f764e4bb1",
+        "scenario": "build",
+        "phase": "baseline",
+        "grants": [
+          "@workspace",
+          "@cache"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/9ab57087-2180-4251-95b0-9d8f764e4bb1.json",
+        "execution_stage": "task"
+      }
+    },
+    "evidence/1868ec47-3776-4040-9333-d9e381876207.json": {
+      "id": "1868ec47-3776-4040-9333-d9e381876207",
+      "scenario": "build",
+      "phase": "final",
+      "grants": [
+        "@workspace/dist"
+      ],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "legacy",
+      "network_grants": [],
+      "verdict": "unknown",
+      "evidence": "evidence/1868ec47-3776-4040-9333-d9e381876207.json",
+      "prepared_directories": [
+        "@cache",
+        "@cache/npm",
+        "@cache/npm/_logs",
+        "@workspace",
+        "@workspace/dist",
+        "@workspace/scripts",
+        "@workspace/src"
+      ],
+      "policy_hash": "d13b792d2d5c764974e03c2b83246972dbc915a9e70726d0ab4f4d50c64c027e",
+      "stage_policy_mode": "shared",
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 0
+        }
+      },
+      "assertions": [
+        {
+          "name": "file_contains:@workspace/dist/index.js",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        },
+        {
+          "name": "json_equals:@workspace/dist/manifest.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        }
+      ],
+      "summary": {
+        "id": "1868ec47-3776-4040-9333-d9e381876207",
+        "scenario": "build",
+        "phase": "final",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/1868ec47-3776-4040-9333-d9e381876207.json",
+        "execution_stage": "task"
+      }
+    },
+    "evidence/1df55c32-9864-498d-8e6e-950460fa16be.json": {
+      "id": "1df55c32-9864-498d-8e6e-950460fa16be",
+      "scenario": "build",
+      "phase": "candidate",
+      "grants": [],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "legacy",
+      "network_grants": [],
+      "verdict": "unknown",
+      "evidence": "evidence/1df55c32-9864-498d-8e6e-950460fa16be.json",
+      "prepared_directories": [
+        "@cache",
+        "@cache/npm",
+        "@cache/npm/_logs",
+        "@workspace",
+        "@workspace/dist",
+        "@workspace/scripts",
+        "@workspace/src"
+      ],
+      "policy_hash": "b812d9a843017edd98b95344f255f95e1b072ffb320b3e175ce4f84c8eb614f4",
+      "stage_policy_mode": "shared",
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 1
+        }
+      },
+      "assertions": [
+        {
+          "name": "file_contains:@workspace/dist/index.js",
+          "status": "fail",
+          "detail": "Error: ENOENT: no such file or directory, open '<temporary-path>'"
+        },
+        {
+          "name": "json_equals:@workspace/dist/manifest.json",
+          "status": "fail",
+          "detail": "Error: ENOENT: no such file or directory, open '<temporary-path>'"
+        }
+      ],
+      "summary": {
+        "id": "1df55c32-9864-498d-8e6e-950460fa16be",
+        "scenario": "build",
+        "phase": "candidate",
+        "grants": [],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "fail",
+        "evidence": "evidence/1df55c32-9864-498d-8e6e-950460fa16be.json",
+        "execution_stage": "task"
+      }
+    },
+    "evidence/a0611901-4fb5-4f24-9314-77b09fa8b8eb.json": {
+      "id": "a0611901-4fb5-4f24-9314-77b09fa8b8eb",
+      "scenario": "build",
+      "phase": "recovery",
+      "grants": [
+        "@workspace/dist"
+      ],
+      "read_grants": [
+        "@workspace"
+      ],
+      "read_mode": "legacy",
+      "network_grants": [],
+      "verdict": "unknown",
+      "evidence": "evidence/a0611901-4fb5-4f24-9314-77b09fa8b8eb.json",
+      "prepared_directories": [
+        "@cache",
+        "@cache/npm",
+        "@cache/npm/_logs",
+        "@workspace",
+        "@workspace/dist",
+        "@workspace/scripts",
+        "@workspace/src"
+      ],
+      "policy_hash": "d13b792d2d5c764974e03c2b83246972dbc915a9e70726d0ab4f4d50c64c027e",
+      "stage_policy_mode": "shared",
+      "before": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "after": {
+        "checks": [
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          },
+          {
+            "name": "secret_unreadable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "outside_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "report_unwritable",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "network_blocked",
+            "status": "pass",
+            "detail": "EPERM"
+          },
+          {
+            "name": "proxy_domain_blocked",
+            "status": "pass",
+            "detail": "Proxy returned 403 for reserved denied domain"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<temporary-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:<host-path>",
+            "status": "pass",
+            "detail": "Fixture present; content verified"
+          },
+          {
+            "name": "control:network_endpoint",
+            "status": "pass",
+            "detail": "Host loopback connectivity control"
+          }
+        ]
+      },
+      "task": {
+        "process": {
+          "status": "completed",
+          "exit_code": 0
+        }
+      },
+      "assertions": [
+        {
+          "name": "file_contains:@workspace/dist/index.js",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        },
+        {
+          "name": "json_equals:@workspace/dist/manifest.json",
+          "status": "pass",
+          "detail": "Assertion satisfied"
+        }
+      ],
+      "summary": {
+        "id": "a0611901-4fb5-4f24-9314-77b09fa8b8eb",
+        "scenario": "build",
+        "phase": "recovery",
+        "grants": [
+          "@workspace/dist"
+        ],
+        "read_grants": [
+          "@workspace"
+        ],
+        "read_mode": "legacy",
+        "network_grants": [],
+        "verdict": "pass",
+        "evidence": "evidence/a0611901-4fb5-4f24-9314-77b09fa8b8eb.json",
+        "execution_stage": "task"
+      }
+    }
+  }
+}

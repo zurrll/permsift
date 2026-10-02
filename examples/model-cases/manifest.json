@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case": "permission-baseline",
+      "file": "permission-baseline.json",
+      "kind": "experiment",
+      "executions": 27,
+      "retained_sidecars": 4
+    },
+    {
+      "case": "permission-read-change",
+      "file": "permission-read-change.json",
+      "kind": "regression",
+      "executions": 10,
+      "retained_sidecars": 0
+    },
+    {
+      "case": "permission-old-rule-fails",
+      "file": "permission-old-rule-fails.json",
+      "kind": "experiment",
+      "executions": 1,
+      "retained_sidecars": 1
+    },
+    {
+      "case": "permission-repair-replay",
+      "file": "permission-repair-replay.json",
+      "kind": "experiment",
+      "executions": 3,
+      "retained_sidecars": 2
+    },
+    {
+      "case": "permission-code-error",
+      "file": "permission-code-error.json",
+      "kind": "regression",
+      "executions": 2,
+      "retained_sidecars": 0
+    },
+    {
+      "case": "permission-wide-rule-fails",
+      "file": "permission-wide-rule-fails.json",
+      "kind": "experiment",
+      "executions": 1,
+      "retained_sidecars": 1
+    },
+    {
+      "case": "staged-warm",
+      "file": "staged-warm.json",
+      "kind": "experiment",
+      "executions": 55,
+      "retained_sidecars": 5
+    },
+    {
+      "case": "current-demo",
+      "file": "current-demo.json",
+      "kind": "experiment",
+      "executions": 28,
+      "retained_sidecars": 8
+    },
+    {
+      "case": "current-observe",
+      "file": "current-observe.json",
+      "kind": "experiment",
+      "executions": 2,
+      "retained_sidecars": 1
+    }
+  ]
+}

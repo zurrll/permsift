@@ -39,7 +39,12 @@ export async function loadUsage(file: string): Promise<Comparable> {
     if (total > MAX_USAGE_BYTES) throw new Error('Usage report exceeds 32 MB');
     source = Buffer.concat(chunks, total).toString('utf8');
   } finally { await handle.close(); }
-  const parsed = usageSchema.parse(JSON.parse(source));
+  return parseUsage(JSON.parse(source));
+}
+
+/** Same validation for saved files and internal legacy adapters. */
+export function parseUsage(value: unknown): Comparable {
+  const parsed = usageSchema.parse(value);
   if (new Set(parsed.tasks.map(t => t.task)).size !== parsed.tasks.length) throw new Error('Duplicate task IDs in usage baseline');
   for (const task of parsed.tasks) if (task.capture_status !== 'not_run' && new Set(task.loaded_packages.map(p => p.path)).size !== task.loaded_packages.length) throw new Error('Duplicate package instances in usage baseline');
   for (const task of parsed.tasks) if (task.capture_status !== 'not_run') {

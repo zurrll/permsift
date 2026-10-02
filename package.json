@@ -35,7 +35,9 @@
     "compile:verify": "npm run build && node scripts/verify-compilation.mjs",
     "bundle:prepare": "node scripts/prepare-bundling.mjs",
     "bundle:verify": "npm run build && node scripts/verify-bundling.mjs",
-    "offline:verify": "npm run build && node scripts/verify-offline.mjs"
+    "offline:verify": "npm run build && node scripts/verify-offline.mjs",
+    "model:verify": "npm run build && node scripts/verify-model.mjs",
+    "environment:verify": "npm run build && node scripts/verify-environment.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.77",
