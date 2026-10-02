@@ -15,7 +15,7 @@ if (args.some(a => a !== '--offline-only')) throw new Error('Only --offline-only
 const offlineOnly = args.includes('--offline-only');
 if (!offlineOnly && process.platform !== 'darwin') throw new Error('Sandbox reproduction requires macOS; use --offline-only for record replay');
 await fs.mkdir('.permsift', { recursive: true });
-const root = await fs.mkdtemp(path.join(repository, '.permsift/environment-round1-'));
+const root = await fs.mkdtemp(path.join(repository, '.permsift/environment-validation-'));
 const summary = { root, started_at: new Date().toISOString(), environment: { platform: process.platform, release: os.release(), arch: process.arch, node: process.version },
   scope: offlineOnly ? 'offline_only' : 'local_macos_minimum', steps: [], installations: 0,
   unverified: ['Second supported macOS host / target CI run', 'Independent user onboarding'] };
@@ -50,8 +50,24 @@ try {
     assert.ok(model.executions.every(e => e.outcomes.boundaries.status === 'pass'));
     assert.ok(model.executions.some(e => e.outcomes.task.status === 'fail'));
     assert.ok(model.executions.filter(e => e.reported_verdict.value === 'pass').every(e => e.outcomes.task.status === 'pass'));
+    const index = await readLegacyJson(path.join(root, 'demo/executions/index.json'));
+    assert.equal(index.kind, 'permsift_execution_index'); assert.equal(index.entries.length, demo.trials.length);
+    for (const entry of index.entries) {
+      const trial = demo.trials.find(t => t.id === entry.trial);
+      assert.ok(trial); assert.equal(entry.evidence, trial.evidence);
+      // Paths are constructed from the known generated UUID, never followed from the index.
+      assert.equal(entry.facts, `executions/${trial.id}.json`);
+      const facts = await readLegacyJson(path.join(root, 'demo/executions', trial.id + '.json'));
+      const imported = model.executions.find(e => e.origin.record === trial.evidence);
+      assert.equal(facts.kind, 'permsift_execution'); assert.equal(entry.execution_id, facts.execution.id);
+      assert.equal(facts.task.id, imported.task_id); assert.equal(facts.agreement.id, imported.agreement_id);
+      assert.deepEqual(facts.execution.policy_id, imported.policy_id);
+      assert.deepEqual(facts.execution.outcomes, imported.outcomes);
+      assert.deepEqual(facts.execution.conditions.actual_command, { state: 'recorded', value: inputs.config.scenarios.find(s => s.id === trial.scenario).command });
+    }
     await fs.writeFile(path.join(root, 'demo.model.json'), JSON.stringify(model, null, 2) + '\n');
     summary.model_live_report_validation = 'passed';
+    summary.native_execution_validation = 'passed';
     summary.sandbox_executions = doctor.trials.length + demo.trials.length;
     summary.demo_environment = demo.environment;
   }

@@ -1,8 +1,10 @@
+import { assertNativeEvidence } from '../support/native-evidence.js';
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+import { mkdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { runExperiment } from '../../src/engine.js';
 
@@ -22,6 +24,7 @@ test('real backend tightens writes, refuses necessary deletion and replays expor
   const f = await fixture(t, writer);
   const report = await runExperiment({ ...f, mode: 'tighten', output: path.join(f.root, 'result') });
   assert.equal(report.status, 'verified', report.error);
+  await assertNativeEvidence(report);
   assert.deepEqual(report.policies.build, ['@workspace/dist']);
   assert.ok(report.searches.build.steps.some(s => s.decision === 'rejected' && s.recovery_id));
   const evidence = JSON.parse(await fs.readFile(path.join(report.output, report.trials[0].evidence), 'utf8'));
@@ -38,6 +41,21 @@ test('stale artifact and zero exit code cannot make a task pass', macOnly, async
   assert.equal(report.status, 'failed'); assert.equal(report.baseline_verified, false);
   assert.equal(Object.keys(report.searches).length, 0);
   await assert.rejects(fs.access(path.join(report.output, 'recommended.yaml')));
+});
+test('a real index write failure stops the workflow with recoverable trial artifacts and no next execution', macOnly, async t => {
+  const f = await fixture(t, writer), output = path.join(f.root, 'result');
+  let attempts = 0;
+  const report = await runExperiment({ ...f, mode: 'tighten', output, onProgress: () => {
+    attempts++; mkdirSync(path.join(output, 'executions/index.json'));
+  } });
+  assert.equal(report.status, 'incomplete'); assert.match(report.error!, /EISDIR/);
+  assert.equal(attempts, 1); assert.equal(report.trials.length, 0); assert.equal(report.final_verified, false);
+  const files = await fs.readdir(path.join(output, 'evidence')); assert.equal(files.filter(f => f.endsWith('.json')).length, 1);
+  const evidence = JSON.parse(await fs.readFile(path.join(output, 'evidence', files[0]), 'utf8'));
+  const facts = JSON.parse(await fs.readFile(path.join(output, 'executions', evidence.id + '.json'), 'utf8'));
+  assert.equal(evidence.summary.verdict, 'pass'); assert.equal(facts.execution.outcomes.task.status, 'pass');
+  await assert.rejects(fs.access(path.join(output, 'recommended.yaml')));
+  await assert.rejects(fs.access(path.join(f.project, 'dist')));
 });
 test('input symlink outside the project aborts before running any task', macOnly, async t => {
   const f = await fixture(t, writer);
@@ -59,6 +77,8 @@ test('task timeout produces unknown evidence rather than a successful policy', m
   assert.equal(report.status, 'incomplete'); assert.equal(report.trials[0].verdict, 'unknown');
   const evidence = JSON.parse(await fs.readFile(path.join(report.output, report.trials[0].evidence), 'utf8'));
   assert.equal(evidence.task.process.status, 'timed_out');
+  const facts = (await assertNativeEvidence(report))[0];
+  assert.equal(facts.execution.outcomes.task.status, 'unknown');
 });
 test('candidate budget can stop search while final validation still verifies the unchanged policy', macOnly, async t => {
   const f = await fixture(t, writer);

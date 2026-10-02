@@ -24,29 +24,40 @@ export async function rootHashes(roots: Roots, maxBytes: number, options?: Snaps
 export class InstalledSnapshots {
   private entries = new Map<string, InstalledSnapshot>();
   constructor(private directory: string, private maxBytes: number) {}
+  get(key: string) {
+    const snapshot = this.entries.get(key);
+    if (!snapshot) throw new Error('No verified installation snapshot for this input and policy');
+    return snapshot;
+  }
   async capture(key: string, roots: Roots, sourceTrial: string, options: SnapshotOptions) {
-    const destination = path.join(this.directory, key);
-    await fs.mkdir(destination, { recursive: true });
-    const copied = {} as Roots;
-    try {
-      const before = await measure(options, 'hash', () => rootHashes(roots, this.maxBytes, options));
-      for (const name of ['workspace', 'cache', 'tmp'] as const) {
-        copied[name] = path.join(destination, name);
-        await measure(options, 'clone', () => forkSnapshot(roots[name], copied[name], options));
-      }
-      const hashes = await measure(options, 'hash', () => rootHashes(copied, this.maxBytes, options));
-      if (hash(before) !== hash(hashes)) throw new Error('Installation state changed while freezing it: ' + Object.keys(before).filter(name => before[name as keyof Roots] !== hashes[name as keyof Roots]).join(', '));
-      return { key, roots: copied, hashes, source_trial: sourceTrial };
-    } catch (error) { await fs.rm(destination, { recursive: true, force: true }); throw error; }
+    return captureInstalledSnapshot(this.directory, this.maxBytes, key, roots, sourceTrial, options);
   }
   publish(snapshot: InstalledSnapshot) { this.entries.set(snapshot.key, snapshot); }
   async fork(key: string, roots: Roots, options: SnapshotOptions) {
-    const snapshot = this.entries.get(key);
-    if (!snapshot) throw new Error('No verified installation snapshot for this input and policy');
-    if (hash(await measure(options, 'hash', () => rootHashes(snapshot.roots, this.maxBytes, options))) !== hash(snapshot.hashes)) throw new Error('Frozen installation snapshot was changed');
-    const forks = {} as Record<keyof Roots, Awaited<ReturnType<typeof forkSnapshot>>>;
-    for (const name of ['workspace', 'cache', 'tmp'] as const) forks[name] = await measure(options, 'clone', () => forkSnapshot(snapshot.roots[name], roots[name], options));
-    if (hash(await measure(options, 'hash', () => rootHashes(roots, this.maxBytes, options))) !== hash(snapshot.hashes)) throw new Error('Cloned installation state does not match the frozen snapshot');
-    return { key, source_trial: snapshot.source_trial, hashes: snapshot.hashes, forks };
+    return forkInstalledSnapshot(this.get(key), this.maxBytes, roots, options);
   }
+}
+
+export async function captureInstalledSnapshot(directory: string, maxBytes: number, key: string, roots: Roots, sourceTrial: string, options: SnapshotOptions) {
+  const destination = path.join(directory, key);
+  await fs.mkdir(destination, { recursive: true });
+  const copied = {} as Roots;
+  try {
+    const before = await measure(options, 'hash', () => rootHashes(roots, maxBytes, options));
+    for (const name of ['workspace', 'cache', 'tmp'] as const) {
+      copied[name] = path.join(destination, name);
+      await measure(options, 'clone', () => forkSnapshot(roots[name], copied[name], options));
+    }
+    const hashes = await measure(options, 'hash', () => rootHashes(copied, maxBytes, options));
+    if (hash(before) !== hash(hashes)) throw new Error('Installation state changed while freezing it: ' + Object.keys(before).filter(name => before[name as keyof Roots] !== hashes[name as keyof Roots]).join(', '));
+    return { key, roots: copied, hashes, source_trial: sourceTrial };
+  } catch (error) { await fs.rm(destination, { recursive: true, force: true }); throw error; }
+}
+
+export async function forkInstalledSnapshot(snapshot: InstalledSnapshot, maxBytes: number, roots: Roots, options: SnapshotOptions) {
+  if (hash(await measure(options, 'hash', () => rootHashes(snapshot.roots, maxBytes, options))) !== hash(snapshot.hashes)) throw new Error('Frozen installation snapshot was changed');
+  const forks = {} as Record<keyof Roots, Awaited<ReturnType<typeof forkSnapshot>>>;
+  for (const name of ['workspace', 'cache', 'tmp'] as const) forks[name] = await measure(options, 'clone', () => forkSnapshot(snapshot.roots[name], roots[name], options));
+  if (hash(await measure(options, 'hash', () => rootHashes(roots, maxBytes, options))) !== hash(snapshot.hashes)) throw new Error('Cloned installation state does not match the frozen snapshot');
+  return { key: snapshot.key, source_trial: snapshot.source_trial, hashes: snapshot.hashes, forks };
 }

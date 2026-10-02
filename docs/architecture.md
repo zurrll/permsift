@@ -33,12 +33,19 @@ flowchart LR
 | src/read-discovery.ts | 有界项目输入枚举、文件/目录读取候选及来源 |
 | src/diagnostics.ts | 拒绝证据解析、路径别名和失败解释 |
 | src/search.ts | 候选生成、接受、恢复复测和停止条件 |
-| src/engine.ts | 实验编排、预算、最终验证及报告 |
+| src/execution-request.ts | 完整可执行请求、模型角色及可信上限校验 |
+| src/execute-once.ts | 一次受控执行、安装/任务检查、变化与各来源事实 |
+| src/execution-phase.ts | 流程状态、精简执行结果与回归阶段判断 |
+| src/execution-journal.ts | 原始证据、原生模型事实及逐轮索引的保存顺序 |
+| src/experiment-report.ts | 兼容实验报告类型与纯 Markdown 呈现 |
+| src/engine.ts | 实验编排、候选/恢复、预算、快照发布、最终验证及导出 |
 | src/regression.ts | 历史规则导入、当前输入冻结、宽规则对照、有限补充及回归汇总 |
 | src/install.ts | npm 锁定输入检查、缓存条件、固定安装参数、输入不变检查与传输失败分类 |
 | src/sandbox-supervisor.ts / src/sandbox-worker.ts | 独立后端进程、真实结果 IPC、任务进程组、超时取消和有界代理清理 |
 
 编排器串行执行实验。每次后端调用在独立 worker 中 initialize、执行、reset，使用唯一 invocation_id 关联拒绝事件；SRT 的 singleton 不跨调用共享。父进程记录任务进程组并控制超时/取消，等待 worker 真正退出后才继续。
+
+第二轮将各流程接入共同 `executeOnce`，回归和观察直接使用类型化阶段事实，报告呈现从 engine 移出。每次执行同时写入 `executions/<trial-id>.json` 和索引；保存成功才允许流程接受或发布安装快照。接口、五对象关系、保存失败与兼容边界见 [共同执行底座](execution-foundation.md)。
 
 任务完成的结果通过 IPC 发送后，清理最多等待 1 秒；CONNECT 对端不结束导致 reset 卡住时，终止这个 worker 的进程组并确认退出。父进程随后删除该 worker 独立、受保护的短路径 socket 目录。真实任务结果仍保留，backend_cleanup 明确记录 forced；缺少真实结果、worker 崩溃或清理报错保持 unknown。命令超时或取消后也会终止已记录的任务进程组，不能留下后台任务再标为通过。每次创建 worker 会增加进程启动开销，保证代理状态不会跨调用残留。
 

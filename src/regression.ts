@@ -1,3 +1,4 @@
+import { phaseVerdict } from './execution-phase.js';
 import * as fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -5,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { stringify } from 'yaml';
 import { z } from 'zod';
 import { aliasSchema, readAliasSchema, domainSchema, configSchema, contains, isStaged, installationScenario, loadConfiguration, validatePolicy, type Config, type Limits, type Scenario } from './config.js';
-import { runExperiment, VERSION, type Report } from './engine.js';
+import { runExperimentWithFacts, VERSION, type Report } from './engine.js';
 import { BACKEND_VERSION, requirePlatform } from './backend.js';
 import { hash, noSymlinks, resolveAlias, saveJson, snapshot, within } from './filesystem.js';
 import type { Diagnosis } from './diagnostics.js';
@@ -218,14 +219,14 @@ export async function runRegression(options: {
     await saveJson(path.join(output, 'inputs.json'), { config: input.config, limits: input.limits, environment, inputs: report.inputs, baseline: baseline.file });
     const execute = async (row: RegressionTask, scenario: Scenario, phase: string, repetitions = input.limits.repetitions) => {
       if (!available()) throw new Error(options.signal?.aborted ? 'Regression check interrupted' : 'Regression budget exhausted');
-      const run = await runExperiment({ mode: 'run', input: { ...input, config: { ...input.config, scenarios: [scenario] }, limits: { ...input.limits, repetitions, budget_seconds: Math.max(1, Math.ceil((deadline - Date.now()) / 1000)) } },
+      const { report: run, execution } = await runExperimentWithFacts({ mode: 'run', input: { ...input, config: { ...input.config, scenarios: [scenario] }, limits: { ...input.limits, repetitions, budget_seconds: Math.max(1, Math.ceil((deadline - Date.now()) / 1000)) } },
         frozenInput: frozen, expectedReadKinds: { [row.id]: baseline.read_kinds[row.id] }, output: path.join(output, 'tasks', row.id, phase), signal: options.signal, keepWorkspaces: options.keepWorkspaces,
         onProgress: message => options.onProgress?.(`${row.id} · ${phase} · ${message}`) });
-      if (run.inputs.snapshot_hash !== frozen.hash || !available()) row.reason = 'Comparison input changed, was interrupted or exceeded the overall budget';
-      const verdict = row.reason ? 'unknown' as const : regressionVerdict(run);
-      row.stages.push({ phase, verdict, report: path.relative(output, path.join(run.output, 'report.md')).split(path.sep).join('/'), trials: run.trials.length, prepared_directories: scenario.prepare_directories });
-      report.trials += run.trials.length; await checkpoint();
-      return { run, verdict };
+      if (execution.inputHash !== frozen.hash || !available()) row.reason = 'Comparison input changed, was interrupted or exceeded the overall budget';
+      const verdict = row.reason ? 'unknown' as const : phaseVerdict(execution);
+      row.stages.push({ phase, verdict, report: path.relative(output, path.join(run.output, 'report.md')).split(path.sep).join('/'), trials: execution.trials.length, prepared_directories: scenario.prepare_directories });
+      report.trials += execution.trials.length; await checkpoint();
+      return { execution, verdict };
     };
     for (const [index, row] of report.tasks.entries()) {
       let old = configs.old.scenarios[index], control = configs.control.scenarios[index];
@@ -259,7 +260,7 @@ export async function runRegression(options: {
         if (restored.verdict !== 'pass') { row.status = 'inconclusive'; row.reason = 'The wider control stopped passing after the fresh old-policy failure'; continue; }
         row.status = 'permission_change';
         let current = old;
-        let diagnoses = confirmation.run.trials.flatMap(t => t.diagnosis ? [t.diagnosis] : []);
+        let diagnoses = confirmation.execution.trials.flatMap(t => t.diagnosis ? [t.diagnosis] : []);
         const attempted = new Set<string>();
         while (available()) {
           if (report.candidate_count >= input.limits.max_candidates) { row.repair_stop = 'budget'; break; }
@@ -297,7 +298,7 @@ export async function runRegression(options: {
           }
           const recovery = await execute(row, control, `control-recovery-${number}`, 1);
           if (result.verdict === 'unknown' || recovery.verdict !== 'pass') { row.status = 'inconclusive'; row.repair_stop = recovery.verdict !== 'pass' ? 'unstable' : 'inconclusive'; break; }
-          const next = result.run.trials.flatMap(t => t.diagnosis ? [t.diagnosis] : []);
+          const next = result.execution.trials.flatMap(t => t.diagnosis ? [t.diagnosis] : []);
           // Follow a new denial only when it leads beyond this failed hypothesis.
           const additions = await repairCandidates(candidate, control, next, frozen.path);
           if (additions.length) current = candidate;

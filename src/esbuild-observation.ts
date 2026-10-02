@@ -36,7 +36,7 @@ export const ESBUILD_SCOPE = [
 ];
 
 /** Freshness applies to the whole declared output set, not only one asserted entry. */
-export async function prepareBundling(scenario: Scenario, roots: Roots) {
+export async function prepareBundling(scenario: Pick<Scenario, 'observation' | 'prepare_directories' | 'assertions'>, roots: Roots) {
   const config = scenario.observation?.esbuild;
   if (!config) return;
   const directory = resolveAlias(config.output_root, roots);
@@ -54,7 +54,7 @@ const rawInput = z.object({ bytes: rawBytes, imports: z.array(rawImport).max(163
 const rawOutput = z.object({ bytes: rawBytes, inputs: z.record(z.object({ bytesInOutput: rawBytes })), imports: z.array(rawImport).max(16384),
   exports: z.array(text).max(4096), entryPoint: text.optional(), cssBundle: text.optional() });
 
-export async function collectBundling(scenario: Scenario, inventory: DependencyInventory, roots: Roots, process?: ProcessResult): Promise<BundlingObservation | undefined> {
+export async function collectBundling(scenario: Pick<Scenario, 'observation' | 'command'>, inventory: DependencyInventory, roots: Roots, process?: ProcessResult): Promise<BundlingObservation | undefined> {
   const config = scenario.observation?.esbuild;
   if (!config) return;
   const issues: string[] = [], issue = (s: string) => { if (issues.length < 128 && !issues.includes(s)) issues.push(s); };

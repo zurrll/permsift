@@ -21,7 +21,7 @@ async function readPackage(root: string, name: string) {
   const text = await fs.readFile(file, 'utf8');
   return { hash: fileHash(text), value: JSON.parse(text) as Record<string, unknown> };
 }
-export async function inspectInstall(scenario: Scenario, inputRoot: string, timings?: Timings): Promise<InstallInput> {
+export async function inspectInstall(scenario: Pick<Scenario, 'install'>, inputRoot: string, timings?: Timings): Promise<InstallInput> {
   const install = scenario.install!;
   if (await fs.lstat(path.join(inputRoot, '.npmrc')).catch(() => undefined)) throw new Error('Install MVP does not accept project .npmrc; use explicit registry and no private credentials');
   if (await fs.lstat(path.join(inputRoot, 'npm-shrinkwrap.json')).catch(() => undefined)) throw new Error('Install MVP requires package-lock.json, not npm-shrinkwrap.json');
@@ -50,14 +50,14 @@ export async function inspectInstall(scenario: Scenario, inputRoot: string, timi
   }
   return { package_hash: pkg.hash, lock_hash: lock.hash, resolved_domains: [...domains].sort(), cache: install.cache, ...(cache_seed_hash ? { cache_seed_hash } : {}) };
 }
-export async function prepareInstallCache(scenario: Scenario, inputRoot: string, roots: Roots, options: { timeoutMs: number; signal?: AbortSignal; timings?: Timings }) {
+export async function prepareInstallCache(scenario: Pick<Scenario, 'install'>, inputRoot: string, roots: Roots, options: { timeoutMs: number; signal?: AbortSignal; timings?: Timings }) {
   if (scenario.install!.cache === 'cold') return { condition: 'cold', initial_files: 0 };
   const seed = resolveAlias(scenario.install!.cache_seed!, { workspace: inputRoot, cache: inputRoot, tmp: inputRoot });
   const clone = () => forkSnapshot(seed, path.join(roots.cache, 'npm'), options);
   const fork = options.timings ? await options.timings.measure('clone', clone) : await clone();
   return { condition: 'warm', fork };
 }
-export function installCommand(scenario: Scenario, roots: Roots) {
+export function installCommand(scenario: Pick<Scenario, 'install'>, roots: Roots) {
   // Absolute companion npm: no host shell expansion, no project-provided installer.
   const npm = path.join(path.dirname(process.execPath), 'npm');
   return [npm, 'ci', '--ignore-scripts', '--no-audit', '--no-fund', '--fetch-retries=0', '--fetch-timeout=15000',
@@ -67,7 +67,7 @@ export function installCommand(scenario: Scenario, roots: Roots) {
 export function installFailureUnknown(execution: Awaited<ReturnType<typeof executeSandbox>>) {
   return execution.process.status !== 'completed' || /\b(?:FETCH_ERROR|EAI_AGAIN|ENOTFOUND|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH)\b|network timeout|socket hang up|\b(?:500|502|503|504)\b.*(?:GET|fetch)|UNABLE_TO_VERIFY|CERT_HAS_EXPIRED/i.test(execution.process.stderr);
 }
-export async function executeInstall(scenario: Scenario, context: BackendContext, expected: InstallInput) {
+export async function executeInstall(scenario: Pick<Scenario, 'install'>, context: BackendContext, expected: InstallInput) {
   const command = installCommand(scenario, context.roots);
   const execution = await executeSandbox(command, context);
   const pkg = await readPackage(context.roots.workspace, 'package.json'), lock = await readPackage(context.roots.workspace, 'package-lock.json');

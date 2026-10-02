@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
-import { runExperiment, VERSION } from './engine.js';
+import { runExperimentWithFacts, VERSION } from './engine.js';
 import { saveJson } from './filesystem.js';
 import { OBSERVATION_LIMITS, OBSERVATION_SCOPE, type TaskObservation } from './observation.js';
 import { OBSERVER_VERSION } from './observation-runtime.js';
@@ -65,10 +65,10 @@ export function usageMarkdown(report: UsageReport) {
 
 export async function runObservation(options: { configPath: string; limitsPath: string; output?: string; baselinePath?: string; keepWorkspaces?: boolean; signal?: AbortSignal; onProgress?: (message: string) => void }): Promise<UsageReport> {
   const baseline = options.baselinePath ? await loadUsage(options.baselinePath) : undefined;
-  const execution = await runExperiment({ ...options, mode: 'observe' });
-  const tasks: UsageReport['tasks'] = Object.keys(execution.policies).map(task => execution.dependency_observations?.[task] ?? { task, capture_status: 'not_run', reason: 'Task did not reach instrumented execution; inspect execution report' });
+  const { report: execution, execution: phase } = await runExperimentWithFacts({ ...options, mode: 'observe' });
+  const tasks: UsageReport['tasks'] = phase.taskKeys.map(task => phase.observations[task] ?? { task, capture_status: 'not_run', reason: 'Task did not reach instrumented execution; inspect execution report' });
   const report: UsageReport = { schema_version: 1, kind: 'dependency_usage', version: VERSION, observer_version: OBSERVER_VERSION,
-    status: execution.status === 'failed' ? 'failed' : execution.status === 'verified' && tasks.every(t => t.capture_status === 'captured' && (!t.compilation || t.compilation.capture_status === 'captured') && (!t.bundling || t.bundling.capture_status === 'captured')) ? 'observed' : 'incomplete',
+    status: phase.status === 'failed' ? 'failed' : phase.status === 'verified' && tasks.every(t => t.capture_status === 'captured' && (!t.compilation || t.compilation.capture_status === 'captured') && (!t.bundling || t.bundling.capture_status === 'captured')) ? 'observed' : 'incomplete',
     output: execution.output, execution_report: 'report.json', started_at: execution.started_at, finished_at: execution.finished_at,
     environment: execution.environment, inputs: execution.inputs, limits: OBSERVATION_LIMITS, tasks, limitations: [...OBSERVATION_SCOPE,
       'The task gains one private collector-directory write exception under @tmp. The preload is write-denied; install and boundary probes are not instrumented. Instrumentation can affect execution and timing.'],

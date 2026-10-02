@@ -1,3 +1,4 @@
+import { assertNativeEvidence } from '../support/native-evidence.js';
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
@@ -60,6 +61,8 @@ test('separate stage policies shrink task reads/writes, reuse isolated installed
   t.after(() => fs.rm(r.workspaces!, { recursive: true, force: true }));
   assert.equal(r.status, 'verified', JSON.stringify({last:r.trials.at(-1), error:r.error, unknown:r.trials.filter(t=>t.verdict==='unknown')}));
   assert.equal(r.search_complete, true);
+  const facts = await assertNativeEvidence(r);
+  for (const record of facts) if (record.execution.conditions.installation_state.state === 'recorded' && record.execution.conditions.installation_state.value.reused) assert.equal(record.execution.installation.state, 'not_run');
   assert.deepEqual(r.install_policies.install, ['@cache/npm', '@workspace/node_modules']);
   assert.deepEqual(r.policies.install, ['@workspace/dist']);
   assert.ok(r.read_policies.install.includes('@workspace/node_modules/fixture-dep'));

@@ -1,3 +1,4 @@
+import { assertNativeEvidence } from '../support/native-evidence.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
@@ -26,6 +27,10 @@ test('one real sandbox build collects the fresh full output set without expandin
   assert.ok(evidence.before.checks.every((c: any) => c.status === 'pass')); assert.ok(evidence.after.checks.every((c: any) => c.status === 'pass'));
   assert.deepEqual(b.executed_command, f.scenario.command); assert.equal(task.compilation, undefined);
   const execution = JSON.parse(await fs.readFile(path.join(report.output, 'report.json'), 'utf8'));
+  const facts = (await assertNativeEvidence(execution))[0];
+  assert.equal(facts.execution.outcomes.task.status, 'pass');
+  assert.equal(facts.execution.observations.modules.status, task.capture_status);
+  assert.equal(facts.execution.observations.build.status, 'captured');
   assert.equal(execution.trials.length, 1); assert.deepEqual(execution.searches, {}); assert.deepEqual(execution.read_searches, {});
   await loadUsage(path.join(report.output, 'usage.json')); await assert.rejects(fs.access(path.join(f.roots.workspace, 'dist')));
 });

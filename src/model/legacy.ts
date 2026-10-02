@@ -61,16 +61,8 @@ const absent = <T>(name: string): Saved<T> => missing('not_saved', name + ' was 
 const saved = <T>(value: T | undefined, name: string): Saved<T> => value === undefined ? absent(name) : recorded(value);
 const equalSet = (a: string[], b: string[]) => canonical(grantSet(a)) === canonical(grantSet(b));
 
-/** Logical identity excludes permission/search/collector settings and task execution conditions. */
-export function taskDefinition(key: string, scenario?: Scenario, opaqueHash?: string): TaskDefinition {
-  const definition: TaskDefinition['definition'] = scenario ? recorded({ command: scenario.command, success_conditions: scenario.assertions.map(a =>
-    'expected_tests' in a ? { ...a, expected_tests: grantSet(a.expected_tests) } : a).sort((a, b) => canonical(a) < canonical(b) ? -1 : canonical(a) > canonical(b) ? 1 : 0) }) : absent('Task command and success conditions');
-  return { id: objectId('task', { key, definition, ...scenario ? {} : { opaque_hash: opaqueHash ?? null } }), key, definition };
-}
-function agreement(key: string): ProtectionAgreement {
-  const declaration = missing<never[]>('not_declared', 'Legacy producer has no user protection-goal declaration');
-  return { id: objectId('agreement', { key, declaration }), task_key: key, declaration };
-}
+export { taskDefinition } from './definitions.js';
+import { taskDefinition, undeclaredAgreement as agreement } from './definitions.js';
 function context(raw: unknown, hashes: Hashes) {
   if (raw === undefined) return undefined;
   const input = inputsSchema.parse(raw);

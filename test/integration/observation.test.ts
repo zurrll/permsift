@@ -1,3 +1,4 @@
+import { assertNativeEvidence } from '../support/native-evidence.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
@@ -24,6 +25,9 @@ test('real observation runs once, preserves task assertions and boundaries with 
   assert.equal(task.loaded_packages.length, 4); assert.deepEqual(task.not_observed.map(p => p.name), ['unused']);
   assert.equal(report.inputs.snapshot_hash, normal.inputs.snapshot_hash);
   const execution = JSON.parse(await fs.readFile(path.join(report.output, 'report.json'), 'utf8'));
+  const facts = (await assertNativeEvidence(execution))[0];
+  assert.equal(facts.execution.outcomes.task.status, 'pass');
+  assert.equal(facts.execution.observations.modules.status, task.capture_status);
   assert.equal(execution.trials.length, 1); assert.deepEqual(execution.searches, {}); assert.deepEqual(execution.read_searches, {});
   await assert.rejects(fs.access(path.join(report.output, 'recommended.yaml')));
   await assert.rejects(loadBaseline(path.join(report.output, 'report.json')), 'An observation cannot become a policy regression baseline');

@@ -1,3 +1,4 @@
+import { assertNativeEvidence } from '../support/native-evidence.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
@@ -28,6 +29,11 @@ test('real sandbox collects type-only inputs from one compiler execution with ex
   assert.deepEqual(evidence.task.policy.network.allowedDomains, []);
   assert.deepEqual(evidence.task.policy.filesystem.allowWrite, [path.join(evidence.roots.workspace, 'dist'), evidence.observer.collector]);
   const execution = JSON.parse(await fs.readFile(path.join(report.output, 'report.json'), 'utf8'));
+  const facts = (await assertNativeEvidence(execution))[0];
+  assert.equal(facts.execution.outcomes.task.status, 'pass');
+  assert.equal(facts.execution.observations.modules.status, task.capture_status);
+  assert.deepEqual(facts.execution.conditions.actual_command, { state: 'recorded', value: task.compilation!.executed_command });
+  assert.equal(facts.execution.observations.compiler.status, 'captured');
   assert.equal(execution.trials.length, 1); assert.deepEqual(execution.searches, {}); assert.deepEqual(execution.read_searches, {});
   await assert.rejects(fs.access(path.join(f.roots.workspace, 'dist')));
 });
