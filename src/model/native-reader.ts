@@ -4,6 +4,8 @@ import { parseUsage } from '../usage-report.js';
 import { canonical, freeze, objectId } from './identity.js';
 import { evaluateTask, evaluateBoundaries } from './conclusions.js';
 import type { NativeExecution } from './native.js';
+import { protectionGoalSchema } from '../config.js';
+import { protectionStageSchema, evaluateProtections, goalVerdict } from '../protection-facts.js';
 
 const text = z.string().min(1).max(16384), digest = z.string().regex(/^[a-f0-9]{64}$/);
 const id = (role: string) => z.string().regex(new RegExp('^' + role + ':v1:[a-f0-9]{64}$'));
@@ -19,11 +21,12 @@ const process = z.object({ status: text, exit_code: z.number().int().nullable() 
 const capture = z.object({ status: z.enum(['captured', 'incomplete', 'unavailable', 'not_collected', 'not_saved', 'not_run']),
   issues: z.array(text).max(4096), scope: text }).strict();
 const evaluation = z.object({ status: z.enum(['pass', 'fail', 'unknown', 'not_saved', 'not_run']), basis: text }).strict();
-const schema = z.object({ schema_version: z.literal(1), kind: z.literal('permsift_execution'), model_version: z.literal(1), identity_version: z.literal(1),
+const schema = z.object({ schema_version: z.union([z.literal(1), z.literal(2)]), kind: z.literal('permsift_execution'), model_version: z.literal(1), identity_version: z.literal(1),
   task: z.object({ id: id('task'), key: text, definition: saved(z.object({ command, success_conditions: scenarioSchema.shape.assertions }).strict()) }).strict(),
   agreement: z.object({ id: id('agreement'), task_key: text, declaration: saved(z.array(z.object({ key: text, target: text,
     target_kind: z.enum(['file', 'directory']), operation: z.enum(['read', 'create', 'write']), stage: z.enum(['install', 'task']), expected: z.literal('denied') }).strict()).max(2048)) }).strict(),
   policy: z.object({ id: id('policy'), task_key: text, scope: z.literal('producer_variable_grants'),
+    protection_denials: z.array(protectionGoalSchema).min(1).max(16).optional(),
     task: z.object({ write: saved(set(aliasSchema)), read: saved(z.object({ mode: z.enum(['legacy', 'explicit']), grants: set(readAliasSchema),
       target_kinds: saved(z.record(z.enum(['file', 'directory']))) }).strict()), network: saved(set(domainSchema, 64)) }).strict(),
     installation: saved(z.object({ mode: z.enum(['shared', 'separate']), write: set(aliasSchema), network: saved(set(domainSchema, 64)), reads: z.literal('producer_fixed_workspace_reads') }).strict()) }).strict(),
@@ -32,16 +35,17 @@ const schema = z.object({ schema_version: z.literal(1), kind: z.literal('permsif
     process: saved(process), assertions: saved(checks),
     installation: saved(z.object({ command, process, reported_verdict: verdict, reused: saved(z.boolean()) }).strict()),
     boundaries: saved(z.array(z.object({ stage: z.enum(['before', 'after_installation', 'before_offline_task', 'after']), checks }).strict()).max(4)),
+    protections: saved(z.array(protectionStageSchema).max(2)).optional(),
     observations: z.object({ inventory: capture, modules: capture, compiler: capture, build: capture,
       records: saved(z.unknown().refine(v => v !== undefined, 'Observation records required')) }).strict(),
     conditions: z.object({ input_hash: saved(digest), config_hash: saved(digest), limits_hash: saved(digest), environment: saved(z.record(z.string())),
       preparation: saved(set(aliasSchema)), requirements: saved(z.object({ timeout_seconds: z.number().int().min(1).max(600), install: z.record(z.unknown()).nullable() }).strict()),
       producer_scenario_hash: saved(digest), actual_command: saved(command), instrumentation: saved(z.record(z.unknown())),
       installation_state: saved(z.object({ reused: z.boolean(), snapshot: saved(z.record(z.unknown())) }).strict()), producer_policy_hash: saved(digest) }).strict(),
-    outcomes: z.object({ task: evaluation, boundaries: evaluation }).strict() }).strict(),
+    outcomes: z.object({ task: evaluation, boundaries: evaluation, protections: evaluation.optional() }).strict() }).strict(),
 }).strict();
 
-/** Validate a native v1 artifact before any of its facts can support an explanation. */
+/** v1 remains readable; v2 explicitly adds executable negative goals and proof coverage. */
 export function parseNativeExecution(raw: unknown): NativeExecution {
   const value = schema.parse(raw) as NativeExecution, { task, agreement, policy, execution: e } = value;
   if (task.definition.state !== 'recorded' || task.id !== objectId('task', { key: task.key, definition: task.definition })) throw new Error('Native task identity mismatch');
@@ -55,6 +59,12 @@ export function parseNativeExecution(raw: unknown): NativeExecution {
     if (read.value.target_kinds.state === 'recorded' && canonical(Object.keys(read.value.target_kinds.value).sort()) !== canonical([...read.value.grants].sort())) throw new Error('Native read target kinds mismatch');
   }
   if (policy.task.network.state === 'recorded' && policy.task.network.value.length) throw new Error('Native task must be offline');
+  if (value.schema_version === 2 && agreement.declaration.state === 'recorded') {
+    const goals = agreement.declaration.value;
+    if (!goals.length || new Set(goals.map(g => g.key)).size !== goals.length || canonical(goals) !== canonical(policy.protection_denials) || !e.protections || !e.outcomes.protections) throw new Error('Native protection agreement/policy/evidence mismatch');
+    if (e.protections.state === 'recorded' && (new Set(e.protections.value.map(s => s.moment)).size !== e.protections.value.length || e.protections.value.some(s => s.results.some(r => r.status !== goalVerdict(r))))) throw new Error('Native protection stage/result mismatch');
+    if (canonical(e.outcomes.protections) !== canonical(evaluateProtections(agreement, e.protections))) throw new Error('Native derived protection outcome disagrees with facts');
+  } else if (value.schema_version === 2 || policy.protection_denials || e.protections || e.outcomes.protections) throw new Error('Native protection version/declaration mismatch');
   if (e.boundaries.state === 'recorded' && new Set(e.boundaries.value.map(s => s.stage)).size !== e.boundaries.value.length) throw new Error('Duplicate native boundary stage');
   const install = e.conditions.requirements.state === 'recorded' && e.conditions.requirements.value.install;
   const reused = e.conditions.installation_state.state === 'recorded' && e.conditions.installation_state.value.reused;

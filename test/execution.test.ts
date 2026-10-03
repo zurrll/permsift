@@ -11,6 +11,7 @@ import { ExecutionJournal } from '../src/execution-journal.js';
 import { phaseVerdict, type ExecutionPhase } from '../src/execution-phase.js';
 import { saveJson } from '../src/filesystem.js';
 import { adaptExperiment } from '../src/model/legacy.js';
+import { parseNativeExecution } from '../src/model/native-reader.js';
 
 const digest = 'a'.repeat(64);
 function input() {
@@ -24,6 +25,16 @@ function input() {
 }
 const result = (): ExecutionResult => ({ id: 'trial', verdict: 'unknown', duration_ms: 1, details: {}, installationAttempted: false, installationReused: false });
 const origin = { producer_id: 'experiment', record: 'executions/trial.json', phase: 'baseline' };
+
+test('executable protection facts use wire v2, keep unexecuted checks explicit and reject a silent v1 downgrade', () => {
+  const source = input(), scenario = scenarioSchema.parse({ ...source.scenario, protection_goals: [{ key: 'private', target: '@workspace/private.json', target_kind: 'file', operation: 'read', stage: 'task', expected: 'denied' }] });
+  const facts = nativeExecution(executionRequest({ ...source, scenario }), result(), origin);
+  assert.equal(facts.schema_version, 2); assert.equal(facts.agreement.declaration.state, 'recorded');
+  assert.equal(facts.execution.protections?.state, 'not_run'); assert.equal(facts.execution.outcomes.protections?.status, 'not_run');
+  assert.equal(parseNativeExecution(JSON.parse(JSON.stringify(facts))).schema_version, 2);
+  assert.throws(() => parseNativeExecution({ ...facts, schema_version: 1 }), /version\/declaration/);
+  assert.equal(nativeExecution(executionRequest(source), result(), origin).schema_version, 1);
+});
 
 test('executable requests reject missing commands, absent fields and grants outside each trusted ceiling', () => {
   const valid = input(); executionRequest(valid);

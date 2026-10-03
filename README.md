@@ -38,6 +38,8 @@ Result overview · tighten reports verified · saved material complete
 
 命令会自动显示并保存 summary.json / summary.md，解释验证范围、候选与恢复、搜索缺口或来源变化；原有详细报告前面也有同一份概览。原 JSON 报告与执行退出码保持兼容。见 [结果解释](docs/result-explanations.md)。
 
+现在也可以声明少量固定保护目标，例如“构建可以生成产物，但私人配置不能读取、源码目录不能修改”。目标会进入任务的实际禁止规则，并在搜索、恢复、宽对照和修复中保持；摘要分别显示任务与逐条保护结果。首批仅覆盖工作区内已有普通文件/目录的离线任务直接访问，不覆盖安装阶段。运行 `npm run protection:verify` 查看完整故事和额外耗时，或阅读 [保护目标](docs/protection-goals.md)。
+
 ## 读取已有报告，不再运行项目
 
 ```sh

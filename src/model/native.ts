@@ -5,10 +5,11 @@ import { parseUsage } from '../usage-report.js';
 import { evaluateTask, evaluateBoundaries } from './conclusions.js';
 import { freeze, missing, recorded, objectId } from './identity.js';
 import type { TaskDefinition, ProtectionAgreement, PolicyPlan, ExecutionEvidence, ObservationFacts, BoundaryStage } from './types.js';
+import { evaluateProtections, type ProtectionStage } from '../protection-facts.js';
 
 /** Additive artifact; native facts are constructed at execution, never re-imported from a report. */
 export type NativeExecution = {
-  schema_version: 1; kind: 'permsift_execution'; model_version: 1; identity_version: 1;
+  schema_version: 1 | 2; kind: 'permsift_execution'; model_version: 1; identity_version: 1;
   task: TaskDefinition; agreement: ProtectionAgreement; policy: PolicyPlan; execution: ExecutionEvidence;
 };
 
@@ -34,9 +35,10 @@ export function nativeExecution(request: ExecutionRequest, result: ExecutionResu
   const stages = ['before', 'after_installation', 'before_offline_task', 'after'] as const;
   const boundaries = recorded<BoundaryStage[]>(stages.flatMap(stage => e[stage] ? [{ stage, checks: e[stage]!.checks }] : []));
   const policy = executablePlan(request.task.id, request.task, request.staged, request.policy, e.read_grant_kinds);
+  const protections = request.task.protection_goals ? e.protections ? recorded(e.protections.map(({ execution: _execution, fixture_files: _files, ...facts }) => facts)) : missing<ProtectionStage[]>('not_run', 'Protection checks were not reached') : undefined;
   const content: Omit<ExecutionEvidence, 'id'> = {
     task_id: request.definition.id, agreement_id: request.agreement.id, policy_id: recorded(policy.id), origin,
-    reported_verdict: recorded(result.verdict), process, assertions, boundaries,
+    reported_verdict: recorded(result.verdict), process, assertions, boundaries, ...protections ? { protections } : {},
     installation: e.installation ? recorded({ command: e.installation.command, process: { status: e.installation.execution.process.status, exit_code: e.installation.execution.process.exit_code }, reported_verdict: e.installation.verdict, reused: recorded(false) }) :
       missing(result.installationReused || request.task.install ? 'not_run' : 'not_declared', result.installationReused ? 'Reused a verified installation snapshot; no installer process ran' : 'No installer process ran'),
     observations,
@@ -47,8 +49,8 @@ export function nativeExecution(request: ExecutionRequest, result: ExecutionResu
       instrumentation: recorded({ selected_sources: request.sources, observer: e.observer ?? null }),
       installation_state: recorded({ reused: result.installationReused, snapshot: e.installed_snapshot ? recorded({ key: e.installed_snapshot.key, hashes: e.installed_snapshot.hashes, source_trial: e.installed_snapshot.source_trial }) : missing('not_declared', 'No installed snapshot reuse selected') }),
       producer_policy_hash: e.task_policy_hash ?? e.policy_hash ? recorded((e.task_policy_hash ?? e.policy_hash)!) : missing('not_run', 'Policy preparation was not reached') },
-    outcomes: { task: evaluateTask(process, assertions), boundaries: evaluateBoundaries(boundaries, request.task.install ? result.installationReused ? ['before', 'before_offline_task', 'after'] : ['before', 'after_installation', 'before_offline_task', 'after'] : ['before', 'after']) },
+    outcomes: { task: evaluateTask(process, assertions), boundaries: evaluateBoundaries(boundaries, request.task.install ? result.installationReused ? ['before', 'before_offline_task', 'after'] : ['before', 'after_installation', 'before_offline_task', 'after'] : ['before', 'after']), ...protections ? { protections: evaluateProtections(request.agreement, protections) } : {} },
   };
-  return freeze({ schema_version: 1, kind: 'permsift_execution', model_version: 1, identity_version: 1,
+  return freeze({ schema_version: request.task.protection_goals ? 2 : 1, kind: 'permsift_execution', model_version: 1, identity_version: 1,
     task: request.definition, agreement: request.agreement, policy, execution: { id: objectId('execution', content), ...content } });
 }

@@ -3,6 +3,8 @@ import type { ExecutionView, ResultRecord, SavedComparison } from './result-read
 import type { Evaluation, PolicyPlan, Saved } from './model/types.js';
 import { canonical, freeze } from './model/identity.js';
 import { escape } from './usage-comparison.js';
+import { evaluateProtections } from './protection-facts.js';
+import { recorded } from './model/identity.js';
 
 export type EvidenceReference = { file: string; pointer: string; object_id?: string; availability?: 'not_supplied' };
 export type Claim = { dimension: string; status: string; statement: string; evidence: EvidenceReference[];
@@ -12,7 +14,7 @@ export type Decision = { permission: string; operation: Saved<string>; reported_
   before: Saved<string[]>; after: Saved<string[]>; candidate: string; recovery: string;
   evidence: EvidenceReference[]; action: string };
 export type TaskSummary = { task: string; policy?: PolicyPlan; claims: Claim[]; decisions: Decision[];
-  stages: { phase: string; reported_verdict: string; task: string; boundaries: string; retained: boolean; evidence: EvidenceReference[] }[] };
+  stages: { phase: string; reported_verdict: string; task: string; boundaries: string; protections?: string; retained: boolean; evidence: EvidenceReference[] }[] };
 export type ResultSummary = { schema_version: 1; kind: 'permsift_result_summary'; source: { file: string; artifact_hash: string; format: string };
   workflow: { kind: string; reported_status: string } | null; analysis: { status: 'complete' | 'partial'; gaps: string[] };
   tasks: TaskSummary[]; claims: Claim[]; limitations: string[] };
@@ -27,8 +29,9 @@ function aggregate(values: Evaluation[]): Evaluation['status'] {
 }
 const present = <T>(v: Saved<T>) => v.state === 'recorded' ? v.value : undefined;
 const verdict = (v?: ExecutionView) => v ? present(v.facts.reported_verdict) ?? 'not_saved' : 'not_saved';
-const contradictoryPass = (v?: ExecutionView) => !!v && verdict(v) === 'pass' && [v.facts.outcomes.task.status, v.facts.outcomes.boundaries.status].some(s => s === 'fail' || s === 'unknown' || s === 'not_run');
-const fullyPassed = (v?: ExecutionView) => !!v && verdict(v) === 'pass' && v.facts.outcomes.task.status === 'pass' && v.facts.outcomes.boundaries.status === 'pass';
+const protectionStatus = (v: ExecutionView) => v.facts.outcomes.protections?.status ?? (v.agreement?.declaration.state === 'recorded' ? 'not_saved' : undefined);
+const contradictoryPass = (v?: ExecutionView) => !!v && verdict(v) === 'pass' && ([v.facts.outcomes.task.status, v.facts.outcomes.boundaries.status].some(s => s === 'fail' || s === 'unknown' || s === 'not_run') || protectionStatus(v) !== undefined && protectionStatus(v) !== 'pass');
+const fullyPassed = (v?: ExecutionView) => !!v && verdict(v) === 'pass' && v.facts.outcomes.task.status === 'pass' && v.facts.outcomes.boundaries.status === 'pass' && (protectionStatus(v) === undefined || protectionStatus(v) === 'pass');
 const sameGrants = (a: PolicyPlan | undefined, b: PolicyPlan | undefined) => !!a && !!b &&
   canonical(a.task.write) === canonical(b.task.write) && present(a.task.read)?.mode === present(b.task.read)?.mode &&
   canonical(present(a.task.read)?.grants ?? null) === canonical(present(b.task.read)?.grants ?? null) &&
@@ -49,7 +52,7 @@ export function explainResult(result: ResultRecord): ResultSummary {
   const claim = (dimension: string, status: string, statement: string, evidence: EvidenceReference[], text: string, command?: string[]): Claim => ({ dimension, status, statement, evidence, action: { text, ...command ? { command } : {} } });
   const model = result.model;
   const summary: ResultSummary = { schema_version: 1, kind: 'permsift_result_summary',
-    source: { file: path.basename(result.file), artifact_hash: result.artifact_hash, format: result.native ? 'native-execution-v1' : model?.source.format ?? 'usage-comparison-v1' },
+    source: { file: path.basename(result.file), artifact_hash: result.artifact_hash, format: result.native ? 'native-execution-v' + result.native.schema_version : model?.source.format ?? 'usage-comparison-v1' },
     workflow: model ? { kind: model.workflow.kind, reported_status: model.workflow.reported_status } : result.comparisonOnly ? { kind: 'compare', reported_status: result.comparisonOnly.status } : null,
     analysis: { status: 'complete', gaps: [] }, tasks: [], claims: [], limitations: [] };
   const gap = (s: string) => { summary.analysis.status = 'partial'; summary.analysis.gaps.push(s); };
@@ -64,6 +67,7 @@ export function explainResult(result: ResultRecord): ResultSummary {
           status === 'not_run' ? 'Inspect installation/setup or budget errors before running the task again.' : 'Inspect failed/unknown checks and process details before changing permissions.'));
       if (status !== 'pass' && status !== 'fail') gap(task.task + ': ' + dimension + ' ' + status + ' (' + scope + ')');
     }
+    protectionOutcomes(task, record, values, scope);
     const installation = values.filter(v => v.facts.installation.state === 'recorded' ||
       (v.facts.conditions.requirements.state === 'recorded' && v.facts.conditions.requirements.value.install));
     if (installation.length) {
@@ -75,12 +79,35 @@ export function explainResult(result: ResultRecord): ResultSummary {
       if (missing) gap(task.task + ': installation details incomplete');
     }
   }
+  function protectionOutcomes(task: TaskSummary, record: ResultRecord, values: ExecutionView[], scope: string) {
+    const declared = values.map(v => v.agreement).find(a => a?.declaration.state === 'recorded') ?? record.model?.agreements.find(a => a.task_key === task.task && a.declaration.state === 'recorded');
+    if (declared?.declaration.state === 'recorded') {
+      const status = aggregate(values.map(v => v.facts.outcomes.protections ?? { status: 'not_saved', basis: 'Protection evidence not supplied' }));
+      task.claims.push(claim('protections', status, `${scope}: declared task protections ${status}. Installation is outside their tested scope.`,
+        values.map(v => eref(record, v, '/protections')), 'Review each target, operation, host controls and before/after probe. Keep these goals fixed when considering wider rules or repairs.'));
+      for (const goal of declared.declaration.value) {
+        const evaluated = values.map(v => evaluateProtections({ ...declared, declaration: recorded([goal]) }, v.facts.protections?.state === 'recorded' ? recorded(v.facts.protections.value.map(s => ({ ...s, results: s.results.filter(r => r.key === goal.key) }))) : v.facts.protections));
+        const state = aggregate(evaluated);
+        const stages = ['before', 'after'].map(moment => moment + ': ' + aggregate(values.map(v => {
+          const saved = v.facts.protections, result = saved?.state === 'recorded' ? saved.value.find(s => s.moment === moment)?.results.find(r => r.key === goal.key) : undefined;
+          return { status: result?.status ?? (saved?.state === 'recorded' || saved?.state === 'not_run' ? 'not_run' : 'not_saved'), basis: '' };
+        }))).join('; ');
+        const issues = [...new Set(values.flatMap(v => v.facts.protections?.state === 'recorded' ? v.facts.protections.value.flatMap(s => s.results.filter(r => r.key === goal.key).flatMap(r => [r.target, ...r.controls_before, ...r.controls_after, ...r.checks].filter(c => c.status !== 'pass').map(c => c.name + ': ' + c.detail))) : []))].slice(0, 3).map(s => s.slice(0, 280));
+        task.claims.push(claim('protection_goal:' + goal.key, state, `${scope}: ${goal.key}: ${goal.operation} ${goal.target_kind} ${goal.target} must be denied in the task stage; direct fake-workspace checks ${state} (${stages}).${issues.length ? ' ' + issues.join('; ') : ''}`,
+          values.map(v => eref(record, v, '/protections')), state === 'pass' ? 'Review the tested operations; this is bounded direct-access coverage, not all access channels.' :
+            'Inspect target kind/existence, fixture controls and probe errors. A missing resource is not proof of denial; do not broaden access through this goal to repair a task.'));
+        if (state !== 'pass' && state !== 'fail') gap(task.task + ': protection ' + goal.key + ' ' + state);
+      }
+      if (status !== 'pass' && status !== 'fail') gap(task.task + ': protections ' + status);
+    }
+  }
   function policy(task: TaskSummary, value: PolicyPlan | undefined, evidence: EvidenceReference[]) {
     if (!value) return;
     task.policy = value;
     const show = (v: Saved<string[]>) => v.state === 'recorded' ? v.value.join(', ') || '(none)' : v.state;
     const read = present(value.task.read), install = present(value.installation);
     task.claims.push(claim('policy', 'recorded', `Task writes: ${show(value.task.write)}; task reads (${read?.mode ?? 'not_saved'}): ${read ? read.grants.join(', ') || '(none)' : 'not_saved'}; task network: ${show(value.task.network)}.` +
+      (value.protection_denials ? ` Fixed task denials: ${value.protection_denials.map(g => g.operation + ' ' + g.target).join(', ')}; these take precedence over positive grants.` : '') +
       (install ? ` Installer writes (${install.mode}): ${install.write.join(', ') || '(none)'}; installer domains: ${show(install.network)}.` : ` Installation policy: ${value.installation.state}.`), evidence,
       'Review these variable grants together with read target kinds, preparation and backend defaults. This is not a complete list of every permission granted by the backend.'));
     if (read?.mode === 'explicit') {
@@ -192,10 +219,12 @@ export function explainResult(result: ResultRecord): ResultSummary {
       for (const stage of row.stages) {
         const child = result.children.find(c => c.task === task.task && c.phase === stage.phase), values = child?.result?.executions ?? [];
         task.stages.push({ phase: stage.phase, reported_verdict: stage.reported_verdict, task: child?.result ? aggregate(values.map(v => v.facts.outcomes.task)) : 'not_saved',
+          ...values.some(v => v.facts.outcomes.protections) ? { protections: aggregate(values.map(v => v.facts.outcomes.protections ?? { status: 'not_saved', basis: '' })) } : {},
           boundaries: child?.result ? aggregate(values.map(v => v.facts.outcomes.boundaries)) : 'not_saved', retained: !!child?.result,
           evidence: [child?.result ? ref(child.result, '/status') : { file: child?.reference ?? stage.report.replace(/\.md$/, '.json'), pointer: '/status', availability: 'not_supplied' }] });
         if (!child?.result) gap(task.task + ': ' + stage.phase + ' child report not available');
         else {
+          protectionOutcomes(task, child.result, values, stage.phase);
           const taskState = task.stages.at(-1)!.task, boundaryState = task.stages.at(-1)!.boundaries;
           if (!['pass', 'fail'].includes(taskState) || boundaryState !== 'pass') gap(task.task + ': ' + stage.phase + ' independent task/boundary details ' + taskState + '/' + boundaryState);
           const flags = present(child.result.model!.workflow.verification);
@@ -265,12 +294,13 @@ export function explainResult(result: ResultRecord): ResultSummary {
       (cost.installations ? `, ${installs.reduce((n, v) => n + v.executed, 0)} installer execution(s), ${installs.reduce((n, v) => n + v.reused, 0)} installed-snapshot reuse(s)` : '') +
       (cost.duration_ms !== undefined ? `, ${(cost.duration_ms / 1000).toFixed(2)} s measured workflow time (before overview generation)` : '') + '.',
       [ref(costRecord, '/trials'), ...cost.installations ? [ref(costRecord, '/installation_stats')] : []], 'Use these costs with accepted changes, search stops and source coverage to judge whether more experiments are worthwhile.'));
+    if (cost.protections) summary.claims.push(claim('protection_cost', 'reported', `Declared protection checks used ${cost.protections.calls} stage check(s), ${(cost.protections.duration_ms / 1000).toFixed(2)} s measured time including fake-workspace setup, probes and cleanup. Goals are batched; no dependency tree is copied for these probes.`,
+      [ref(costRecord, '/timings/phases/protections')], 'Choose a small set of valuable targets and review this extra cost alongside the original controlled execution count.'));
   }
   if (model || result.native) {
-    const declared = result.native?.agreement.declaration.state === 'recorded';
-    summary.claims.push(claim('agreement', declared ? 'not_verified' : 'not_declared', declared ? 'A protection declaration is retained; this overview does not evaluate declared goals. Baseline adoption is not recorded.' : 'No user protection-goal declaration or baseline adoption is recorded by these producers.',
+    const declared = result.native?.agreement.declaration.state === 'recorded' || model?.agreements.some(a => a.declaration.state === 'recorded') || result.executions.some(v => v.agreement?.declaration.state === 'recorded');
+    summary.claims.push(claim('agreement', declared ? 'recorded' : 'not_declared', declared ? 'Fixed user protection goals are retained; task claims report their bounded direct-access coverage separately. Baseline adoption is not recorded.' : 'No user protection-goal declaration or baseline adoption is recorded by these producers.',
       [ref(result, result.native ? '/agreement' : model?.source.format === 'regression-v1' ? '/baseline' : '/schema_version')], 'Review the tested tasks and fixed-probe scope; keep verified suggestions separate from adoption decisions.'));
-    if (declared) gap('User protection-goal evaluation not available');
     summary.limitations.push('Task success and fixed boundary probes are separate conclusions. Probes cover their recorded fixtures/stages, not all access channels or undeclared user protection goals.',
       'Results apply to recorded inputs, task checks, preparation, installation state, instrumentation and environment. Hash/reference validation checks consistency; it does not authenticate a producer.',
       'Saved records can be read without the project. New validation/replay needs an available project, suitable sandbox environment, current configuration and independently trusted limits.');
@@ -293,8 +323,8 @@ export function summaryMarkdown(summary: ResultSummary): string {
   return ['## Result overview', '', summary.workflow ? `Workflow reports **${escape(summary.workflow.reported_status)}** (${escape(summary.workflow.kind)}).` : 'Single execution facts; no workflow result inferred.',
     `Saved-material analysis: **${summary.analysis.status}**. This describes evidence availability, not task success.`, '', ...claims(summary.claims), '',
     ...summary.tasks.flatMap(t => [`### ${escape(t.task)}`, '', ...claims(t.claims), '',
-      ...t.stages.length ? ['| Stage | Reported verdict | Independent task | Boundaries | Material | Evidence |', '| --- | --- | --- | --- | --- | --- |',
-        ...t.stages.map(s => `| ${escape(s.phase)} | ${s.reported_verdict} | ${s.task} | ${s.boundaries} | ${s.retained ? 'retained' : 'not supplied'} | ${evidenceMarkdown(s.evidence)} |`), ''] : [],
+      ...t.stages.length ? ['| Stage | Reported verdict | Independent task | Boundaries | Protections | Material | Evidence |', '| --- | --- | --- | --- | --- | --- | --- |',
+        ...t.stages.map(s => `| ${escape(s.phase)} | ${s.reported_verdict} | ${s.task} | ${s.boundaries} | ${s.protections ?? 'not supplied'} | ${s.retained ? 'retained' : 'not supplied'} | ${evidenceMarkdown(s.evidence)} |`), ''] : [],
       ...t.decisions.length ? ['<details><summary>Candidate decisions and recovery evidence</summary>', '',
         ...t.decisions.flatMap(d => [`- ${escape(present(d.operation) ?? 'Operation not saved')}: ${escape(d.reported_decision)} (${d.support}); candidate ${d.candidate}, recovery ${d.recovery}; scope ${d.scope_change}.`,
           `  Before: ${escape(d.before.state === 'recorded' ? d.before.value.join(', ') || '(none)' : d.before.state)}; after: ${escape(d.after.state === 'recorded' ? d.after.value.join(', ') || '(none)' : d.after.state)}.`,

@@ -12,6 +12,9 @@ import { hash, noSymlinks, resolveAlias, saveJson, snapshot, within } from './fi
 import type { Diagnosis } from './diagnostics.js';
 import { npmVersion } from './install.js';
 import { publishSummary } from './result-output.js';
+import { protectionAgreement } from './model/definitions.js';
+import { recorded } from './model/identity.js';
+import { protectionStageSchema, evaluateProtections } from './protection-facts.js';
 
 const grants = z.array(aliasSchema).max(32).refine(a => new Set(a).size === a.length, 'Duplicate baseline grant');
 const reads = z.array(readAliasSchema).max(32).refine(a => new Set(a).size === a.length, 'Duplicate baseline read grant');
@@ -61,13 +64,15 @@ export async function loadBaseline(file: string): Promise<Baseline> {
     const evidenceFile = await fs.realpath(path.join(directory, trial.evidence));
     if (!within(directory, evidenceFile)) throw new Error('Baseline evidence escapes its report directory');
     const evidence = z.object({ scenario: z.literal(id), grants, read_grants: reads, prepared_directories: z.array(aliasSchema).max(2048),
-      network_grants: domains.optional(), install_grants: grants.optional(), summary: z.object({ installation_reused: z.boolean().optional() }).optional(), stage_policy_mode: z.enum(['separate', 'shared']).optional(), read_grant_kinds: z.record(z.enum(['file', 'directory'])).optional() }).parse(await jsonFile(evidenceFile));
+      network_grants: domains.optional(), install_grants: grants.optional(), summary: z.object({ installation_reused: z.boolean().optional() }).optional(), stage_policy_mode: z.enum(['separate', 'shared']).optional(), read_grant_kinds: z.record(z.enum(['file', 'directory'])).optional(),
+      protections: z.array(protectionStageSchema.passthrough()).max(2).optional() }).parse(await jsonFile(evidenceFile));
     if (!same(evidence.grants, report.policies[id]) || !same(evidence.read_grants, report.read_policies[id])) throw new Error('Baseline evidence policy mismatch');
     if (!same(evidence.network_grants ?? [], network_policies[id])) throw new Error('Baseline evidence network policy mismatch');
     if (isStaged(scenario) && (evidence.stage_policy_mode !== 'separate' || evidence.summary?.installation_reused !== false || !same(evidence.install_grants ?? [], install_policies[id]))) throw new Error('Baseline lacks fresh full-flow installation policy evidence');
     prepared[id] = evidence.prepared_directories;
     read_kinds[id] = evidence.read_grant_kinds ?? {};
     if (report.read_modes[id] === 'explicit' && !same(Object.keys(read_kinds[id]), report.read_policies[id])) throw new Error('Baseline is missing exact read target kinds');
+    if (scenario.protection_goals && evaluateProtections(protectionAgreement(id, scenario), evidence.protections ? recorded(evidence.protections) : undefined).status !== 'pass') throw new Error('Baseline lacks passing declared protection evidence: ' + id);
   }
   return { file: canonical, config: input.config, environment: report.environment, snapshot_hash: report.inputs.snapshot_hash, limits_hash: report.inputs.limits_hash,
     policies: report.policies, read_policies: report.read_policies, read_modes: report.read_modes, prepared, read_kinds, network_policies, install_policies };
@@ -76,6 +81,7 @@ export async function loadBaseline(file: string): Promise<Baseline> {
 export function regressionConfigs(config: Config, baseline: Baseline, limits: Limits) {
   if (!same(config.scenarios.map(s => s.id), baseline.config.scenarios.map(s => s.id))) throw new Error('Task IDs changed; create a new verified baseline for added or removed tasks');
   const old: Config = { ...config, scenarios: config.scenarios.map(s => {
+    if (protectionAgreement(s.id, s).id !== protectionAgreement(s.id, baseline.config.scenarios.find(b => b.id === s.id)).id) throw new Error('Protection agreement changed; run/tighten a new baseline and review the changed goals: ' + s.id);
     if (baseline.read_modes[s.id] !== (s.initial_read_grants === undefined ? 'legacy' : 'explicit')) throw new Error('Read mode changed; create a new verified baseline');
     const previous = baseline.config.scenarios.find(p => p.id === s.id)!;
     if (isStaged(s) !== isStaged(previous)) throw new Error('Install stage mode changed; create a new verified baseline');
@@ -116,6 +122,10 @@ export async function repairCandidates(old: Scenario, control: Scenario, diagnos
   }
   const mkdirTargets = new Set(hints.filter(h => /mkdir/.test(h.operation)).map(h => h.alias));
   for (const hint of hints) {
+    // A hint cannot generate an access addition through a fixed negative
+    // goal. Wider ancestor grants still retain the compiled denial.
+    if (hint.stage !== 'install' && old.protection_goals?.some(g => contains(g.target, hint.alias) &&
+      (g.operation === 'read' ? /read|open|access|stat/.test(hint.operation) : /write|create|unlink|rename|mkdir/.test(hint.operation)))) continue;
     if (!aliasSchema.safeParse(hint.alias).success) continue;
     const roots = { workspace: inputRoot, cache: path.join(inputRoot, '..', 'cache'), tmp: path.join(inputRoot, '..', 'tmp') };
     const target = resolveAlias(hint.alias, roots);
@@ -124,10 +134,10 @@ export async function repairCandidates(old: Scenario, control: Scenario, diagnos
     catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') continue; }
     const readOperation = /read|open|unspecified/.test(hint.operation);
     const writeOperation = /write|create|mkdir|unlink|rename|open|unspecified/.test(hint.operation);
-    if (readOperation && (!isStaged(old) || hint.stage !== 'install') && old.initial_read_grants && (stat?.isFile() || stat?.isDirectory() || isStaged(old) && hint.alias.startsWith('@workspace/node_modules/') && hint.stage !== 'install') && readAliasSchema.safeParse(hint.alias).success &&
+    if (readOperation && !old.protection_goals?.some(g => g.operation === 'read' && contains(g.target, hint.alias)) && (!isStaged(old) || hint.stage !== 'install') && old.initial_read_grants && (stat?.isFile() || stat?.isDirectory() || isStaged(old) && hint.alias.startsWith('@workspace/node_modules/') && hint.stage !== 'install') && readAliasSchema.safeParse(hint.alias).success &&
       control.initial_read_grants!.some(p => contains(p, hint.alias)) && !old.initial_read_grants.some(p => contains(p, hint.alias))) readHints.push(hint.alias);
     const write = stat?.isDirectory() || mkdirTargets.has(hint.alias) ? hint.alias : hint.alias.slice(0, hint.alias.lastIndexOf('/'));
-    if (writeOperation && aliasSchema.safeParse(write).success) {
+    if (writeOperation && aliasSchema.safeParse(write).success && !(hint.stage !== 'install' && old.protection_goals?.some(g => g.operation !== 'read' && contains(g.target, hint.alias)))) {
       if (isStaged(old) && hint.stage === 'install') {
         if (installationScenario(control).initial_write_grants.some(p => contains(p, write)) && !installationScenario(old).initial_write_grants.some(p => contains(p, write))) installWriteHints.push(write);
       } else if (control.initial_write_grants.some(p => contains(p, write)) && !old.initial_write_grants.some(p => contains(p, write))) writeHints.push(write);

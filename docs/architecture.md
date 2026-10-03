@@ -5,7 +5,7 @@ flowchart LR
   C[场景与可信 limits] --> P[输入快照]
   P --> R[每轮干净副本]
   R --> S[Sandbox Runtime]
-  S --> V[任务断言和边界探针]
+  S --> V[任务断言、固定边界、用户保护目标]
   V --> E[证据与报告]
   V --> D{接受收紧?}
   D -->|通过| N[下一候选]
@@ -27,6 +27,8 @@ flowchart LR
 | src/backend.ts | macOS 后端、固定约束、清理环境变量和 SRT 生命周期 |
 | src/process.ts | 参数引用、有限输出、超时、取消及进程组清理 |
 | src/probes.ts | 假数据、宿主对照、本地 TCP 端点及沙箱探针 |
+| src/protection.ts | 目标条件检查、独立微型夹具、批量直接操作探针及宿主对照 |
+| src/protection-facts.ts | 版本化保护事实、检查操作集合、独立覆盖结论 |
 | src/assertions.ts | 沙箱外的声明式产物验证 |
 | src/junit.ts | 受限 JUnit XML 解析和用例结果验证 |
 | src/discovery.ts | 有界目录枚举、跨基线观察合并和自动规则 |

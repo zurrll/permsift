@@ -34,7 +34,8 @@ export async function assertNativeEvidence(report: Report) {
     assert.deepEqual(facts.execution.outcomes.boundaries, evaluateBoundaries(facts.execution.boundaries, [...required]));
     if (evidence[trial.evidence].task) assert.equal(facts.execution.conditions.actual_command.state, 'recorded');
     else if (facts.execution.conditions.actual_command.state === 'not_run') assert.equal(facts.execution.process.state, 'not_run');
-    assert.equal(facts.agreement.declaration.state, 'not_declared');
+    assert.equal(facts.agreement.declaration.state, inputs.config.scenarios.find((s: { id: string }) => s.id === trial.scenario).protection_goals ? 'recorded' : 'not_declared');
+    if (facts.execution.outcomes.protections) assert.deepEqual(facts.execution.outcomes.protections, old.outcomes.protections);
   }
   return records;
 }

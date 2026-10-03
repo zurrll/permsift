@@ -3,6 +3,12 @@ import { contains, type Scenario } from './config.js';
 export type Rule = { from: string; to: string[]; source: 'manual' | 'file_changes' | 'directory_structure' | 'denial_hint' | 'input_structure'; evidence_ids: string[] };
 export type Candidate = { grants: string[]; operation: string; semantic_change: boolean; source: Rule['source'] | 'removal' | 'group_removal'; evidence_ids: string[]; removed_grants?: string[] };
 export type Permission = 'read' | 'write' | 'network';
+function scopeChanged(scenario: Scenario, before: string[], after: string[], permission: Permission) {
+  const relevant = scenario.protection_goals?.filter(g => permission === 'read' ? g.operation === 'read' : permission === 'write' && g.operation !== 'read') ?? [];
+  const visible = (grants: string[]) => grants.filter(p => !relevant.some(g => contains(g.target, p)));
+  const remaining = visible(after);
+  return visible(before).some(p => !remaining.some(root => contains(root, p)));
+}
 export function candidates(scenario: Scenario, current: string[], automatic: Rule[] = [], permission: Permission = 'write'): Candidate[] {
   const result: Candidate[] = [];
   const manual = permission === 'network' ? [] : permission === 'read' ? scenario.narrower_read_candidates : scenario.narrower_candidates;
@@ -15,7 +21,8 @@ export function candidates(scenario: Scenario, current: string[], automatic: Rul
     });
   }
   for (const grant of current) result.push({ grants: current.filter(p => p !== grant), operation: `remove ${grant}`, semantic_change: !current.some(p => p !== grant && contains(p, grant)), source: 'removal', evidence_ids: [] });
-  const unique = result.filter((r, i) => r.grants.length <= 32 && result.findIndex(other => JSON.stringify([...other.grants].sort()) === JSON.stringify([...r.grants].sort())) === i);
+  const unique = result.filter((r, i) => r.grants.length <= 32 && result.findIndex(other => JSON.stringify([...other.grants].sort()) === JSON.stringify([...r.grants].sort())) === i)
+    .map(r => ({ ...r, semantic_change: scopeChanged(scenario, current, r.grants, permission) }));
   // Remove unused input trees before expanding their internals. This avoids
   // spending the read-search budget on documentation and unused dependencies.
   return permission === 'read' ? [...unique.filter(r => r.source === 'removal'), ...unique.filter(r => r.source !== 'removal')] : unique;
@@ -106,7 +113,7 @@ export async function searchPolicy(scenario: Scenario, options: {
         continue;
       }
       const result = await options.evaluate(candidate.grants, permission === 'network' ? 'candidate_network' : permission === 'read' ? 'candidate_read' : 'candidate');
-      const step: SearchStep = { permission, round, operation: candidate.operation, before: current, after: candidate.grants, semantic_change: candidate.semantic_change, source: candidate.source, evidence_ids: candidate.evidence_ids, removed_grants: candidate.removed_grants, decision: result.verdict === 'pass' ? 'accepted' : result.verdict === 'fail' ? 'rejected' : 'unknown', trial_id: result.id };
+      const step: SearchStep = { permission, round, operation: candidate.operation, before: current, after: candidate.grants, semantic_change: scopeChanged(scenario, current, candidate.grants, permission), source: candidate.source, evidence_ids: candidate.evidence_ids, removed_grants: candidate.removed_grants, decision: result.verdict === 'pass' ? 'accepted' : result.verdict === 'fail' ? 'rejected' : 'unknown', trial_id: result.id };
       if (result.verdict !== 'pass') {
         const recovery = await options.evaluate(current, permission === 'network' ? 'recovery_network' : permission === 'read' ? 'recovery_read' : 'recovery');
         step.recovery_id = recovery.id;

@@ -4,11 +4,11 @@ import { aliasSchema, readAliasSchema, domainSchema, contains, scenarioSchema, l
 import type { Fixtures } from './probes.js';
 import type { InstallInput } from './install.js';
 import { installationKey, type InstalledSnapshot } from './installed-snapshot.js';
-import { taskDefinition, undeclaredAgreement } from './model/definitions.js';
+import { taskDefinition, protectionAgreement } from './model/definitions.js';
 import { freeze, recorded, missing, objectId, grantSet } from './model/identity.js';
 import type { TaskDefinition, ProtectionAgreement, PolicyPlan } from './model/types.js';
 
-export type ExecutableTask = Pick<Scenario, 'id' | 'command' | 'assertions' | 'timeout_seconds' | 'install' | 'observation' | 'prepare_directories'>;
+export type ExecutableTask = Pick<Scenario, 'id' | 'command' | 'assertions' | 'timeout_seconds' | 'install' | 'observation' | 'prepare_directories' | 'protection_goals'>;
 const policySchema = z.object({
   write: z.array(aliasSchema).max(32), read: z.array(readAliasSchema).max(32), readMode: z.enum(['explicit', 'legacy']),
   network: z.array(domainSchema).max(32), installWrite: z.array(aliasSchema).max(32),
@@ -36,6 +36,7 @@ export type ExecutionRequest = {
 
 export function executablePlan(key: string, task: ExecutableTask, staged: boolean, policy: ExecutablePolicy, kinds?: Record<string, 'file' | 'directory'>): PolicyPlan {
   const content: Omit<PolicyPlan, 'id'> = { task_key: key, scope: 'producer_variable_grants',
+    ...task.protection_goals ? { protection_denials: [...task.protection_goals].sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0) } : {},
     task: { write: recorded(grantSet(policy.write)), read: recorded({ mode: policy.readMode, grants: grantSet(policy.read),
       target_kinds: policy.read.length === 0 ? recorded({}) : kinds ? recorded(kinds) : missing('not_saved', 'Read target kinds was not retained in this artifact') }), network: recorded([]) },
     installation: task.install ? recorded({ mode: staged ? 'separate' : 'shared', write: grantSet(policy.installWrite), network: recorded(grantSet(policy.network)), reads: 'producer_fixed_workspace_reads' }) : missing('not_declared', 'No installation stage in retained config') };
@@ -75,9 +76,10 @@ export function executionRequest(input: {
   }
   for (const location of [conditions.input.path, input.resources.scratch, ...input.resources.protectedPaths, ...input.capture ? [input.capture.directory] : []]) if (!path.isAbsolute(location)) throw new Error('Execution resources require absolute paths');
   const task: ExecutableTask = { id: scenario.id, command: scenario.command, assertions: scenario.assertions, timeout_seconds: scenario.timeout_seconds, prepare_directories: scenario.prepare_directories,
+    ...scenario.protection_goals ? { protection_goals: scenario.protection_goals } : {},
     ...scenario.install ? { install: scenario.install } : {}, ...scenario.observation ? { observation: scenario.observation } : {} };
   const definition = freeze(taskDefinition(scenario.id, scenario));
-  const agreement = freeze(undeclaredAgreement(scenario.id));
+  const agreement = freeze(protectionAgreement(scenario.id, scenario));
   const sources = z.object({ inputDirectories: z.boolean(), installedDirectories: z.boolean(), afterTaskDirectories: z.boolean(), readInventory: z.boolean(), dependencies: z.boolean(), installedState: z.boolean() }).strict().parse(input.sources);
   return { task: freeze(task), definition, agreement, policy: freeze(policy), plan: executablePlan(task.id, task, staged, policy),
     staged, conditions: freeze(conditions), limits: freeze(limits), sources: freeze(sources),

@@ -5,7 +5,7 @@ import { adaptLegacy } from './model/legacy.js';
 import { readLegacyJson } from './model/io.js';
 import { parseNativeExecution } from './model/native-reader.js';
 import type { NativeExecution } from './model/native.js';
-import type { ExecutionEvidence, Model, PolicyPlan, Saved } from './model/types.js';
+import type { ExecutionEvidence, Model, PolicyPlan, ProtectionAgreement, Saved } from './model/types.js';
 import { canonical, freeze, semanticHash } from './model/identity.js';
 import { parseUsage, type Comparable } from './usage-report.js';
 import { readAliasSchema } from './config.js';
@@ -31,11 +31,11 @@ const comparisonInput = z.object({ file: text, status: z.enum(['observed', 'fail
   module_capture: text, compiler_capture: text, build_capture: text })).max(16) });
 const offlineComparisonSchema = z.object({ schema_version: z.literal(1), kind: z.literal('dependency_usage_comparison'), status: z.enum(['compared', 'partial']),
   before: comparisonInput, after: comparisonInput, comparison: comparisonSchema });
-export type ExecutionView = { task: string; reference: string; facts: ExecutionEvidence; native: boolean; policy?: PolicyPlan };
+export type ExecutionView = { task: string; reference: string; facts: ExecutionEvidence; native: boolean; policy?: PolicyPlan; agreement?: ProtectionAgreement };
 export type ResultRecord = { file: string; artifact_hash: string; model?: Model; native?: NativeExecution; usage?: Comparable; comparison?: SavedComparison;
   comparisonOnly?: { status: 'compared' | 'partial'; before: z.infer<typeof comparisonInput>; after: z.infer<typeof comparisonInput> };
   discovery?: { task: string; dimension: string; enabled?: boolean; truncated?: boolean; rules?: number; limitations: string[] }[];
-  cost?: { trials: number; installations?: Record<string, { executed: number; reused: number; snapshots: number }>; duration_ms?: number };
+  cost?: { trials: number; installations?: Record<string, { executed: number; reused: number; snapshots: number }>; duration_ms?: number; protections?: { duration_ms: number; calls: number } };
   executions: ExecutionView[]; children: { task: string; phase: string; reference: string; result?: ResultRecord }[];
   executionReport?: ResultRecord; gaps: string[] };
 
@@ -98,7 +98,7 @@ export async function readResult(selected: string): Promise<ResultRecord> {
     }
     if (header.parse(raw).kind === 'permsift_execution') {
       result.native = parseNativeExecution(raw);
-      result.executions.push({ task: result.native.task.key, reference: path.basename(target), facts: result.native.execution, native: true, policy: result.native.policy });
+      result.executions.push({ task: result.native.task.key, reference: path.basename(target), facts: result.native.execution, native: true, policy: result.native.policy, agreement: result.native.agreement });
       return result;
     }
     const initial = adaptLegacy(raw), inputs = await read(path.join(directory, 'inputs.json'), true);
@@ -113,8 +113,8 @@ export async function readResult(selected: string): Promise<ResultRecord> {
     const model = adaptLegacy(raw, { inputs, evidence }); result.model = model;
     if (model.source.format !== 'usage-v1') {
       const cost = z.object({ installation_stats: z.record(z.object({ executed: count, reused: count, snapshots: count })).optional(),
-        trials: z.union([count, z.array(z.unknown())]), timings: z.object({ total_ms: z.number().finite().nonnegative() }).optional() }).parse(raw);
-      result.cost = { trials: typeof cost.trials === 'number' ? cost.trials : cost.trials.length, installations: cost.installation_stats, duration_ms: cost.timings?.total_ms };
+        trials: z.union([count, z.array(z.unknown())]), timings: z.object({ total_ms: z.number().finite().nonnegative(), phases: z.object({ protections: z.object({ duration_ms: z.number().finite().nonnegative(), calls: count }).optional() }).optional() }).optional() }).parse(raw);
+      result.cost = { trials: typeof cost.trials === 'number' ? cost.trials : cost.trials.length, installations: cost.installation_stats, duration_ms: cost.timings?.total_ms, protections: cost.timings?.phases?.protections };
     }
     if (model.source.format === 'experiment-v1') {
       const discovery = z.object({ enabled: z.boolean().optional(), truncated: z.boolean().optional(), rules: z.array(z.unknown()).max(10000).optional(), limitations: z.array(text).max(4096).optional() });
@@ -138,6 +138,8 @@ export async function readResult(selected: string): Promise<ResultRecord> {
           if (facts.task.key !== task.key || (task.definition.state === 'recorded' && task.id !== facts.task.id) || e.origin.record !== entry.facts || e.origin.producer_id !== old.origin.producer_id || e.origin.phase !== old.origin.phase || e.id !== entry.execution_id) throw new Error('Native execution/index/workflow mismatch');
           const oldPolicyId = old.policy_id.state === 'recorded' ? old.policy_id.value : undefined;
           const oldPolicy = model.policies.find(p => p.id === oldPolicyId);
+          const oldAgreement = model.agreements.find(a => a.id === old.agreement_id);
+          if ((oldAgreement?.declaration.state === 'recorded' && canonical(oldAgreement.declaration) !== canonical(facts.agreement.declaration)) || (model.source.inputs_status === 'matched' && oldAgreement?.id !== facts.agreement.id)) throw new Error('Native/report protection declaration mismatch');
           if (oldPolicy) {
             sameKnown(oldPolicy.task.write, facts.policy.task.write, 'task writes'); sameKnown(oldPolicy.task.network, facts.policy.task.network, 'task network');
             if (oldPolicy.task.read.state === 'recorded' && facts.policy.task.read.state === 'recorded') {
@@ -146,16 +148,18 @@ export async function readResult(selected: string): Promise<ResultRecord> {
               sameKnown(a.target_kinds, b.target_kinds, 'read target kinds');
             }
             sameKnown(oldPolicy.installation, facts.policy.installation, 'installation policy');
+            if (oldPolicy.protection_denials && canonical(oldPolicy.protection_denials) !== canonical(facts.policy.protection_denials)) throw new Error('Native/report protection policy mismatch');
           }
           sameKnown(old.reported_verdict, e.reported_verdict, 'reported verdict'); sameKnown(old.process, e.process, 'task process');
           sameKnown(old.assertions, e.assertions, 'success checks'); sameKnown(old.boundaries, e.boundaries, 'boundary checks');
+          if (old.protections && e.protections) sameKnown(old.protections, e.protections, 'protection checks');
           for (const key of ['input_hash', 'config_hash', 'limits_hash', 'environment', 'actual_command'] as const) sameKnown(old.conditions[key], e.conditions[key], key);
           native.set(entry.evidence, { reference: entry.facts, facts });
         }
         for (const old of model.executions) if (!index.entries.some(e => e.evidence === old.origin.record)) result.gaps.push('Workflow trial lacks an index entry: ' + old.origin.record);
       }
       result.executions = model.executions.map(e => { const n = native.get(e.origin.record); return { task: model.tasks.find(t => t.id === e.task_id)!.key,
-        reference: n?.reference ?? e.origin.record, facts: n?.facts.execution ?? e, native: !!n, policy: n?.facts.policy ?? model.policies.find(p => p.id === (e.policy_id.state === 'recorded' ? e.policy_id.value : undefined)) }; });
+        reference: n?.reference ?? e.origin.record, facts: n?.facts.execution ?? e, native: !!n, agreement: n?.facts.agreement ?? model.agreements.find(a => a.id === e.agreement_id), policy: n?.facts.policy ?? model.policies.find(p => p.id === (e.policy_id.state === 'recorded' ? e.policy_id.value : undefined)) }; });
     } else if (model.source.format === 'regression-v1') {
       for (const task of model.workflow.comparisons) for (const stage of task.stages) {
         if (!/^[a-z][a-z0-9-]{0,63}$/.test(task.task_key) || !/^[a-z0-9-]+$/.test(stage.phase) || stage.report !== `tasks/${task.task_key}/${stage.phase}/report.md`) throw new Error('Invalid regression stage reference');

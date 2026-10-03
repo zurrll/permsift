@@ -1,0 +1,31 @@
+schema_version: 1
+project: ./project
+scenarios:
+  - id: build
+    command: [node, build.cjs]
+    timeout_seconds: 10
+    initial_write_grants: ['@workspace']
+    initial_read_grants: ['@workspace']
+    auto_discover: false
+    auto_read_discover: false
+    narrower_candidates:
+      - from: '@workspace'
+        to: ['@workspace/dist']
+    protection_goals:
+      - key: private-config
+        target: '@workspace/private'
+        target_kind: directory
+        operation: read
+        stage: task
+        expected: denied
+      - key: source
+        target: '@workspace/src'
+        target_kind: directory
+        operation: write
+        stage: task
+        expected: denied
+    assertions:
+      - type: json_equals
+        path: '@workspace/dist/result.json'
+        pointer: /total
+        value: 36

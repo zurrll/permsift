@@ -1,6 +1,7 @@
 import type { Scenario } from '../config.js';
 import type { Check } from '../assertions.js';
 import type { Comparable } from '../usage-report.js';
+import type { ProtectionStage } from '../protection-facts.js';
 
 /** Missing data is a fact about retention/declaration, never an empty result. */
 export type MissingState = 'not_saved' | 'not_declared' | 'not_run';
@@ -19,7 +20,7 @@ export type ProtectionGoal = {
   key: string; target: string; target_kind: 'file' | 'directory';
   operation: 'read' | 'create' | 'write'; stage: 'install' | 'task'; expected: 'denied';
 };
-/** This round only imports not_declared from legacy producers; it executes no new goals. */
+/** User goals remain fixed independently of positive grants and fixed boundary probes. */
 export type ProtectionAgreement = { id: string; task_key: string; declaration: Saved<ProtectionGoal[]> };
 export type ReadPolicy = {
   mode: 'legacy' | 'explicit'; grants: string[];
@@ -27,6 +28,7 @@ export type ReadPolicy = {
 };
 export type PolicyPlan = {
   id: string; task_key: string; scope: 'producer_variable_grants';
+  protection_denials?: ProtectionGoal[];
   task: { write: Saved<string[]>; read: Saved<ReadPolicy>; network: Saved<string[]> };
   installation: Saved<{
     mode: 'shared' | 'separate'; write: string[]; network: Saved<string[]>;
@@ -61,9 +63,10 @@ export type ExecutionEvidence = {
   process: Saved<ProcessFact>; assertions: Saved<Check[]>;
   installation: Saved<{ command: string[]; process: ProcessFact; reported_verdict: Verdict; reused: Saved<boolean> }>;
   boundaries: Saved<BoundaryStage[]>;
+  protections?: Saved<ProtectionStage[]>;
   observations: ObservationFacts;
   conditions: ExecutionConditions;
-  outcomes: { task: Evaluation; boundaries: Evaluation };
+  outcomes: { task: Evaluation; boundaries: Evaluation; protections?: Evaluation };
 };
 /** A legacy check reference records comparison selection, not long-term adoption. */
 export type BaselineReference = {

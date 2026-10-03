@@ -14,3 +14,9 @@ export function undeclaredAgreement(key: string): ProtectionAgreement {
   const declaration = missing<never[]>('not_declared', 'Legacy producer has no user protection-goal declaration');
   return { id: objectId('agreement', { key, declaration }), task_key: key, declaration };
 }
+
+export function protectionAgreement(key: string, scenario?: Pick<Scenario, 'protection_goals'>): ProtectionAgreement {
+  if (!scenario?.protection_goals) return undeclaredAgreement(key);
+  const declaration = recorded([...scenario.protection_goals].sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  return { id: objectId('agreement', { key, declaration }), task_key: key, declaration };
+}

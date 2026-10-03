@@ -161,3 +161,9 @@ CI 配置包含 Linux 单元测试与 macOS 完整测试。新增 CI 文件不�
 `npm run offline:verify` 只调用 compare / inspect 处理 examples/reports 中的已有真实记录投影，不安装示例依赖或启动沙箱。输出保存到新的 .permsift/offline-usage-*；检查跨任务事实、升级比较、相同报告比较和输入未变。单元 CI 的 Node 22 / 24 作业也执行此脚本。输入来源见 [样例说明](../examples/reports/README.md)。
 
 变更覆盖新增的 offline-usage.test.ts，并扩展原观察集成用例，使同一对真实沙箱记录的 observe --baseline 与 compare 结果相同，不为比较额外执行任务。离线退出码与部分来源场景见 [离线分析](offline-usage.md)。
+
+## 固定保护目标验证
+
+`test/protection.test.ts` 检查配置边界、身份、完整操作/对照/阶段、缺失/类型/链接、明确放行、夹具篡改、冗余授权收益及修复提示约束。`execution.test.ts` 核对原生 wire v2 和未运行事实。`integration/protection.test.ts` 使用真实 macOS 后端验证规则例外、搜索恢复、导出重放、约定冲突、精确修复和观察；分阶段安装用例另核对共用安装、任务保护、安装快照复用及最终新安装。
+
+`npm run protection:verify` 是一个小型公共 CLI 故事：正常构建、有/无目标成本记录、代码读取保护目标后的 check 以及无可执行 PATH 的离线 inspect。它创建独立示例和新报告目录，既有示例不会被改写。CI 的 macOS 作业已配置此流程，未声称远端 CI 已实际通过。范围和证据格式见 [保护目标](protection-goals.md)。

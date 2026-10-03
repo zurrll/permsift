@@ -2,6 +2,8 @@
 
 配置可以使用 JSON 或 YAML。schema_version 当前为 1，未知字段和 YAML 重复键会被拒绝。YAML alias 展开被禁止。
 
+scenario 可选添加 protection_goals（1–16 条）：key、target、target_kind（file/directory）、operation（read/write/create）、stage: task、expected: denied。目标为工作区内已有且类型匹配、无链接组件的严格子路径；create 仅支持目录。声明编译成固定任务禁止规则，并进入逐条前后检查；不增加正向授权，不覆盖安装阶段。完整示例、规则优先级和实际操作范围见 [保护目标](protection-goals.md)。
+
 ## 场景文件
 
 ```yaml

@@ -18,6 +18,7 @@ import { compilationCommand, collectCompilation } from './typescript-observation
 import { prepareBundling, collectBundling } from './esbuild-observation.js';
 import { classifyTrial } from './execution-verdict.js';
 import type { ExecutionRequest } from './execution-request.js';
+import { protectionChecks, type ProtectionRun } from './protection.js';
 
 type SandboxExecution = Awaited<ReturnType<typeof executeSandbox>>;
 type Inventory = Awaited<ReturnType<typeof directoryInventory>>;
@@ -40,6 +41,8 @@ export type ExecutionDetails = {
   file_changes?: Changes; file_changes_by_root?: Record<string, Changes>;
   read_discovery_observation?: ReadObservation; discovery_observation?: Observation;
   dependency_observation?: TaskObservation; error?: string; diagnosis?: Diagnosis;
+  protections?: ProtectionRun[];
+  protection_checks_not_run?: string;
 };
 export type ExecutionResult = {
   id: string; verdict: TrialVerdict; duration_ms: number; reason?: string;
@@ -61,6 +64,7 @@ export async function executeOnce(request: ExecutionRequest): Promise<ExecutionR
   const { write: grants, read: readGrants, readMode, network: networkGrants, installWrite: installGrants } = request.policy;
   const trial: ExecutionResult = { id: trialId, verdict: 'unknown', duration_ms: 0, details: {}, installationAttempted: false, installationReused: false };
   const evidence = trial.details;
+  if (scenario.protection_goals) evidence.protection_checks_not_run = 'Protection checks were not reached';
   let roots: Roots | undefined, task: Awaited<ReturnType<typeof executeSandbox>> | undefined;
   let observer: ObservationSetup | undefined;
   let assertions: Check[] = [], boundaries: Check[] = [], pendingSnapshot: InstalledSnapshot | undefined;
@@ -98,7 +102,8 @@ export async function executeOnce(request: ExecutionRequest): Promise<ExecutionR
     });
     await refreshOutputs();
     const trialFixtures: Fixtures = { ...fixtures };
-    const context: BackendContext = { roots, experimentRoot: scratch, protectedPaths: request.resources.protectedPaths, grants, invocationId: trialId, timeoutMs: Math.max(1, Math.min(scenario.timeout_seconds * 1000, deadline - Date.now())), maxOutputBytes: limits.max_output_bytes, signal: request.budget.signal, networkGrants: taskOnly ? [] : networkGrants };
+    const goals = scenario.protection_goals;
+    const context: BackendContext = { roots, experimentRoot: scratch, protectedPaths: request.resources.protectedPaths, grants, invocationId: trialId, timeoutMs: Math.max(1, Math.min(scenario.timeout_seconds * 1000, deadline - Date.now())), maxOutputBytes: limits.max_output_bytes, signal: request.budget.signal, networkGrants: taskOnly ? [] : networkGrants, ...goals ? { protectionGoals: goals } : {} };
     const prepareReads = async () => timings.measure('preparation', async () => {
       if (readMode !== 'explicit') return;
       trialFixtures.reads = [];
@@ -107,7 +112,7 @@ export async function executeOnce(request: ExecutionRequest): Promise<ExecutionR
         const alias = '@workspace/' + (directory ? directory + '/' : '') + '.permsift-read-checks/fake-secret';
         const target = path.join(roots!.workspace, directory, '.permsift-read-checks', 'fake-secret');
         await noSymlinks(roots!.workspace, path.dirname(target)); await fs.mkdir(path.dirname(target)); await fs.writeFile(target, marker, { flag: 'wx', mode: 0o600 });
-        trialFixtures.reads.push({ path: target, alias, expected: readGrants.some(grant => contains(grant, alias)) ? 'allowed' : 'denied' });
+        trialFixtures.reads.push({ path: target, alias, expected: readGrants.some(grant => contains(grant, alias)) && !goals?.some(g => g.operation === 'read' && contains(g.target, alias)) ? 'allowed' : 'denied' });
       }
       context.readGrants = readGrants; context.readKinds = {}; context.protectedWritePaths = trialFixtures.reads.map(f => path.dirname(f.path));
       const expected = request.conditions.expectedReadKinds;
@@ -119,10 +124,11 @@ export async function executeOnce(request: ExecutionRequest): Promise<ExecutionR
         context.readKinds[alias] = kind;
       }
       evidence.read_grant_kinds = context.readKinds;
-      evidence.task_policy_hash = hash({ write: grants, read: readGrants, readMode, readKinds: context.readKinds, network: [], prepared: allPaths });
+      evidence.task_policy_hash = hash({ write: grants, read: readGrants, readMode, readKinds: context.readKinds, network: [], prepared: allPaths, ...goals ? { protection_goals: goals } : {} });
     });
     if (!staged || taskOnly) await prepareReads();
-    evidence.policy_hash = hash({ write: grants, read: readGrants, readMode, readKinds: context.readKinds, network: networkGrants, install: scenario.install, installGrants: staged ? installGrants : undefined, prepared: allPaths });
+    evidence.policy_hash = hash({ write: grants, read: readGrants, readMode, readKinds: context.readKinds, network: networkGrants, install: scenario.install, installGrants: staged ? installGrants : undefined, prepared: allPaths, ...goals ? { protection_goals: goals } : {} });
+    if (goals && readMode === 'legacy') evidence.task_policy_hash = hash({ write: grants, read: readGrants, readMode, network: [], prepared: allPaths, protection_goals: goals });
     evidence.roots = roots; evidence.stage_policy_mode = staged ? 'separate' : 'shared';
     // A task-only clone has no installation delta to report. Its content,
     // modes and links were checked by InstalledSnapshots.fork; the task
@@ -131,8 +137,8 @@ export async function executeOnce(request: ExecutionRequest): Promise<ExecutionR
     const inventoryBefore = sources.inputDirectories ? await timings.measure('discovery', () => directoryInventory(roots!, limits)) : undefined;
     let readInventoryBefore = sources.readInventory && readMode === 'explicit' && !staged ? await timings.measure('discovery', () => readInventory(roots!, limits)) : undefined;
     evidence.install_policy_hash = staged ? hash({ write: installGrants, readMode: 'legacy', network: networkGrants, prepared: allPaths }) : undefined;
-    const installContext = staged ? { ...context, grants: installGrants, readGrants: undefined, readKinds: undefined } : context;
-    const pre = await timings.measure('probes', () => boundaryChecks(trialFixtures, { ...(staged && !taskOnly ? installContext : context), invocationId: trialId + '-before' }));
+    const installContext = { ...context, ...staged ? { grants: installGrants, readGrants: undefined, readKinds: undefined } : {}, protectionGoals: undefined };
+    const pre = await timings.measure('probes', () => boundaryChecks(trialFixtures, { ...(scenario.install && !taskOnly ? installContext : context), invocationId: trialId + '-before' }));
     evidence.before = pre; boundaries = pre.checks;
     if (pre.checks.some(c => c.status !== 'pass')) {
       trial.verdict = pre.checks.some(c => c.status === 'unknown') ? 'unknown' : 'fail'; trial.reason = 'Pre-execution boundary check did not pass';
@@ -169,25 +175,41 @@ export async function executeOnce(request: ExecutionRequest): Promise<ExecutionR
         evidence.task_inventory = inventory;
       }
       const offlineContext = { ...context, networkGrants: [] };
+      let protectionVerdict: TrialVerdict = 'pass';
+      const checkGoals = async (moment: 'before' | 'after') => {
+        if (!goals) return;
+        const checked = await timings.measure('protections', () => protectionChecks(goals, { ...offlineContext, timeoutMs: Math.max(1, Math.min(context.timeoutMs, deadline - Date.now(), taskDeadline - Date.now())) }, moment));
+        delete evidence.protection_checks_not_run;
+        (evidence.protections ??= []).push(checked);
+        if (checked.results.some(r => r.status === 'fail')) protectionVerdict = 'fail';
+        else if (protectionVerdict !== 'fail' && checked.results.some(r => r.status !== 'pass')) protectionVerdict = 'unknown';
+        if (checked.results.some(r => r.status !== 'pass')) trial.reason = 'Declared protection ' + moment + ' checks did not pass: ' + checked.results.filter(r => r.status !== 'pass').map(r => r.key + ' ' + r.status).join(', ');
+      };
       if (installVerdict === 'pass') {
         if (scenario.install) {
           const offline = await timings.measure('probes', () => boundaryChecks(trialFixtures, { ...offlineContext, invocationId: trialId + '-offline-before', timeoutMs: Math.max(1, taskDeadline - Date.now()) }));
           evidence.before_offline_task = offline; boundaries = [...boundaries, ...offline.checks];
           if (offline.checks.some(c => c.status !== 'pass')) throw new Error('Offline task boundary checks did not pass');
         }
+        await checkGoals('before');
         trial.execution_stage = 'task';
-        if (sources.dependencies) {
-          await timings.measure('preparation', () => prepareBundling(scenario, roots!));
-          observer = await timings.measure('discovery', () => prepareObservation(roots!, request.budget.signal));
-          evidence.observer = { source: 'node_module_hooks', bootstrap: observer.bootstrap, collector: observer.directory, bootstrap_hash: observer.bootstrap_hash,
-            internal_write_exception: '@tmp/.permsift-observer/logs', instrumentation_applies_to: 'offline task only; not install or boundary probes',
-            ...(scenario.observation?.typescript ? { compilation: { source: 'typescript_explain_files', output: 'same execution stdout', executed_command: compilationCommand(scenario) } } : {}),
-            ...(scenario.observation?.esbuild ? { bundling: { source: 'esbuild_metafile', ...scenario.observation.esbuild, output_directory_cleared: true, executed_command: compilationCommand(scenario) } } : {}) };
+        if (protectionVerdict !== 'pass') {
+          evidence.task_skipped = trial.reason ?? 'Declared protection precheck did not pass';
+        } else {
+          if (sources.dependencies) {
+            await timings.measure('preparation', () => prepareBundling(scenario, roots!));
+            observer = await timings.measure('discovery', () => prepareObservation(roots!, request.budget.signal));
+            evidence.observer = { source: 'node_module_hooks', bootstrap: observer.bootstrap, collector: observer.directory, bootstrap_hash: observer.bootstrap_hash,
+              internal_write_exception: '@tmp/.permsift-observer/logs', instrumentation_applies_to: 'offline task only; not install or boundary probes',
+              ...(scenario.observation?.typescript ? { compilation: { source: 'typescript_explain_files', output: 'same execution stdout', executed_command: compilationCommand(scenario) } } : {}),
+              ...(scenario.observation?.esbuild ? { bundling: { source: 'esbuild_metafile', ...scenario.observation.esbuild, output_directory_cleared: true, executed_command: compilationCommand(scenario) } } : {}) };
+          }
+          trial.actualCommand = sources.dependencies ? compilationCommand(scenario) : [...scenario.command];
+          task = await timings.measure('task', () => executeSandbox(trial.actualCommand!, { ...offlineContext,
+            ...observer ? { observer: { bootstrap: observer.bootstrap, directory: observer.directory } } : {},
+            timeoutMs: Math.max(1, taskDeadline - Date.now()) })); evidence.task = task;
+          await checkGoals('after');
         }
-        trial.actualCommand = sources.dependencies ? compilationCommand(scenario) : [...scenario.command];
-        task = await timings.measure('task', () => executeSandbox(trial.actualCommand!, { ...offlineContext,
-          ...observer ? { observer: { bootstrap: observer.bootstrap, directory: observer.directory } } : {},
-          timeoutMs: Math.max(1, taskDeadline - Date.now()) })); evidence.task = task;
       } else evidence.task_skipped = 'Install did not pass; offline command was not executed';
       assertions = await timings.measure('assertions', () => checkAssertions(scenario.assertions, roots!)); evidence.assertions = assertions;
       const post = await timings.measure('probes', () => boundaryChecks(trialFixtures, { ...(scenario.install && installVerdict !== 'pass' ? installContext : offlineContext), invocationId: trialId + '-after', timeoutMs: Math.max(1, Math.min(context.timeoutMs, deadline - Date.now())) }));
@@ -196,7 +218,7 @@ export async function executeOnce(request: ExecutionRequest): Promise<ExecutionR
       const afterTask = await scanRoots();
       const changes = Object.fromEntries(Object.keys(roots).map(name => [name, diffFiles(changeBase![name], afterTask[name])]));
       evidence.file_changes = changes.workspace; evidence.file_changes_by_root = changes;
-      trial.verdict = installVerdict === 'unknown' ? 'unknown' : classifyTrial(task!.process.status, task!.process.exit_code, assertions, boundaries);
+      trial.verdict = installVerdict === 'unknown' ? 'unknown' : protectionVerdict !== 'pass' ? protectionVerdict : classifyTrial(task!.process.status, task!.process.exit_code, assertions, boundaries);
       if (!hasTime()) { trial.verdict = 'unknown'; trial.reason = 'Budget exhausted or interrupted before trial completion'; }
       if (readInventoryBefore && trial.verdict === 'pass') {
         const observation: ReadObservation = { ...readInventoryBefore, id: trialId }; evidence.read_discovery_observation = observation;

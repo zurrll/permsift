@@ -7,6 +7,7 @@ import { noSymlinks, resolveAlias, within, type Roots } from './filesystem.js';
 import { runProcess, shellQuote } from './process.js';
 import { superviseSandbox } from './sandbox-supervisor.js';
 import type { ObserverContext } from './observation.js';
+import type { ProtectionGoal } from './model/types.js';
 
 export const BACKEND_VERSION = '0.0.77';
 export function requirePlatform() {
@@ -18,6 +19,8 @@ export type BackendContext = {
   readGrants?: string[]; protectedWritePaths?: string[];
   readKinds?: Record<string, 'file' | 'directory'>;
   networkGrants?: string[];
+  /** Fixed task agreement, applied to actual and isolated probe policies alike. */
+  protectionGoals?: ProtectionGoal[];
   /** Engine-owned preload/collector only. Never accepted from project config. */
   observer?: ObserverContext;
 };
@@ -54,6 +57,8 @@ export async function policyFor(context: BackendContext): Promise<SandboxRuntime
   const nodeRoot = path.dirname(path.dirname(await realpath(process.execPath)));
   if (nodeRoot === homedir()) throw new Error('Node installed directly under HOME is not supported; use an isolated Node installation.');
   const read = context.readGrants === undefined ? Object.values(roots) : [exactReadPattern(roots.workspace), roots.cache, roots.tmp];
+  const goals = context.protectionGoals ?? [];
+  const deniedReads = goals.filter(g => g.operation === 'read');
   for (const alias of context.readGrants ?? []) {
     readAliasSchema.parse(alias);
     const resolved = resolveAlias(alias, roots);
@@ -62,15 +67,22 @@ export async function policyFor(context: BackendContext): Promise<SandboxRuntime
     const stat = await lstat(resolved);
     if (!stat.isFile() && !stat.isDirectory()) throw new Error(`Read grants must target existing regular files or directories: ${alias}`);
     const kind = context.readKinds?.[alias] ?? (stat.isFile() ? 'file' : 'directory');
-    read.push(kind === 'file' ? exactReadPattern(resolved) : resolved);
+    // SRT 0.0.77 re-allows an explicit target inside a read deny. Remove
+    // those positive carve-outs so the fixed negative declaration wins.
+    if (!deniedReads.some(g => alias === g.target || alias.startsWith(g.target + '/'))) read.push(kind === 'file' ? exactReadPattern(resolved) : resolved);
   }
+  const negative = (operation: 'read' | 'write') => goals.filter(g => operation === 'read' ? g.operation === 'read' : g.operation !== 'read').map(g => {
+    readAliasSchema.parse(g.target);
+    if (g.stage !== 'task' || !g.target.startsWith('@workspace/')) throw new Error('Unsupported protection goal scope');
+    return resolveAlias(g.target, roots);
+  });
   return {
     network: { allowedDomains: context.networkGrants ?? [], deniedDomains: [], allowLocalBinding: false, allowAllUnixSockets: false, allowUnixSockets: [] },
     filesystem: {
-      denyRead: [...new Set(['/Users', homedir(), context.experimentRoot, ...context.protectedPaths])],
+      denyRead: [...new Set(['/Users', homedir(), context.experimentRoot, ...context.protectedPaths, ...negative('read')])],
       allowRead: [...read, ...(within(homedir(), nodeRoot) ? [nodeRoot] : [])],
       allowWrite: write,
-      denyWrite: ['/tmp/claude', '/private/tmp/claude', ...context.protectedPaths, ...context.protectedWritePaths ?? [], ...context.observer ? [context.observer.bootstrap] : []],
+      denyWrite: ['/tmp/claude', '/private/tmp/claude', ...context.protectedPaths, ...context.protectedWritePaths ?? [], ...context.observer ? [context.observer.bootstrap] : [], ...negative('write')],
     },
     allowPty: false, allowAppleEvents: false, enableWeakerNetworkIsolation: false, enableWeakerNestedSandbox: false,
   };

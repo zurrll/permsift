@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "allowed_write_roots": ["@workspace"],
+  "allowed_read_roots": ["@workspace"],
+  "repetitions": 1,
+  "max_candidates": 6,
+  "budget_seconds": 120
+}

@@ -1,7 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import { hashOperations, type HashScanProfile } from './hash-scan.js';
 
-export const timingPhases = ['freeze', 'clone', 'hash', 'manifest', 'preparation', 'probes', 'install', 'task', 'assertions', 'discovery', 'reporting', 'cleanup'] as const;
+export const timingPhases = ['freeze', 'clone', 'hash', 'manifest', 'preparation', 'probes', 'protections', 'install', 'task', 'assertions', 'discovery', 'reporting', 'cleanup'] as const;
 export type TimingPhase = typeof timingPhases[number];
 export type HashScanSummary = Omit<HashScanProfile, 'algorithm' | 'completed'> & { algorithms: string[]; scans: number; incomplete_scans: number };
 export type TimingSummary = { total_ms: number; measured_ms: number; other_ms: number; phases: Partial<Record<TimingPhase, { duration_ms: number; calls: number }>>; hash_scan?: HashScanSummary };

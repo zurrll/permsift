@@ -74,6 +74,18 @@ npm run model:verify
 
 本轮改变读取、解释和呈现，没有改安装器、沙箱隔离、复制或搜索算法；不重复上一轮已通过的整套注册表故障安装测试。新概览的内容、证据位置、缺口和保存故障处理见 [结果解释](result-explanations.md)。独立使用者是否更容易理解，以及其他主机上的实际 CI，仍无结果。
 
+## 第四轮：固定保护目标检验
+
+2026-10-03，同一本机 macOS 15.8 arm64 / Node 24.21.0 / SRT 0.0.77 环境完成：
+
+- 单元/宿主测试 **194/194**，新增 10 项保护/原生格式反例；类型检查、构建和 Git 空白检查通过。
+- 真实沙箱用例 **14/14**（13 项受影响流程及 1 项探针中断反例）：规则父/子例外、固定目标下搜索/恢复/导出/重放、目标缺失及类型改变、任务与约定冲突、可允许的精确读取修复、依赖观察、共用/分开安装及快照复用；同时核对既有写收缩、索引保存故障、空读取、读取修复和观察结果。
+- 公共 CLI protection:verify 使用正常/无目标构建、冲突后的 check 和离线 inspect，**4 次任务执行、0 次安装**。任务失败而保护通过被分别显示；没有撤销约定的修复建议。离线读取使用没有执行程序的 PATH，保存摘要与重读结果一致。
+- 最后一份小样例：有目标的流程约 **0.882 s**，无目标约 **0.530 s**；保护阶段的两次检查共 **0.329 s**，每次创建 **4 个假文件**。这是单次本机样例，不是性能基准或普遍用户收益。
+- results:verify / model:verify / offline:verify 的旧记录回放通过，旧对象身份保持；保护原生事实使用明确 wire v2，未声明执行保留 v1。没有重跑未受影响的整套注册表故障测试，也没有声称完整集成套件全部重跑。
+
+本机日志为 `.permsift/round4-unit.log`、`.permsift/round4-integration.log`、`.permsift/round4-probe-interruption.log`；公共故事为 `.permsift/protection-validation-prhALQ/verification.json`。规则组合原始反例另存 `.permsift/protection-feasibility/results.json`。旧回放材料为 `.permsift/result-replay-6O1CMr/`、`.permsift/model-replay-o7fDrW/`、`.permsift/offline-usage-UHyNcf/`。生成记录不提交 Git。首批只覆盖工作区内已有普通资源的离线任务直接操作；安装阶段、其他通道和恶意任务对抗不在保护目标验证范围。实现和重跑方法见 [保护目标](protection-goals.md)。
+
 ## 未验证范围与下一次需要反馈的事
 
 | 范围 | 当前状态 | 后续怎样补 |

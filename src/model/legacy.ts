@@ -4,6 +4,7 @@ import { parseUsage, type Comparable } from '../usage-report.js';
 import { evaluateTask, evaluateBoundaries } from './conclusions.js';
 import { recorded, missing, objectId, grantSet, semanticHash, legacyHash, canonical, finishModel } from './identity.js';
 import type { Model, Saved, TaskDefinition, ProtectionAgreement, PolicyPlan, ExecutionEvidence, ExecutionConditions, ObservationFacts, BoundaryStage, Verdict } from './types.js';
+import { protectionStageSchema, evaluateProtections, type ProtectionStage } from '../protection-facts.js';
 
 const text = z.string().min(1).max(8192), digest = z.string().regex(/^[a-f0-9]{64}$/);
 const verdict = z.enum(['pass', 'fail', 'unknown']);
@@ -43,6 +44,8 @@ const evidenceSchema = trialSchema.omit({ verdict: true, evidence: true }).exten
   before_offline_task: z.object({ checks }).optional(), after: z.object({ checks }).optional(),
   task: z.object({ process: processFact, command: z.array(text).min(1).optional() }).optional(),
   task_skipped: text.optional(), assertions: checks.optional(),
+  protections: z.array(protectionStageSchema.passthrough().transform(s => ({ stage: s.stage, moment: s.moment, method: s.method, results: s.results }))).max(2).optional(),
+  protection_checks_not_run: text.optional(),
   installation: z.object({ command: z.array(text).min(1), execution: z.object({ process: processFact }), verdict }).optional() });
 const regressionSchema = z.object({ schema_version: z.literal(1), kind: z.literal('regression'), id: text,
   status: z.enum(['running', 'compatible', 'regressed', 'inconclusive']), baseline: text,
@@ -65,7 +68,7 @@ const saved = <T>(value: T | undefined, name: string): Saved<T> => value === und
 const equalSet = (a: string[], b: string[]) => canonical(grantSet(a)) === canonical(grantSet(b));
 
 export { taskDefinition } from './definitions.js';
-import { taskDefinition, undeclaredAgreement as agreement } from './definitions.js';
+import { taskDefinition, protectionAgreement as agreement } from './definitions.js';
 function context(raw: unknown, hashes: Hashes) {
   if (raw === undefined) return undefined;
   const input = inputsSchema.parse(raw);
@@ -91,7 +94,7 @@ function start(format: Model['source']['format'], raw: unknown, hashes: Hashes, 
 function addTask(model: Model, key: string, config?: Config, fingerprint?: string) {
   const scenario = config?.scenarios.find(s => s.id === key);
   if (config && !scenario) throw new Error('Report task is absent from retained config: ' + key);
-  const task = taskDefinition(key, scenario, fingerprint), protection = agreement(key);
+  const task = taskDefinition(key, scenario, fingerprint), protection = agreement(key, scenario);
   model.tasks.push(task); model.agreements.push(protection);
   return { task, protection, scenario };
 }
@@ -100,6 +103,7 @@ function policy(model: Model, key: string, scenario: Scenario | undefined, write
   if (mode === 'legacy' && read && !equalSet(read, ['@workspace'])) throw new Error('Legacy read policy must retain @workspace');
   if (e?.read_grant_kinds && read && !equalSet(Object.keys(e.read_grant_kinds), read)) throw new Error('Read target kinds do not match read grants');
   const content: Omit<PolicyPlan, 'id'> = { task_key: key, scope: 'producer_variable_grants',
+    ...scenario?.protection_goals ? { protection_denials: [...scenario.protection_goals].sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0) } : {},
     task: { write: recorded(grantSet(write)), read: mode && read ? recorded({ mode, grants: grantSet(read),
       target_kinds: read.length === 0 ? recorded({}) : saved(e?.read_grant_kinds, 'Read target kinds') }) : absent('Task read grants/mode'),
       network: recorded([]) },
@@ -147,15 +151,18 @@ function execution(model: Model, producerId: string, record: string, phase: stri
   const stages = ['before', 'after_installation', 'before_offline_task', 'after'] as const;
   const boundaryRecords: BoundaryStage[] = stages.flatMap(stage => e?.[stage] ? [{ stage, checks: e[stage]!.checks }] : []);
   const boundaries = e ? recorded(boundaryRecords) : absent<BoundaryStage[]>('Boundary checks');
+  if (e?.protections && e.protection_checks_not_run) throw new Error('Evidence contains both recorded and unexecuted protections');
+  const protections = protection.declaration.state === 'recorded' ? e?.protections ? recorded(e.protections) : e?.protection_checks_not_run ? missing<ProtectionStage[]>('not_run', e.protection_checks_not_run) : absent<ProtectionStage[]>('Declared protection checks') : undefined;
   const content: Omit<ExecutionEvidence, 'id'> = { task_id: task.id, agreement_id: protection.id, policy_id: policyId,
     origin: { producer_id: producerId, record, phase }, reported_verdict: saved(reported, 'Composite producer verdict'), process, assertions, boundaries,
+    ...protections ? { protections } : {},
     installation: e?.installation ? recorded({ command: e.installation.command, process: e.installation.execution.process,
       reported_verdict: e.installation.verdict, reused: saved(e.installation_reused, 'Installation reuse flag') }) :
       e?.installation_reused ? missing('not_run', 'Installation was reused from the producer snapshot; no installation process ran in this trial') :
       scenario && !scenario.install ? missing('not_declared', 'No installation stage') : absent('Installation execution'),
     observations: observation(observed, model.workflow.kind === 'observe' ? 'not_saved' : 'not_collected', scenario), conditions: conditions(hashes, environment, scenario, fingerprint, e),
     outcomes: { task: evaluateTask(process, assertions), boundaries: evaluateBoundaries(boundaries,
-      scenario?.install ? e?.installation_reused ? ['before', 'before_offline_task', 'after'] : ['before', 'after_installation', 'before_offline_task', 'after'] : ['before', 'after']) } };
+      scenario?.install ? e?.installation_reused ? ['before', 'before_offline_task', 'after'] : ['before', 'after_installation', 'before_offline_task', 'after'] : ['before', 'after']), ...protections ? { protections: evaluateProtections(protection, protections) } : {} } };
   model.executions.push({ id: objectId('execution', content), ...content });
 }
 function validateEvidence(trial: Trial, raw: unknown): Evidence {

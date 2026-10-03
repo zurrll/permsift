@@ -38,6 +38,31 @@ async function fixture(t: TestContext) {
 }
 const evidence=async(r:Report,index:number)=>JSON.parse(await fs.readFile(path.join(r.output,r.trials[index].evidence),'utf8'));
 
+test('task protections remain explicit after shared installation and installed-snapshot reuse without claiming installation coverage', macOnly, async t => {
+  const f = await fixture(t), scenario = f.config.scenarios[0];
+  await fs.writeFile(path.join(f.project, 'private.json'), 'fake-project-config');
+  Object.assign(scenario, { protection_goals: [
+    { key: 'private', target: '@workspace/private.json', target_kind: 'file', operation: 'read', stage: 'task', expected: 'denied' },
+    { key: 'task-code', target: '@workspace/verify.cjs', target_kind: 'file', operation: 'write', stage: 'task', expected: 'denied' },
+  ], initial_network_grants: ['127.0.0.1'] });
+  f.limits.repetitions = 1; await f.save();
+  const shared = await runExperiment({ ...f, mode: 'run', output: path.join(f.root, 'shared-goals') });
+  assert.equal(shared.status, 'verified', shared.error);
+  const initial = await evidence(shared, 0);
+  assert.ok(!initial.installation.execution.policy.filesystem.denyRead.includes(path.join(initial.roots.workspace, 'private.json')));
+  assert.ok(initial.task.policy.filesystem.denyRead.includes(path.join(initial.roots.workspace, 'private.json')));
+  assert.equal((await assertNativeEvidence(shared))[0].execution.outcomes.protections?.status, 'pass');
+  Object.assign(scenario.install, { initial_write_grants: ['@workspace/node_modules', '@cache/npm'], auto_discover: false, narrower_candidates: [] });
+  Object.assign(scenario, { initial_write_grants: ['@workspace'], initial_read_grants: ['@workspace'], auto_read_discover: false,
+    narrower_candidates: [{ from: '@workspace', to: ['@workspace/dist'] }] });
+  Object.assign(f.limits, { allowed_read_roots: ['@workspace'], max_candidates: 6 }); await f.save();
+  const staged = await runExperiment({ ...f, mode: 'tighten', output: path.join(f.root, 'staged-goals') });
+  assert.equal(staged.status, 'verified', JSON.stringify({ error: staged.error, last: staged.trials.at(-1) }));
+  assert.ok(staged.installation_stats.install.reused > 0);
+  for (const record of await assertNativeEvidence(staged)) if (record.execution.process.state === 'recorded') assert.equal(record.execution.outcomes.protections?.status, 'pass');
+  const final = staged.trials.filter(t => t.phase === 'final'); assert.ok(final.length); assert.ok(final.every(t => t.installation_reused === false));
+});
+
 
 async function staged(t: TestContext) {
   const f = await fixture(t);

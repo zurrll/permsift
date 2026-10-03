@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 export const aliasSchema = z.string().regex(/^@(workspace|cache|tmp)(\/[A-Za-z0-9_.@-]+)*$/).refine(
   value => !value.split('/').some(part => part === '.' || part === '..'), 'Dot path components are forbidden')
-  .refine(value => !value.split('/').some(part => part.startsWith('.permsift-read-')), 'Reserved read-probe namespace');
+  .refine(value => !value.split('/').some(part => part.startsWith('.permsift-read-') || part.startsWith('.permsift-protection-')), 'Reserved probe namespace');
 export const readAliasSchema = aliasSchema.refine(p => p === '@workspace' || p.startsWith('@workspace/'), 'Read search is limited to @workspace');
 const workspaceFile = aliasSchema.refine(p => p.startsWith('@workspace/'), 'Must be a file under @workspace');
 const expectedTests = z.array(z.string().min(1)).min(1).max(10_000).refine(names => new Set(names).size === names.length, 'Expected test names must be unique');
@@ -31,6 +31,13 @@ const assertionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('test_results'), path: workspaceFile, expected_tests: expectedTests }).strict(),
   z.object({ type: z.literal('junit'), path: workspaceFile, expected_tests: expectedTests }).strict(),
 ]);
+export const protectionGoalSchema = z.object({
+  key: z.string().regex(/^[a-z][a-z0-9-]{0,63}$/),
+  target: workspaceFile.refine(p => p.length <= 512, 'Protection target exceeds 512 characters'), target_kind: z.enum(['file', 'directory']),
+  operation: z.enum(['read', 'create', 'write']), stage: z.literal('task'), expected: z.literal('denied'),
+}).strict().refine(g => g.operation !== 'create' || g.target_kind === 'directory', 'Create goals require an existing directory');
+const protectionGoals = z.array(protectionGoalSchema).min(1).max(16)
+  .refine(goals => new Set(goals.map(g => g.key)).size === goals.length, 'Protection goal keys must be unique');
 export const scenarioSchema = z.object({
   id: z.string().regex(/^[a-z][a-z0-9-]{0,63}$/),
   command: z.array(z.string().min(1).refine(s => !s.includes('\0'))).min(1),
@@ -39,6 +46,7 @@ export const scenarioSchema = z.object({
   initial_read_grants: z.array(readAliasSchema).max(32).optional(),
   initial_network_grants: z.array(domainSchema).max(32).optional(),
   install: installSchema.optional(),
+  protection_goals: protectionGoals.optional(),
   observation: z.object({
     typescript: z.object({ compiler: workspaceFile }).strict().optional(),
     esbuild: z.object({ bundler: workspaceFile, metafile: workspaceFile, output_root: workspaceFile }).strict().optional(),
@@ -139,6 +147,7 @@ export const isStaged = (scenario: Scenario) => scenario.install?.initial_write_
 /** A separate installer retains broad project reads; task read rules apply only after npm completes. */
 export function installationScenario(scenario: Scenario): Scenario {
   return { ...scenario, initial_write_grants: scenario.install?.initial_write_grants ?? scenario.initial_write_grants,
+    protection_goals: undefined,
     initial_read_grants: undefined, narrower_read_candidates: [],
     narrower_candidates: scenario.install?.narrower_candidates ?? [], auto_discover: scenario.install?.auto_discover ?? true };
 }
