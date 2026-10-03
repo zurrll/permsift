@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node --test --test-concurrency=1 dist/test/*.test.js",
+    "test": "npm run build && node --test --test-concurrency=1 dist/test/*.test.js test/*.test.mjs",
     "test:integration": "npm run build && node --test --test-concurrency=1 dist/test/integration/*.test.js",
     "check": "tsc --noEmit",
     "demo": "npm run build && node dist/cli.js tighten --config examples/demo/permsift.yaml --limits examples/limits.json",
@@ -43,7 +43,11 @@
     "protection:verify": "npm run build && node scripts/verify-protection.mjs",
     "environment:verify": "npm run build && node scripts/verify-environment.mjs",
     "success:verify": "npm run build && node scripts/verify-success-diagnostics.mjs",
-    "onboarding:verify": "npm run build && node scripts/verify-onboarding.mjs"
+    "onboarding:verify": "npm run build && node scripts/verify-onboarding.mjs",
+    "trial:bundle": "node scripts/create-trial-bundle.mjs",
+    "trial:verify": "node scripts/verify-trial.mjs",
+    "external:verify": "npm run build && node scripts/verify-external-maintenance.mjs",
+    "test:trial": "node --test test/trial-support.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.77",

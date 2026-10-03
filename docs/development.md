@@ -1,5 +1,11 @@
 # 开发与测试
 
+## 试用包与真实维护流程
+
+`npm run trial:bundle` 导出 Git 跟踪/索引中的当前普通文件，包含源码清单，不带依赖、构建产物或历史实验；`trial:verify` 实际解压、比对文件、新缓存安装、构建、doctor，再从公共 CLI 重走两份入门。`--with-maintenance` 增加固定 glob-parent 原测试及 Mocha 升级：显式准备缓存，随后四次新沙箱离线安装；冷下载另用 external:verify -- --cold。这些网络流程手动选择，未加入每次 CI 的默认范围。
+
+`scripts/lib/trial-support.mjs` 保留成功和失败调用，按实际 evidence 统计安装/任务；check 读取嵌套阶段，安装失败不会被记为任务已经执行。`test/trial-support.test.mjs` 检查包输入限制与篡改、失败日志和嵌套失败计数，已纳入 npm test，也可单独 `npm run test:trial`。详细预算与反馈格式见 [试用说明](trial.md)。
+
 ## 接入与配置解释
 
 `src/configuration-explanation.ts` 是执行前的静态解释；复用 config.ts 的 parser/schema、策略校验、安装派生和初始准备，不加载执行后端、不猜测历史方案或产物内容。原配置格式与模型身份不变。两条入门分别见 [权限](getting-started-permissions.md) 和 [依赖观察](getting-started-observation.md)。

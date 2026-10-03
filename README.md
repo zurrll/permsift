@@ -15,6 +15,8 @@ Permsift 在隔离副本里执行你指定的安装、测试或构建任务，�
 
 依赖观察每个任务执行一次，不需要先进行权限搜索。缺少加载记录不表示包无用，也不生成删除建议。
 
+首次交给别人试用，见 [试用说明与反馈模板](docs/trial.md)：干净源码包、两条入门、固定外部项目维护流程及明确执行预算。`npm run trial:verify` 从新目录和新 npm 缓存重走接入；外部项目的缓存准备和四次沙箱安装需明确选择 `--with-maintenance`。
+
 ## 快速开始
 
 要求：macOS、Node.js 22 或更新版本、npm，以及系统自带的 `/usr/bin/sandbox-exec`。已在 macOS 15.8、Apple Silicon、Node.js 24.21.0 上实测。其他系统版本需先通过 doctor；Linux 和 Windows 上拒绝执行沙箱任务。
