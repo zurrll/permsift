@@ -17,6 +17,8 @@ Permsift 在隔离副本里执行你指定的安装、测试或构建任务，�
 
 首次交给别人试用，见 [试用说明与反馈模板](docs/trial.md)：干净源码包、两条入门、固定外部项目维护流程及明确执行预算。`npm run trial:verify` 从新目录和新 npm 缓存重走接入；外部项目的缓存准备和四次沙箱安装需明确选择 `--with-maintenance`。
 
+希望自己逐步体验，按 [手工试用](docs/manual-trial.md) 从全新克隆开始：安装与 doctor → 权限建立/采用/变更复验 → 独立观察与比较 → 带一个自己的真实问题接入。每段都有成本和反馈提示。
+
 ## 快速开始
 
 要求：macOS、Node.js 22 或更新版本、npm，以及系统自带的 `/usr/bin/sandbox-exec`。已在 macOS 15.8、Apple Silicon、Node.js 24.21.0 上实测。其他系统版本需先通过 doctor；Linux 和 Windows 上拒绝执行沙箱任务。
