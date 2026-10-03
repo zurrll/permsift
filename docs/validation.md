@@ -1,5 +1,21 @@
 # 实测记录
 
+## 第七轮首个交付：配置解释与两条入口 — 2026-10-03
+
+本机 macOS 15.8 arm64 / Node 24.21.0 / npm 11.19.0 / SRT 0.0.77。最终单元/组件 **241/241**，新增 10 项配置解释反例与 1 项 CLI 检验；类型、脚本语法和 Git 空白检查通过。日志 `.permsift/onboarding-unit-delivery.log`。验证默认来源、初始授权与上限、空读取、安装继承、模式安排、产物检查、错误定位和输入不变；公共 CLI 在禁止子进程、HTTP/HTTPS/socket 与 fetch 的环境中完成解释。
+
+受影响的真实 macOS 用例定向 **3 项通过**：原写收缩与导出重放、单次观察与边界、分阶段读写收缩/安装快照/最终新安装。日志 `.permsift/onboarding-integration.log` 中前两项是实际沙箱用例，另有一条未匹配名称的文件加载，不计入；分阶段用例用正确名称单独通过，见 `.permsift/onboarding-staged-integration.log`。本轮没有重跑完整 80 项集成套件。
+
+默认公共 CLI 收据 `.permsift/onboarding-validation-FoXlb8/verification.json`：8 个现有配置/模式加 1 个越界反例，0 项目执行、0 安装。配置/limits 摘要保持，错误带来源；静态检查不验证动态输入或输出目录。
+
+真实两路径收据 `.permsift/onboarding-validation-OTG7r1/verification.json`：bundle-kit 原构建命令与 smoke 条件，初始验证、源码变化后的 check、两次 observe，共 **4 次任务、0 新安装、0 搜索候选**。演示依赖此前单独准备；本轮未再次下载。1 份任务配置、1 份独立 limits，调整副本 project 及验收 repetitions=1/max_candidates=0/budget_seconds=120，0 命令包装，0 原任务命令修改。
+
+实际初始准备与解释一致；新增输入 `@workspace/src/onboarding-input.ts` 被同次构建 metafile 和离线比较指出，旧 dist 写范围继续 compatible。原项目保持，删临时项目后采用记录与依赖查询/比较仍可读；usage 摘要不变。四个执行 CLI 各约 1.03–1.05 秒，只是本机样本，分项保留在 report.json，不能推导节省人工时间。
+
+首次 live 脚本复制将 npm 相对内部 symlink 转成指向原树的外部链接，预检正确拒绝（0 次任务/安装），记录 `.permsift/onboarding-validation-OYlqmh/verification.json`。脚本修正为 verbatimSymlinks 后通过，未放宽快照限制。静态解释只解析 project、不扫描输入树，没有将该输入问题当成已验证。
+
+两条入门、配置解释与 CI 复现步骤已完成；远端 CI、Linux/Node 22/另一台 macOS 和独立用户接入没有新增实际结果。共享声明按实际重复另行决定，长期维护与新用户收益仍待验证。复现见 [配置解释](configuration-explanation.md)。
+
 ## 第六轮：成功条件诊断 — 2026-10-03
 
 本机 macOS 15.8 arm64 / Node 24.21.0 / npm 11.19.0 / SRT 0.0.77。最终单元/组件 **230/230**，完整真实沙箱集成 **80/80**；随后补强材料来源、完整对照及修复取样等反例，新增范围定向 **3/3** 通过，不重复累计。构建、类型、脚本语法及 Git 空白检查通过。日志 `.permsift/success-unit-delivery.log`、`success-integration-all.log`、`success-integration-final-repaired.log`。

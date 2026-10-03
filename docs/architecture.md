@@ -20,6 +20,7 @@ flowchart LR
 | --- | --- |
 | cli.ts | 参数、信号、退出码、doctor 内置项目 |
 | src/config.ts | 严格配置校验、路径别名和可信读写权限上限 |
+| src/configuration-explanation.ts | 运行前的静态配置/阶段/来源/检查范围解释；复用校验和准备，无执行后端 |
 | src/filesystem.ts | 快照、路径检查、哈希、文件变化及原子 JSON 写入 |
 | src/hash-scan.ts | 有界内容扫描、稳定历史摘要、文件身份核对及细分诊断 |
 | src/timing.ts | 独占墙钟跨度、根扫描诊断及聚合 |

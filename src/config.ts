@@ -157,6 +157,10 @@ async function readConfig(file: string): Promise<unknown> {
   if (document.errors.length) throw new Error(document.errors.map(e => e.message).join('\n'));
   return document.toJS({ maxAliasCount: 0 });
 }
+export async function readConfigurationDocument(file: string): Promise<{ file: string; value: unknown }> {
+  file = await realpath(file);
+  return { file, value: await readConfig(file) };
+}
 export async function loadConfiguration(configPath: string, limitsPath: string) {
   const configFile = await realpath(configPath);
   const limitsFile = await realpath(limitsPath);
@@ -165,4 +169,12 @@ export async function loadConfiguration(configPath: string, limitsPath: string) 
   validatePolicy(config, limits);
   const project = await realpath(path.resolve(path.dirname(configFile), config.project));
   return { config, limits, project, configFile, limitsFile };
+}
+
+/** Initial preparation is also used by the offline preview. Discovery may add more later. */
+export function initialPreparation(s: Scenario): string[] {
+  const install = isStaged(s) ? installationScenario(s) : undefined;
+  return [...new Set([...s.initial_write_grants, ...s.prepare_directories,
+    ...s.narrower_candidates.flatMap(r => [r.from, ...r.to]),
+    ...install ? [...install.initial_write_grants, ...install.narrower_candidates.flatMap(r => [r.from, ...r.to])] : []])].sort();
 }

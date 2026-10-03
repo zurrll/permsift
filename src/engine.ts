@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { stringify } from 'yaml';
-import { configSchema, limitsSchema, isStaged, installationScenario, loadConfiguration, validatePolicy, type Config, type Limits, type Scenario } from './config.js';
+import { configSchema, limitsSchema, isStaged, installationScenario, initialPreparation, loadConfiguration, validatePolicy, type Config, type Limits, type Scenario } from './config.js';
 import { BACKEND_VERSION, requirePlatform } from './backend.js';
 import { snapshot, snapshotHash, forkSnapshot, hash, within, saveJson } from './filesystem.js';
 import { startEndpoint, closeEndpoint, type Fixtures } from './probes.js';
@@ -109,7 +109,7 @@ export async function runExperimentWithFacts(options: ExperimentOptions): Promis
   const installObservations = new Map<string, Observation[]>();
   const installed = new InstalledSnapshots(path.join(scratch, 'installed'), limits.max_snapshot_bytes);
   const installedKinds = new Map<string, Record<string, 'file' | 'directory'>>();
-  const prepared = new Map(config.scenarios.map(s => [s.id, [...new Set([...s.initial_write_grants, ...s.prepare_directories, ...s.narrower_candidates.flatMap(r => [r.from, ...r.to]), ...isStaged(s) ? [...installationScenario(s).initial_write_grants, ...installationScenario(s).narrower_candidates.flatMap(r => [r.from, ...r.to])] : []])].sort()]));
+  const prepared = new Map(config.scenarios.map(s => [s.id, initialPreparation(s)]));
   const hasTime = () => Date.now() < deadline && !options.signal?.aborted;
   try {
     await checkpoint();

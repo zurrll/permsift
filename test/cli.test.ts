@@ -33,3 +33,15 @@ test('success diagnostics are explicit and reject execution/configuration option
   assert.equal(cli('inspect', 'missing-result', '--save-artifacts').status, 2);
   assert.equal(cli('doctor', '--save-artifacts').status, 2);
 });
+
+test('configuration explanation has an offline entrance, mode selection and no execution/output options', () => {
+  assert.match(cli('--help').stdout, /explain --config FILE --limits TRUSTED_FILE/);
+  assert.equal(cli('explain', '--config', 'missing.json').status, 2);
+  const missing = cli('explain', '--config', 'missing.json', '--limits', 'also-missing.json', '--json');
+  assert.equal(missing.status, 2); assert.equal(JSON.parse(missing.stdout).status, 'invalid');
+  assert.equal(JSON.parse(missing.stdout).issues.length, 2);
+  for (const args of [['--for', 'wrong'], ['--output', 'unwanted'], ['--baseline', 'old.json'], ['--save-artifacts'], ['--keep-workspaces'], ['extra']]) {
+    assert.equal(cli('explain', '--config', 'tasks.yaml', '--limits', 'limits.json', ...args).status, 2);
+  }
+  assert.equal(cli('run', '--for', 'observe').status, 2);
+});

@@ -1,5 +1,19 @@
 # 开发与测试
 
+## 接入与配置解释
+
+`src/configuration-explanation.ts` 是执行前的静态解释；复用 config.ts 的 parser/schema、策略校验、安装派生和初始准备，不加载执行后端、不猜测历史方案或产物内容。原配置格式与模型身份不变。两条入门分别见 [权限](getting-started-permissions.md) 和 [依赖观察](getting-started-observation.md)。
+
+```sh
+npm run onboarding:verify
+# 已 examples:prepare 后：同一构建项目的基线/采用/变更复验与观察对比
+npm run onboarding:verify -- --live
+```
+
+默认检验 8 种现有配置/模式和 1 个越界反例，0 项目执行/安装。live 使用原 bundle-kit 构建命令，1 次建立、2 次观察与 1 次变更复验，无搜索或新安装；清理副本项目后继续离线读取。CI 已加入离线入口与 macOS live，加入配置不等于实际远端通过。
+
+`test/configuration-explanation.test.ts` 覆盖默认来源、上限与实际授权、空读取、安装继承/分阶段、模式差异、按产物说明、准备目录、错误定位及禁止子进程/联网时的公共 CLI；`cli.test.ts` 覆盖参数与退出码。
+
 ## 安装和构建
 
 ```sh

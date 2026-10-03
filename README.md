@@ -1,12 +1,19 @@
 # Permsift
 
-**用真实任务，收紧沙箱权限。**
+**用真实任务，理解权限与依赖。**
 
 Test tasks. Trim permissions.
 
-Permsift 是一个面向项目任务的沙箱权限调试器。你提供可工作的初始策略和安装、测试、构建等任务，它在干净副本中反复执行，尝试缩小文件和安装网络权限，用任务断言和边界探针判断是否接受修改，并保留每一步的证据。
+Permsift 在隔离副本里执行你指定的安装、测试或构建任务，记录任务结果、权限边界与运行条件。在这个共同底座上，你可以收缩权限，也可以独立观察依赖。两条路径都保留可复查的证据。
 
-当前为 **v0.12，本地 CLI（任务执行限 macOS）**。使用 Anthropic Sandbox Runtime 0.0.77 执行隔离。支持目录写权限、可选的项目文件读取收缩，以及 npm 安装阶段的精确域名撤销。安装后断网测试和构建，冷缓存与固定暖缓存分别验证。显式分阶段配置可分别收缩安装写权限和任务读写，任务候选复用本次实验内的安装快照，最终仍重新安装完整验收。工作区优先使用写时复制，保持各轮文件独立。改代码、锁文件或依赖后，可用 check 验证旧规则并尝试受限补充。系统运行时、缓存和临时目录读取仍固定开放；结果限定于本次环境和测试集合，不代表全局最小权限。
+当前为 **v0.12，本地 CLI（任务执行限 macOS）**，隔离后端为 Anthropic Sandbox Runtime 0.0.77。配置解释与保存报告的离线分析不需要运行沙箱。结论限定于本次任务、环境与采集范围。
+
+| 你想回答的问题 | 从哪里开始 | 后续操作 |
+| --- | --- | --- |
+| 这组任务能在什么权限下完成？代码改变后旧规则还有效吗？ | [权限入门](docs/getting-started-permissions.md)：explain → run | 有明确收缩目标时 tighten；审阅后 adopt，变更后 check |
+| 这次测试/构建观察到了哪些依赖？改变代码或依赖后发生了什么？ | [依赖观察入门](docs/getting-started-observation.md)：explain → observe | inspect 查询包；compare 比较两次保存记录 |
+
+依赖观察每个任务执行一次，不需要先进行权限搜索。缺少加载记录不表示包无用，也不生成删除建议。
 
 ## 快速开始
 
@@ -17,24 +24,17 @@ Permsift 是一个面向项目任务的沙箱权限调试器。你提供可工�
 ```sh
 npm ci --ignore-scripts
 npm run build
+# 先看配置、默认权限和成功条件；不运行任务或安装依赖
+node dist/cli.js explain --config examples/demo/permsift.yaml --limits examples/limits.json
+# 真正执行任务前，检查本机隔离能力
 node dist/cli.js doctor
-npm run demo
 ```
 
-demo 不需要网络或额外下载依赖。它包含一个计算订单金额的小项目，执行实际单元测试及构建后的 smoke test。
+然后选择上面的使用路径。`explain --for observe` 显示单次观察安排，`--for tighten` 显示基线/最终验证与额外搜索的关系；`--for check` 只解释当前宽对照配置，不冒充历史方案。见 [运行前的配置解释](docs/configuration-explanation.md)。
 
-典型结果：
+想直接体验权限搜索，可以执行 `npm run demo`：订单金额项目的测试和构建不需要额外下载依赖。初始写范围为工作区和缓存，典型结果会缩到测试的 `reports/` 与构建的 `dist/`。基线与最终验证各重复三次，候选和恢复另有执行成本。
 
-```text
-VERIFIED · ... executions
-Result overview · tighten reports verified · saved material complete
-  build:
-    policy [recorded]: Task writes: @workspace/dist; ...
-```
-
-初始策略允许写整个工作区和缓存。工具将测试写入范围缩到 `reports/`，构建缩到 `dist/`，撤销不需要的缓存写权限；再尝试删除产物目录写权限时，任务失败，恢复后重新通过。基线和最终策略各独立重复三次。自动发现后还会使用统一的目录准备状态重新确认基线，因此运行次数随候选变化。
-
-完整报告位于命令输出的 `.permsift/<experiment-id>/` 目录。每次默认使用新目录，不覆盖历史证据。
+完整报告位于命令输出的 `.permsift/<experiment-id>/` 目录，每次默认使用新目录。结果限定于本次测试集合，不代表全局最小权限。
 
 命令会自动显示并保存 summary.json / summary.md，解释验证范围、候选与恢复、搜索缺口或来源变化；原有详细报告前面也有同一份概览。继续读取历史 JSON 报告；当前 check 报告使用 v2，并为约定变化增加要求审阅的结论。见 [结果解释](docs/result-explanations.md)。
 
@@ -141,8 +141,8 @@ node dist/cli.js check \
 1. 明确测试、构建任务及成功条件。已准备依赖的项目离线运行；安装场景提供受支持的锁文件、缓存条件与域名上限。
 2. 编写场景文件，指定命令、初始写目录以及产物断言。需要读取收缩时再声明 initial_read_grants；默认自动生成候选，可补充手工规则。
 3. 在可信位置准备 limits 文件，明确批准读写授权范围和实验预算。开启读取收缩须声明 allowed_read_roots；CLI 不自动加载项目提供的最高权限。
-4. 先执行 run。基线全部通过后，再执行 tighten。
-5. 审阅报告和推荐策略，再用于自己的运行流程。
+4. 先执行 explain，确认默认读取、安装/任务权限、产物清理和检查范围；选择权限路径时再 run，选择依赖路径时直接 observe。
+5. 权限收缩围绕具体保护目标或有价值的授权范围进行；审阅结果后可 adopt，日常变更用 check。依赖观察保存 usage.json 后可离线 inspect / compare。
 
 例子见 [场景配置](examples/demo/permsift.yaml) 和 [演示 limits](examples/limits.json)。这些 limits 适用于已审核的演示项目，真实项目需要你先审查。
 

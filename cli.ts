@@ -16,6 +16,7 @@ const help = `Permsift ${VERSION} — Test tasks. Trim permissions.
 
 Usage:
   permsift doctor [--output NEW_DIRECTORY] [--json]
+  permsift explain --config FILE --limits TRUSTED_FILE [--for run|tighten|observe|check] [--json]
   permsift run --config FILE --limits TRUSTED_FILE [options]
   permsift tighten --config FILE --limits TRUSTED_FILE [options]
   permsift check --config FILE --baseline REPORT_JSON --limits TRUSTED_FILE [options]
@@ -35,6 +36,7 @@ Options:
   --baseline FILE    check: verified report.json, adopted baseline.json or store; observe: previous usage.json for comparison
   --reason TEXT      adopt: explanation retained with the explicit selection
   --package NAME     inspect: exact package name, all installation instances across tasks
+  --for MODE         explain: preview execution mode (default: run); no task or installation
   --help             Show help
   --version          Print version
 
@@ -42,6 +44,7 @@ Task execution requires macOS. No unsandboxed fallback. Task commands run offlin
 optional npm install stages use explicit trusted domain grants.
 Limits must be explicitly supplied from a location you trust.
 compare/inspect/diagnose only read saved reports; no sandbox, installation or task execution.
+explain only reads configuration/limits and resolves project; exit 0 statically valid, 2 invalid.
 adopt saves bounded JSON evidence and a selection; no task, installation or permission search.
 Exit: 0 verified/compatible/observed/adopted, 1 failure/regression/changed terms requiring review, 2 invalid setup/inconclusive/incomplete capture, 130 interrupted.
 Offline exit: 0 complete analysis (differences allowed), 1 inspect found no instance,
@@ -53,12 +56,23 @@ async function main() {
     config: { type: 'string' }, limits: { type: 'string' }, output: { type: 'string' },
     'keep-workspaces': { type: 'boolean' }, 'save-artifacts': { type: 'boolean' }, json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' }, version: { type: 'boolean' },
     baseline: { type: 'string' },
-    package: { type: 'string' }, reason: { type: 'string' },
+    package: { type: 'string' }, reason: { type: 'string' }, for: { type: 'string' },
   } });
   if (values.version) { console.log(VERSION); return; }
   if (values.help || positionals.length === 0) { console.log(help); return; }
   const mode = positionals[0];
+  if (values.for !== undefined && mode !== 'explain') throw new Error('--for is only supported by explain');
   if (values['save-artifacts'] && !['run', 'tighten', 'check', 'observe'].includes(mode)) throw new Error('--save-artifacts is only supported by run/tighten/check/observe');
+  if (mode === 'explain') {
+    if (positionals.length !== 1 || !values.config || !values.limits || values.output || values.baseline || values.package || values.reason || values['keep-workspaces']) throw new Error('Expected explain --config FILE --limits TRUSTED_FILE [--for run|tighten|observe|check] [--json]');
+    const { explainConfiguration, explanationModes, configurationExplanationText } = await import('./src/configuration-explanation.js');
+    const forMode = values.for ?? 'run';
+    if (!explanationModes.includes(forMode as typeof explanationModes[number])) throw new Error('Expected --for run, tighten, observe or check');
+    const report = await explainConfiguration({ configPath: values.config, limitsPath: values.limits, forMode: forMode as typeof explanationModes[number] });
+    console.log(values.json ? JSON.stringify(report, null, 2) : configurationExplanationText(report));
+    process.exitCode = report.status === 'valid' ? 0 : 2;
+    return;
+  }
   if (mode === 'diagnose') {
     if (positionals.length !== 2 || values.config || values.limits || values.baseline || values.package || values.reason || values['keep-workspaces']) throw new Error('Expected diagnose RESULT [--output NEW_DIRECTORY] [--json]');
     const { diagnoseSuccess, successDiagnosticMarkdown, saveSuccessDiagnostic } = await import('./src/success-diagnostics.js');
