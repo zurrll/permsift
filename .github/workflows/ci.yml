@@ -19,6 +19,7 @@ jobs:
       - run: npm run check
       - run: npm run offline:verify
       - run: npm run model:verify
+      - run: npm run results:verify
       - run: npm run environment:verify -- --offline-only
   sandbox:
     runs-on: macos-latest

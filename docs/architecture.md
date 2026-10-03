@@ -38,6 +38,10 @@ flowchart LR
 | src/execution-phase.ts | 流程状态、精简执行结果与回归阶段判断 |
 | src/execution-journal.ts | 原始证据、原生模型事实及逐轮索引的保存顺序 |
 | src/experiment-report.ts | 兼容实验报告类型与纯 Markdown 呈现 |
+| src/model/native-reader.ts | 原生 v1 事实、身份、引用与独立结论校验 |
+| src/result-reader.ts | 保存结果及固定布局伴随材料的有界只读加载 |
+| src/result-explanation.ts | 按路径/任务生成证据与行动，终端和 Markdown 共用结果 |
+| src/result-output.ts | 流程完成后保存概览并前置到原详细报告 |
 | src/engine.ts | 实验编排、候选/恢复、预算、快照发布、最终验证及导出 |
 | src/regression.ts | 历史规则导入、当前输入冻结、宽规则对照、有限补充及回归汇总 |
 | src/install.ts | npm 锁定输入检查、缓存条件、固定安装参数、输入不变检查与传输失败分类 |

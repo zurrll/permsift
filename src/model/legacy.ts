@@ -16,7 +16,9 @@ const inputHashes = z.object({ snapshot_hash: digest.optional(), config_hash: di
 const trialSchema = z.object({ id: text, scenario: text, phase: text, grants: writes, read_grants: reads,
   read_mode: readMode, network_grants: domains.optional(), install_grants: writes.optional(),
   installation_reused: z.boolean().optional(), verdict, evidence: text });
-const search = z.object({ stop: text, steps: z.array(z.object({ decision: text })).max(10000) });
+const search = z.object({ stop: text, steps: z.array(z.object({ decision: text, operation: text.optional(),
+  before: z.array(text).max(2048).optional(), after: z.array(text).max(2048).optional(),
+  semantic_change: z.boolean().optional(), trial_id: text.optional(), recovery_id: text.optional() })).max(10000) });
 const experimentSchema = z.object({ schema_version: z.literal(1), id: text, mode: z.enum(['run', 'tighten', 'doctor', 'observe']),
   status: z.enum(['running', 'verified', 'failed', 'incomplete']), environment: z.record(z.string()), inputs: inputHashes,
   trials: z.array(trialSchema).max(50000), policies: z.record(writes), read_policies: z.record(reads), read_modes: z.record(readMode),
@@ -47,6 +49,7 @@ const regressionSchema = z.object({ schema_version: z.literal(1), kind: z.litera
   environment: z.record(z.string()), inputs: inputHashes,
   tasks: z.array(z.object({ id: text, status: z.enum(['pending', 'compatible', 'permission_change', 'unresolved_failure', 'inconclusive']),
     task_definition_changed: z.boolean(), repair_stop: text.optional(),
+    reason: text.optional(),
     stages: z.array(z.object({ phase: text, verdict, report: text, trials: z.number().int().nonnegative(), prepared_directories: writes })).max(10000),
     suggestion: z.object({ write: writes, read: reads.optional(), network: domains.optional(), install_write: writes.optional(), verified: z.literal(true) }).optional(),
   })).max(16) });
@@ -233,7 +236,22 @@ export function adaptExperiment(raw: unknown, companions: LegacyCompanions = {})
   for (const [permission, searches] of Object.entries({ write: report.searches, read: report.read_searches, network: report.network_searches, install_write: report.install_searches })) {
     for (const [key, item] of Object.entries(searches ?? {})) {
       if (!keys.includes(key)) throw new Error('Search references a missing task');
-      model.workflow.searches.push({ task_key: key, permission, stop: item.stop, decisions: item.steps.map(s => s.decision) });
+      for (const step of item.steps) {
+        for (const id of [step.trial_id, step.recovery_id].filter(id => id !== undefined)) {
+          if (!report.trials.some(t => t.id === id && t.scenario === key)) throw new Error('Search references a different or missing trial');
+        }
+        const grants = (id: string) => {
+          const t = report.trials.find(t => t.id === id)!;
+          return permission === 'read' ? t.read_grants : permission === 'network' ? t.network_grants : permission === 'install_write' ? t.install_grants : t.grants;
+        };
+        if (step.trial_id && step.after && grants(step.trial_id) && !equalSet(step.after, grants(step.trial_id)!)) throw new Error('Search candidate grants disagree with trial');
+        if (step.recovery_id && step.before && grants(step.recovery_id) && !equalSet(step.before, grants(step.recovery_id)!)) throw new Error('Search recovery grants disagree with trial');
+      }
+      model.workflow.searches.push({ task_key: key, permission, stop: item.stop, decisions: item.steps.map(s => s.decision),
+        steps: item.steps.map(s => ({ decision: s.decision, operation: saved(s.operation, 'Search operation'),
+          before: saved(s.before, 'Policy before comparison'), after: saved(s.after, 'Candidate policy'),
+          semantic_change: saved(s.semantic_change, 'Scope change'), trial_id: saved(s.trial_id, 'Candidate trial'),
+          recovery_id: saved(s.recovery_id, 'Restored-policy trial') })) });
       if (!['exhausted', 'fixed_point'].includes(item.stop)) model.workflow.review_reasons.push(key + ': ' + permission + ' search stopped: ' + item.stop);
     }
   }
@@ -265,6 +283,7 @@ export function adaptRegression(raw: unknown, companions: LegacyCompanions = {})
     const suggestion = item.suggestion ? policy(model, item.id, scenario, item.suggestion.write, item.suggestion.read,
       scenario ? scenario.initial_read_grants === undefined ? 'legacy' : 'explicit' : undefined, item.suggestion.network, item.suggestion.install_write) : undefined;
     model.workflow.comparisons.push({ task_key: item.id, reported_status: item.status,
+      reason: saved(item.reason, 'Comparison reason'), repair_stop: saved(item.repair_stop, 'Repair stop'),
       definition_changed: recorded(item.task_definition_changed), stages: item.stages.map(s => ({ phase: s.phase, reported_verdict: s.verdict,
         report: s.report, trials: s.trials, preparation: grantSet(s.prepared_directories) })), suggestion_policy: saved(suggestion, 'Suggested policy'),
       suggestion_verified: saved(item.suggestion?.verified, 'Suggestion verification') });

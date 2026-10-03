@@ -7,6 +7,7 @@ import { OBSERVER_VERSION } from './observation-runtime.js';
 import { bundlingMarkdown } from './esbuild-comparison.js';
 import { loadUsage } from './usage-report.js';
 import { compareUsage, comparisonMarkdown, escape, type UsageComparison } from './usage-comparison.js';
+import { publishSummary } from './result-output.js';
 export { loadUsage } from './usage-report.js';
 export { compareUsage, type UsageComparison, type CompilationComparison } from './usage-comparison.js';
 
@@ -76,5 +77,6 @@ export async function runObservation(options: { configPath: string; limitsPath: 
   if (baseline) report.comparison = compareUsage(baseline, report, path.resolve(options.baselinePath!));
   await saveJson(path.join(report.output, 'usage.json'), report);
   await fs.writeFile(path.join(report.output, 'usage.md'), usageMarkdown(report), { mode: 0o600 });
+  await publishSummary(path.join(report.output, 'usage.json'), path.join(report.output, 'usage.md'));
   return report;
 }

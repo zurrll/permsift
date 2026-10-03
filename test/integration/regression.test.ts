@@ -1,4 +1,5 @@
 import { assertNativeEvidence } from '../support/native-evidence.js';
+import { assertSummary } from '../support/result-summary.js';
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
@@ -41,6 +42,10 @@ test('new input needs a tested exact read addition, keeps shared preparation and
   assert.equal(r.status,'regressed',r.error); assert.equal(r.tasks[0].status,'permission_change'); assert.equal(r.tasks[0].repair_stop,'verified');
   assert.deepEqual(r.tasks[0].suggestion?.added_read,['@workspace/added.json']); assert.deepEqual(r.tasks[0].suggestion?.added_write,[]);
   assert.equal(r.candidate_count,1); assert.deepEqual(r.tasks[0].stages.map(s=>s.phase),['old','control','old-confirm','control-confirm','repair-1','repair-verify-1']);
+  const overview = await assertSummary(r.output);
+  assert.equal(overview.analysis.status, 'complete');
+  assert.equal(overview.tasks[0].claims.find(c => c.dimension === 'suggestion')!.status, 'corroborated');
+  assert.equal(overview.tasks[0].claims.find(c => c.dimension === 'task')!.status, 'pass');
   const stages: string[][]=[];
   for(const s of r.tasks[0].stages){const run=JSON.parse(await fs.readFile(path.join(r.output,path.dirname(s.report),'report.json'),'utf8'));assert.equal(run.inputs.snapshot_hash,r.inputs.snapshot_hash);await assertNativeEvidence(run);
     const e=JSON.parse(await fs.readFile(path.join(run.output,run.trials[0].evidence),'utf8')); stages.push(e.prepared_directories);assert.ok(e.before.checks.every((c:{status:string})=>c.status==='pass'));assert.ok(e.after.checks.every((c:{status:string})=>c.status==='pass'));}

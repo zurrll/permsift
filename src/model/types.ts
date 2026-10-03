@@ -77,9 +77,12 @@ export type Workflow = {
   verification: Saved<{ baseline_verified: boolean; final_verified: boolean }>;
   search_complete: Saved<boolean>;
   current_policies: { task_key: string; policy_id: string }[];
-  searches: { task_key: string; permission: string; stop: string; decisions: string[] }[];
+  searches: { task_key: string; permission: string; stop: string; decisions: string[];
+    steps: { decision: string; operation: Saved<string>; before: Saved<string[]>; after: Saved<string[]>;
+      semantic_change: Saved<boolean>; trial_id: Saved<string>; recovery_id: Saved<string> }[] }[];
   comparisons: {
     task_key: string; reported_status: string; definition_changed: Saved<boolean>;
+    reason: Saved<string>; repair_stop: Saved<string>;
     stages: { phase: string; reported_verdict: Verdict; report: string; trials: number; preparation: string[] }[];
     suggestion_policy: Saved<string>; suggestion_verified: Saved<boolean>;
   }[];

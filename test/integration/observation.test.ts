@@ -1,4 +1,5 @@
 import { assertNativeEvidence } from '../support/native-evidence.js';
+import { assertSummary } from '../support/result-summary.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
@@ -20,6 +21,8 @@ test('real observation runs once, preserves task assertions and boundaries with 
   assert.equal(normal.dependency_observations, undefined);
   const report = await runObservation({ ...f, output: path.join(f.root, 'observed') });
   assert.equal(report.status, 'observed', JSON.stringify(report.tasks));
+  const overview = await assertSummary(report.output, 'usage'); assert.equal(overview.analysis.status, 'complete');
+  assert.equal(overview.tasks[0].claims.find(c => c.dimension === 'task')!.status, 'pass');
   const task = report.tasks[0]; if (task.capture_status === 'not_run') throw new Error('Not run');
   assert.equal(task.verdict, 'pass'); assert.equal(task.capture_status, 'captured'); assert.equal(task.processes.length, 2);
   assert.equal(task.loaded_packages.length, 4); assert.deepEqual(task.not_observed.map(p => p.name), ['unused']);
@@ -60,6 +63,8 @@ test('real usage comparison explains a newly loaded instance and a changed obser
   await f.pkg('alpha', 'alpha', '2.0.0', "module.exports=require('shared');");
   const after = await runObservation({ ...f, output: path.join(f.root, 'after'), baselinePath: path.join(before.output, 'usage.json') });
   assert.equal(after.status, 'observed'); assert.equal(after.comparison!.conditions.input_changed, true);
+  const overview = await assertSummary(after.output, 'usage');
+  assert.match(overview.tasks[0].claims.find(c => c.dimension === 'modules_changes')!.statement, /alpha 1\.0\.0 → 2\.0\.0/);
   assert.deepEqual(after.comparison!.tasks[0].added.map(p => p.name), ['unused']);
   assert.deepEqual(after.comparison!.tasks[0].version_changes, [{ path: '@workspace/node_modules/alpha', name: 'alpha', before: '1.0.0', after: '2.0.0' }]);
   const offline = await compareSavedUsage(path.join(before.output, 'usage.json'), path.join(after.output, 'usage.json'));
@@ -90,6 +95,9 @@ test('non-Node task passes independently of unavailable module observations', ma
   await fs.writeFile(f.configPath, JSON.stringify(config));
   const report = await runObservation({ ...f, output: path.join(f.root, 'observed') });
   assert.equal(report.status, 'incomplete');
+  const overview = await assertSummary(report.output, 'usage');
+  assert.equal(overview.tasks[0].claims.find(c => c.dimension === 'task')!.status, 'pass');
+  assert.equal(overview.tasks[0].claims.find(c => c.dimension === 'modules')!.status, 'unavailable');
   const task = report.tasks[0]; if (task.capture_status === 'not_run') throw new Error();
   assert.equal(task.verdict, 'pass'); assert.equal(task.capture_status, 'unavailable');
 });

@@ -61,6 +61,19 @@ npm run model:verify
 
 公共 CLI 证据位于 `.permsift/environment-validation-TYvxjC/`；离线回放为 `.permsift/model-replay-iHyhjl/` 和 `.permsift/offline-usage-Lrypa4/`。完整/补充测试日志及验证清单另存本机 `.permsift/round2-validation-*/`；生成记录不提交 Git。新增原生事实在执行时直接产生，旧 schema_version: 1 报告、导出和退出码保持兼容。保存失败可留下尚未登记的完整文件，本轮不提供自动恢复继续运行；边界见 [执行底座](execution-foundation.md)。
 
+## 第三轮：结果解释与材料读取检验
+
+2026-10-03，本机同一 macOS / Node 24 环境完成：
+
+- 单元/宿主测试 **184/184**，新增 18 项结果反例/CLI 测试；类型检查、构建及 Git 空白检查通过。
+- 受影响的真实沙箱用例 **7/7**：写权限收缩和导出重放、读取修复、空读取授权、正常依赖观察、版本/加载变化、非 Node 任务与不可用模块来源、真实索引保存故障。既有用例直接核对它们已产生的在线/离线概览，未为概览核对再执行 trial。
+- 最后的公共 CLI doctor 运行 **1 次 trial，0 次安装**；原 --json 仍为实验报告，保存的 summary 与 inspect 重新生成的 JSON 相同。
+- results:verify 回放权限修复与 glob-parent 升级故事，**0 次项目任务、0 次安装**，源样本不变；model:verify / offline:verify 同样通过。
+
+最终日志与公共 CLI 记录位于本机 `.permsift/round3-validation-*/verification.json`；双故事回放为 `.permsift/result-replay-HbaAwI/verification.json`，兼容回放为 `.permsift/model-replay-5mgETr/`、`.permsift/offline-usage-jKyK5x/`。生成材料不提交 Git。真实用例最后一次运行约 14.86 s，单元测试约 12.38 s；这是本轮验证用时，不是产品加速或易用性对照。
+
+本轮改变读取、解释和呈现，没有改安装器、沙箱隔离、复制或搜索算法；不重复上一轮已通过的整套注册表故障安装测试。新概览的内容、证据位置、缺口和保存故障处理见 [结果解释](result-explanations.md)。独立使用者是否更容易理解，以及其他主机上的实际 CI，仍无结果。
+
 ## 未验证范围与下一次需要反馈的事
 
 | 范围 | 当前状态 | 后续怎样补 |

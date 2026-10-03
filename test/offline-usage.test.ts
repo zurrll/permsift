@@ -143,7 +143,8 @@ test('offline CLI provides valid JSON, permits differences and rejects execution
   result = cli('inspect', a, '--package', pkg.name, '--json'); assert.equal(result.status, 0); assert.equal(JSON.parse(result.stdout).found, true);
   assert.equal(cli('inspect', a, '--package', 'absent').status, 1);
   for (const args of [['compare', a], ['compare', a, b, '--config', 'missing'], ['compare', a, b, '--limits', 'missing'],
-    ['compare', a, b, '--baseline', a], ['compare', a, b, '--package', pkg.name], ['inspect', a], ['inspect', a, '--package', pkg.name, '--output', path.join(f.root, 'ignored')]]) assert.equal(cli(...args).status, 2);
+    ['compare', a, b, '--baseline', a], ['compare', a, b, '--package', pkg.name], ['inspect', a, '--package', pkg.name, '--output', path.join(f.root, 'ignored')]]) assert.equal(cli(...args).status, 2);
+  result = cli('inspect', a, '--json'); assert.equal(result.status, 2); assert.equal(JSON.parse(result.stdout).kind, 'permsift_result_summary');
   assert.deepEqual(await fs.readFile(a), original); assert.deepEqual((await fs.readdir(f.root)).sort(), ['a.json', 'b.json']);
 });
 

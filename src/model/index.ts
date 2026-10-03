@@ -4,3 +4,4 @@ export { compareModels } from './compare.js';
 export { evaluateTask, evaluateBoundaries } from './conclusions.js';
 export { readLegacyJson } from './io.js';
 export { nativeExecution, type NativeExecution } from './native.js';
+export { parseNativeExecution } from './native-reader.js';

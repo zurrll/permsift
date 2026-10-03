@@ -37,6 +37,7 @@
     "bundle:verify": "npm run build && node scripts/verify-bundling.mjs",
     "offline:verify": "npm run build && node scripts/verify-offline.mjs",
     "model:verify": "npm run build && node scripts/verify-model.mjs",
+    "results:verify": "npm run build && node scripts/verify-results.mjs",
     "environment:verify": "npm run build && node scripts/verify-environment.mjs"
   },
   "dependencies": {

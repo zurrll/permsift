@@ -32,6 +32,8 @@ typescript-observation.test.ts 验证直接任务配置、真实本地编译器�
 
 ## 测试分层
 
+第三轮的 result-summary.test.ts 验证已保存材料、原生引用、候选/恢复、回归子报告、缺口和各来源含义。`npm run results:verify` 通过公共 CLI 回放权限修复与依赖升级两条记录，不运行项目或安装。真实集成用例中的 assertSummary 使用该用例已生成的结果，核对在线保存与离线解释、Markdown 前置概览；不为核对新增 trial。接口与兼容说明见 [结果解释](result-explanations.md)。
+
 内部模型位于 src/model/，第二轮已接入 execution-request.ts 和 execute-once.ts。model.test.ts 用真实记录投影及标明的合成反例检验身份、旧摘要、引用、未知结论和条件变化；execution.test.ts 检验完整请求、模型事实、阶段判断、索引及写入失败；两者不增加项目任务执行。回放及最小环境复现：
 
 ```sh

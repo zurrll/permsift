@@ -19,6 +19,7 @@ import { executeOnce } from './execute-once.js';
 import { ExecutionJournal } from './execution-journal.js';
 import { nativeExecution } from './model/native.js';
 import type { ExecutionPhase } from './execution-phase.js';
+import { publishSummary } from './result-output.js';
 
 import { VERSION } from './version.js';
 export { VERSION } from './version.js';
@@ -330,5 +331,6 @@ export async function runExperimentWithFacts(options: ExperimentOptions): Promis
     if (options.mode !== 'doctor' && options.mode !== 'observe') await fs.writeFile(path.join(output, name), stringify({ ...config, project, scenarios: config.scenarios.map(s => ({ ...s, initial_write_grants: report.policies[s.id], ...(s.initial_read_grants === undefined ? {} : { initial_read_grants: report.read_policies[s.id] }), ...(s.install ? { initial_network_grants: report.network_policies[s.id], ...(isStaged(s) ? { install: { ...s.install, initial_write_grants: report.install_policies[s.id] } } : {}) } : {}), prepare_directories: prepared.get(s.id) })) }), { mode: 0o600 });
     await checkpoint();
   }
+  await publishSummary(path.join(output, 'report.json'), path.join(output, 'report.md'));
   return { report, execution };
 }

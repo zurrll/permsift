@@ -1,4 +1,5 @@
 import { assertNativeEvidence } from '../support/native-evidence.js';
+import { assertSummary } from '../support/result-summary.js';
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
@@ -25,6 +26,9 @@ test('real backend tightens writes, refuses necessary deletion and replays expor
   const report = await runExperiment({ ...f, mode: 'tighten', output: path.join(f.root, 'result') });
   assert.equal(report.status, 'verified', report.error);
   await assertNativeEvidence(report);
+  const overview = await assertSummary(report.output);
+  assert.equal(overview.analysis.status, 'complete');
+  assert.ok(overview.tasks[0].decisions.some(d => d.reported_decision === 'rejected' && d.support === 'corroborated' && d.recovery === 'pass'));
   assert.deepEqual(report.policies.build, ['@workspace/dist']);
   assert.ok(report.searches.build.steps.some(s => s.decision === 'rejected' && s.recovery_id));
   const evidence = JSON.parse(await fs.readFile(path.join(report.output, report.trials[0].evidence), 'utf8'));
@@ -222,6 +226,8 @@ test('real write permission does not imply read access; empty project read grant
   const empty = await runExperiment({ ...f, mode: 'run', output: path.join(f.root, 'empty') });
   assert.equal(empty.status, 'verified', JSON.stringify(empty.trials[0].diagnosis));
   assert.deepEqual(empty.read_policies.build, []);
+  const overview = await assertSummary(empty.output);
+  assert.match(overview.tasks[0].claims.find(c => c.dimension === 'policy')!.statement, /reads \(explicit\): \(none\)/);
 });
 
 test('joint search revisits writes after removing optional read access changes task behavior', macOnly, async t => {

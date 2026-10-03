@@ -2,6 +2,8 @@
 
 v0.12 增加两个只读取 usage.json 的入口。它们不安装依赖、不运行项目任务、不启动沙箱，不需要项目目录、config 或 limits；没有新的权限搜索或采集来源。执行任务仍需要 macOS，离线分析只需要 Node 和已构建的 CLI。
 
+第三轮扩展 `inspect REPORT_JSON_OR_DIRECTORY`：无需 --package 即可解释整轮权限实验、回归、观察或已保存比较；旧包视图继续使用 --package。compare 文字输出与保存的 comparison.md 前面新增同源概览，--output 还保存 summary.json/md，原比较 JSON 和退出码不变。材料读取、概览退出码和边界见 [结果解释](result-explanations.md)。
+
 ## 比较两份已保存的报告
 
 ```sh

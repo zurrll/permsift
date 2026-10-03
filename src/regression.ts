@@ -11,6 +11,7 @@ import { BACKEND_VERSION, requirePlatform } from './backend.js';
 import { hash, noSymlinks, resolveAlias, saveJson, snapshot, within } from './filesystem.js';
 import type { Diagnosis } from './diagnostics.js';
 import { npmVersion } from './install.js';
+import { publishSummary } from './result-output.js';
 
 const grants = z.array(aliasSchema).max(32).refine(a => new Set(a).size === a.length, 'Duplicate baseline grant');
 const reads = z.array(readAliasSchema).max(32).refine(a => new Set(a).size === a.length, 'Duplicate baseline read grant');
@@ -321,6 +322,7 @@ export async function runRegression(options: {
     }
     report.finished_at = new Date().toISOString(); await checkpoint();
   }
+  await publishSummary(path.join(output, 'report.json'), path.join(output, 'report.md'));
   return report;
 }
 function taskHash(s: Scenario) { return hash({ command: s.command, timeout_seconds: s.timeout_seconds, assertions: s.assertions, install: s.install ? { manager: s.install.manager, cache: s.install.cache, cache_seed: s.install.cache_seed, registry: s.install.registry } : undefined }); }

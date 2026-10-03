@@ -27,17 +27,23 @@ demo 不需要网络或额外下载依赖。它包含一个计算订单金额的
 
 ```text
 VERIFIED · ... executions
-  test write: @workspace/reports
-  build write: @workspace/dist
+Result overview · tighten reports verified · saved material complete
+  build:
+    policy [recorded]: Task writes: @workspace/dist; ...
 ```
 
 初始策略允许写整个工作区和缓存。工具将测试写入范围缩到 `reports/`，构建缩到 `dist/`，撤销不需要的缓存写权限；再尝试删除产物目录写权限时，任务失败，恢复后重新通过。基线和最终策略各独立重复三次。自动发现后还会使用统一的目录准备状态重新确认基线，因此运行次数随候选变化。
 
 完整报告位于命令输出的 `.permsift/<experiment-id>/` 目录。每次默认使用新目录，不覆盖历史证据。
 
+命令会自动显示并保存 summary.json / summary.md，解释验证范围、候选与恢复、搜索缺口或来源变化；原有详细报告前面也有同一份概览。原 JSON 报告与执行退出码保持兼容。见 [结果解释](docs/result-explanations.md)。
+
 ## 读取已有报告，不再运行项目
 
 ```sh
+# 阅读整轮权限实验、回归或观察结果
+node dist/cli.js inspect .permsift/EXPERIMENT
+node dist/cli.js inspect .permsift/EXPERIMENT/report.json --json
 # 比较两份已经保存的 usage.json
 node dist/cli.js compare before/usage.json after/usage.json
 # 把一个包在所有任务中的记录放到一起
@@ -45,6 +51,7 @@ node dist/cli.js inspect usage.json --package glob-parent
 # 仓库自带真实记录投影；无需准备或安装示例项目
 node dist/cli.js inspect examples/reports/fast-glob-tasks.json --package glob-parent
 npm run offline:verify
+npm run results:verify
 ```
 
 compare / inspect 不需要 config、limits、原项目或沙箱，默认输出 Markdown，--json 输出结构化结果。compare 可用 --output NEW_DIRECTORY 保存 comparison.json/md；它与 observe --baseline 共用比较逻辑。各任务、安装实例和来源健康度分别展示，明确区分未采集、不完整、没有记录和贡献 0 字节。差异不是自动回归判定；离线分析不能替代执行验证。用法和退出码见 [离线分析](docs/offline-usage.md)，接入与收益检验见 [使用记录](docs/offline-pilot.md)。

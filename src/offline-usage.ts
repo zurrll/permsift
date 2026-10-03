@@ -3,6 +3,7 @@ import path from 'node:path';
 import { loadUsage, type Comparable } from './usage-report.js';
 import { compareUsage, comparisonMarkdown, escape, type UsageComparison } from './usage-comparison.js';
 import { VERSION } from './version.js';
+import { publishSummary } from './result-output.js';
 
 type Input = { file: string; status: Comparable['status']; version?: string; tasks: { task: string; verdict?: string;
   module_capture: string; compiler_capture: string; build_capture: string }[] };
@@ -36,4 +37,5 @@ export async function saveComparison(directory: string, report: OfflineCompariso
   await fs.mkdir(directory);
   await fs.writeFile(path.join(directory, 'comparison.json'), JSON.stringify(report, null, 2) + '\n', { flag: 'wx' });
   await fs.writeFile(path.join(directory, 'comparison.md'), offlineComparisonMarkdown(report), { flag: 'wx' });
+  await publishSummary(path.join(directory, 'comparison.json'), path.join(directory, 'comparison.md'));
 }
