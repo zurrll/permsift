@@ -107,7 +107,7 @@ export async function readResult(selected: string, options: { verificationOnly?:
     const evidence: Record<string, unknown> = {};
     if (initial.source.format === 'experiment-v1') {
       for (const e of initial.executions) {
-        if (options.verificationOnly && e.origin.phase !== (initial.workflow.kind === 'tighten' ? 'final' : 'baseline')) continue;
+        if (options.verificationOnly && e.origin.phase !== (initial.workflow.kind === 'tighten' ? 'final' : initial.workflow.kind === 'observe' ? 'observe' : 'baseline')) continue;
         if (!/^evidence\/[a-zA-Z0-9_-]+\.json$/.test(e.origin.record)) throw new Error('Invalid evidence companion reference');
         const value = await read(path.join(directory, e.origin.record), true);
         if (value !== undefined) evidence[e.origin.record] = value;
@@ -135,7 +135,7 @@ export async function readResult(selected: string, options: { verificationOnly?:
           if (!/^[a-zA-Z0-9_-]+$/.test(entry.trial) || entry.facts !== `executions/${entry.trial}.json` || entry.evidence !== `evidence/${entry.trial}.json`) throw new Error('Invalid execution index reference');
           const old = model.executions.find(e => e.origin.record === entry.evidence);
           if (!old) { result.gaps.push('Index contains an execution absent from the workflow checkpoint; it does not establish workflow completion.'); continue; }
-          if (options.verificationOnly && old.origin.phase !== (model.workflow.kind === 'tighten' ? 'final' : 'baseline')) continue;
+          if (options.verificationOnly && old.origin.phase !== (model.workflow.kind === 'tighten' ? 'final' : model.workflow.kind === 'observe' ? 'observe' : 'baseline')) continue;
           const value = await read(path.join(directory, entry.facts), true);
           if (value === undefined) { result.gaps.push('Indexed native facts not available: ' + entry.facts); continue; }
           const facts = parseNativeExecution(value), e = facts.execution, task = model.tasks.find(t => t.id === old.task_id)!;
@@ -160,9 +160,9 @@ export async function readResult(selected: string, options: { verificationOnly?:
           for (const key of ['input_hash', 'config_hash', 'limits_hash', 'environment', 'actual_command'] as const) sameKnown(old.conditions[key], e.conditions[key], key);
           native.set(entry.evidence, { reference: entry.facts, facts });
         }
-        for (const old of model.executions) if ((!options.verificationOnly || old.origin.phase === (model.workflow.kind === 'tighten' ? 'final' : 'baseline')) && !index.entries.some(e => e.evidence === old.origin.record)) result.gaps.push('Workflow trial lacks an index entry: ' + old.origin.record);
+        for (const old of model.executions) if ((!options.verificationOnly || old.origin.phase === (model.workflow.kind === 'tighten' ? 'final' : model.workflow.kind === 'observe' ? 'observe' : 'baseline')) && !index.entries.some(e => e.evidence === old.origin.record)) result.gaps.push('Workflow trial lacks an index entry: ' + old.origin.record);
       }
-      result.executions = model.executions.filter(e => !options.verificationOnly || e.origin.phase === (model.workflow.kind === 'tighten' ? 'final' : 'baseline')).map(e => { const n = native.get(e.origin.record); return { task: model.tasks.find(t => t.id === e.task_id)!.key,
+      result.executions = model.executions.filter(e => !options.verificationOnly || e.origin.phase === (model.workflow.kind === 'tighten' ? 'final' : model.workflow.kind === 'observe' ? 'observe' : 'baseline')).map(e => { const n = native.get(e.origin.record); return { task: model.tasks.find(t => t.id === e.task_id)!.key,
         reference: n?.reference ?? e.origin.record, facts: n?.facts.execution ?? e, native: !!n, agreement: n?.facts.agreement ?? model.agreements.find(a => a.id === e.agreement_id), policy: n?.facts.policy ?? model.policies.find(p => p.id === (e.policy_id.state === 'recorded' ? e.policy_id.value : undefined)) }; });
     } else if (model.source.format === 'regression-v1') {
       for (const task of model.workflow.comparisons) for (const stage of task.stages) {

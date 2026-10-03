@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { contains } from './config.js';
 import { executeSandbox, type BackendContext } from './backend.js';
 import { forkSnapshot, hash, noSymlinks, resolveAlias, manifest, diffFiles, type Roots } from './filesystem.js';
-import { checkAssertions, type Check } from './assertions.js';
+import { checkAssertionsDetailed, type Check, type AssertionEvaluation } from './assertions.js';
 import { boundaryChecks, type Fixtures } from './probes.js';
 import type { TrialVerdict } from './search.js';
 import { directoryInventory, type Observation } from './discovery.js';
@@ -37,7 +37,7 @@ export type ExecutionDetails = {
   install_file_changes?: Record<string, Changes>; installation_state?: { hashes: Record<keyof Roots, string>; files: RootManifests };
   task_input_changes_base?: RootManifests; task_inventory?: Inventory; input_inventory?: Inventory;
   observer?: { source: string; bootstrap: string; collector: string; bootstrap_hash: string; internal_write_exception: string; instrumentation_applies_to: string; compilation?: Record<string, unknown>; bundling?: Record<string, unknown> };
-  task?: SandboxExecution; task_skipped?: string; assertions?: Check[];
+  task?: SandboxExecution; task_skipped?: string; assertions?: Check[]; assertion_evaluations?: AssertionEvaluation[];
   file_changes?: Changes; file_changes_by_root?: Record<string, Changes>;
   read_discovery_observation?: ReadObservation; discovery_observation?: Observation;
   dependency_observation?: TaskObservation; error?: string; diagnosis?: Diagnosis;
@@ -212,7 +212,8 @@ export async function executeOnce(request: ExecutionRequest): Promise<ExecutionR
           await checkGoals('after');
         }
       } else evidence.task_skipped = 'Install did not pass; offline command was not executed';
-      assertions = await timings.measure('assertions', () => checkAssertions(scenario.assertions, roots!)); evidence.assertions = assertions;
+      evidence.assertion_evaluations = await timings.measure('assertions', () => checkAssertionsDetailed(scenario.assertions, roots!));
+      assertions = evidence.assertion_evaluations.map(({ cause, ...check }) => check); evidence.assertions = assertions;
       const post = await timings.measure('probes', () => boundaryChecks(trialFixtures, { ...(scenario.install && installVerdict !== 'pass' ? installContext : offlineContext), invocationId: trialId + '-after', timeoutMs: Math.max(1, Math.min(context.timeoutMs, deadline - Date.now())) }));
       evidence.after = post; boundaries = [...boundaries, ...post.checks];
       const changeBase = staged && evidence.task_input_changes_base ? evidence.task_input_changes_base : before;

@@ -41,7 +41,8 @@
     "results:verify": "npm run build && node scripts/verify-results.mjs",
     "maintenance:verify": "npm run build && node scripts/verify-maintenance.mjs",
     "protection:verify": "npm run build && node scripts/verify-protection.mjs",
-    "environment:verify": "npm run build && node scripts/verify-environment.mjs"
+    "environment:verify": "npm run build && node scripts/verify-environment.mjs",
+    "success:verify": "npm run build && node scripts/verify-success-diagnostics.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "0.0.77",

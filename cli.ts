@@ -23,11 +23,13 @@ Usage:
   permsift adopt RESULT --config FILE --limits TRUSTED_FILE [--output BASELINE_STORE] [--reason TEXT] [--json]
   permsift observe --config FILE --limits TRUSTED_FILE [--baseline USAGE_JSON] [options]
   permsift compare BEFORE_USAGE_JSON AFTER_USAGE_JSON [--output NEW_DIRECTORY] [--json]
+  permsift diagnose RESULT [--output NEW_DIRECTORY] [--json]
   permsift inspect REPORT_JSON_OR_DIRECTORY [--json]
   permsift inspect USAGE_JSON --package NAME [--json]
 
 Options:
   --output DIR       Execution: new evidence directory; adopt: reusable baseline store
+  --save-artifacts   Save bounded final output bytes for optional offline success diagnostics
   --keep-workspaces  Preserve disposable workspaces for inspection
   --json             Print the full report as JSON (progress goes to stderr)
   --baseline FILE    check: verified report.json, adopted baseline.json or store; observe: previous usage.json for comparison
@@ -39,7 +41,7 @@ Options:
 Task execution requires macOS. No unsandboxed fallback. Task commands run offline;
 optional npm install stages use explicit trusted domain grants.
 Limits must be explicitly supplied from a location you trust.
-compare/inspect only read saved reports; no sandbox, installation or task execution.
+compare/inspect/diagnose only read saved reports; no sandbox, installation or task execution.
 adopt saves bounded JSON evidence and a selection; no task, installation or permission search.
 Exit: 0 verified/compatible/observed/adopted, 1 failure/regression/changed terms requiring review, 2 invalid setup/inconclusive/incomplete capture, 130 interrupted.
 Offline exit: 0 complete analysis (differences allowed), 1 inspect found no instance,
@@ -49,13 +51,23 @@ not whether the recorded task passed. Source not collected stays distinct from n
 async function main() {
   const { positionals, values } = parseArgs({ allowPositionals: true, options: {
     config: { type: 'string' }, limits: { type: 'string' }, output: { type: 'string' },
-    'keep-workspaces': { type: 'boolean' }, json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' }, version: { type: 'boolean' },
+    'keep-workspaces': { type: 'boolean' }, 'save-artifacts': { type: 'boolean' }, json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' }, version: { type: 'boolean' },
     baseline: { type: 'string' },
     package: { type: 'string' }, reason: { type: 'string' },
   } });
   if (values.version) { console.log(VERSION); return; }
   if (values.help || positionals.length === 0) { console.log(help); return; }
   const mode = positionals[0];
+  if (values['save-artifacts'] && !['run', 'tighten', 'check', 'observe'].includes(mode)) throw new Error('--save-artifacts is only supported by run/tighten/check/observe');
+  if (mode === 'diagnose') {
+    if (positionals.length !== 2 || values.config || values.limits || values.baseline || values.package || values.reason || values['keep-workspaces']) throw new Error('Expected diagnose RESULT [--output NEW_DIRECTORY] [--json]');
+    const { diagnoseSuccess, successDiagnosticMarkdown, saveSuccessDiagnostic } = await import('./src/success-diagnostics.js');
+    const report = await diagnoseSuccess(positionals[1]);
+    if (values.output) await saveSuccessDiagnostic(values.output, report);
+    console.log(values.json ? JSON.stringify(report, null, 2) : successDiagnosticMarkdown(report));
+    process.exitCode = report.status === 'diagnosed' ? 0 : 2;
+    return;
+  }
   if (values.reason !== undefined && mode !== 'adopt') throw new Error('--reason is only supported by adopt');
   if (mode === 'adopt') {
     if (positionals.length !== 2 || !values.config || !values.limits || values.package || values.baseline || values['keep-workspaces']) throw new Error('Expected adopt RESULT --config FILE --limits TRUSTED_FILE');
@@ -102,7 +114,7 @@ async function main() {
     if (mode === 'observe') {
       const { runObservation } = await import('./src/observe-command.js');
       const report = await runObservation({ configPath: values.config!, limitsPath: values.limits!, baselinePath: values.baseline, output: values.output,
-        keepWorkspaces: values['keep-workspaces'], signal: controller.signal, onProgress: message => console.error(message) });
+        keepWorkspaces: values['keep-workspaces'], saveArtifacts: values['save-artifacts'], signal: controller.signal, onProgress: message => console.error(message) });
       if (values.json) console.log(JSON.stringify(report, null, 2));
       else {
         console.log('\n' + summaryText(await readPublishedSummary(report.output)));
@@ -115,7 +127,7 @@ async function main() {
     }
     if (mode === 'check') {
       const { runRegression } = await import('./src/regression.js');
-      const report = await runRegression({ configPath: values.config!, limitsPath: values.limits!, baselinePath: values.baseline, output: values.output, keepWorkspaces: values['keep-workspaces'], signal: controller.signal, onProgress: message => console.error(message) });
+      const report = await runRegression({ configPath: values.config!, limitsPath: values.limits!, baselinePath: values.baseline, output: values.output, keepWorkspaces: values['keep-workspaces'], saveArtifacts: values['save-artifacts'], signal: controller.signal, onProgress: message => console.error(message) });
       if (values.json) console.log(JSON.stringify(report, null, 2));
       else {
         console.log(`\n${report.status.toUpperCase()} · ${report.trials} executions · input changed: ${report.inputs.input_changed ?? 'unknown'}`);
@@ -137,7 +149,7 @@ async function main() {
       const limits = limitsSchema.parse({ schema_version: 1, allowed_write_roots: ['@workspace'], repetitions: 1, budget_seconds: 60 });
       input = { config, limits, project: doctorProject, configFile: '', limitsFile: '' };
     }
-    const report = await runExperiment({ mode: mode as 'run' | 'tighten' | 'doctor', configPath: values.config, limitsPath: values.limits, input, output: values.output, keepWorkspaces: values['keep-workspaces'], signal: controller.signal, onProgress: message => console.error(message) });
+    const report = await runExperiment({ mode: mode as 'run' | 'tighten' | 'doctor', configPath: values.config, limitsPath: values.limits, input, output: values.output, keepWorkspaces: values['keep-workspaces'], saveArtifacts: values['save-artifacts'], signal: controller.signal, onProgress: message => console.error(message) });
     if (values.json) console.log(JSON.stringify(report, null, 2));
     else {
       console.log(`\n${report.status.toUpperCase()} · ${report.trials.length} executions`);

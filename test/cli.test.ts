@@ -25,3 +25,11 @@ test('CLI requires an explicit limits file and rejects misspelled flags', () => 
   assert.equal(cli('doctor', '--config', 'ignored.yaml').status, 2);
   assert.equal(cli('unknown').status, 2);
 });
+
+test('success diagnostics are explicit and reject execution/configuration options', () => {
+  assert.match(cli('--help').stdout, /diagnose RESULT/); assert.match(cli('--help').stdout, /save-artifacts/);
+  assert.equal(cli('diagnose', 'missing-result', '--config', 'tasks.yaml').status, 2);
+  assert.equal(cli('diagnose', 'missing-result', '--save-artifacts').status, 2);
+  assert.equal(cli('inspect', 'missing-result', '--save-artifacts').status, 2);
+  assert.equal(cli('doctor', '--save-artifacts').status, 2);
+});

@@ -1,3 +1,4 @@
+import { captureSuccessMaterials } from './success-materials.js';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -30,7 +31,7 @@ export { classifyTrial } from './execution-verdict.js';
 type ExperimentInput = { config: Config; limits: Limits; project: string; configFile: string; limitsFile: string };
 export type ExperimentOptions = {
   mode: 'run' | 'tighten' | 'doctor' | 'observe'; configPath?: string; limitsPath?: string; input?: ExperimentInput;
-  output?: string; keepWorkspaces?: boolean; signal?: AbortSignal; onProgress?: (message: string) => void;
+  output?: string; keepWorkspaces?: boolean; saveArtifacts?: boolean; signal?: AbortSignal; onProgress?: (message: string) => void;
   expectedReadKinds?: Record<string, Record<string, 'file' | 'directory'>>;
   frozenInput?: { path: string; hash: string; protectedPaths?: string[] };
   /** Diagnostic harness only: observe post-install/pre-task state, adding full scans. */
@@ -60,6 +61,7 @@ export async function runExperimentWithFacts(options: ExperimentOptions): Promis
   await fs.mkdir(path.join(output, 'evidence'), { mode: 0o700 });
   await fs.mkdir(path.join(output, 'executions'), { mode: 0o700 });
   const journal = new ExecutionJournal(output);
+  const retainedTasks = new Set<string>();
   const scratch = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'permsift-')));
   const report: Report = {
     schema_version: 1, id, mode: options.mode, started_at: new Date().toISOString(), status: 'running',
@@ -171,8 +173,14 @@ export async function runExperimentWithFacts(options: ExperimentOptions): Promis
       const stats = staged ? report.installation_stats[scenario.id] ??= { executed: 0, reused: 0, snapshots: 0 } : undefined;
       if (stats) { if (result.installationAttempted) stats.executed++; if (result.installationReused) stats.reused++; }
       const pending = result.pendingSnapshot && result.verdict === 'pass' ? result.pendingSnapshot : undefined;
-      const evidence = evidenceReport(trial, details, pending ? { key, hashes: pending.hashes, source_trial: result.id } : undefined);
       const facts = nativeExecution(request, result, { producer_id: id, record: `executions/${result.id}.json`, phase });
+      const retainedPhase = options.mode === 'tighten' ? 'final' : options.mode === 'observe' ? 'observe' : 'baseline';
+      const successArtifacts = options.saveArtifacts && phase === retainedPhase && result.verdict === 'pass' && !retainedTasks.has(scenario.id) && details.roots
+        ? await experimentTimings.measure('artifact_capture', () => captureSuccessMaterials({ output, roots: details.roots!, assertions: scenario.assertions, signal: options.signal,
+          source: { trial: result.id, task: scenario.id, execution_id: facts.execution.id, task_id: facts.task.id, policy_id: facts.policy.id, phase: retainedPhase } })) : undefined;
+      if (successArtifacts) retainedTasks.add(scenario.id);
+      const evidence = { ...evidenceReport(trial, details, pending ? { key, hashes: pending.hashes, source_trial: result.id } : undefined),
+        ...successArtifacts ? { success_artifacts: successArtifacts } : {} };
       await experimentTimings.measure('reporting', () => journal.record(trial, evidence, facts, async () => {
         report.trials.push(trial);
         try { await checkpoint(); } catch (error) { report.trials.pop(); throw error; }

@@ -151,7 +151,7 @@ export function markdownRegression(report: RegressionReport) {
 }
 
 export async function runRegression(options: {
-  configPath: string; limitsPath: string; baselinePath?: string; output?: string; keepWorkspaces?: boolean;
+  configPath: string; limitsPath: string; baselinePath?: string; output?: string; keepWorkspaces?: boolean; saveArtifacts?: boolean;
   signal?: AbortSignal; onProgress?: (message: string) => void;
 }): Promise<RegressionReport> {
   requirePlatform();
@@ -193,7 +193,7 @@ export async function runRegression(options: {
     const execute = async (row: RegressionTask, scenario: Scenario, phase: string, repetitions = input.limits.repetitions) => {
       if (!available()) throw new Error(options.signal?.aborted ? 'Regression check interrupted' : 'Regression budget exhausted');
       const { report: run, execution } = await runExperimentWithFacts({ mode: 'run', input: { ...input, config: { ...input.config, scenarios: [scenario] }, limits: { ...input.limits, repetitions, budget_seconds: Math.max(1, Math.ceil((deadline - Date.now()) / 1000)) } },
-        frozenInput: frozen, expectedReadKinds: baseline.read_kinds[row.id] ? { [row.id]: baseline.read_kinds[row.id] } : undefined, output: path.join(output, 'tasks', row.id, phase), signal: options.signal, keepWorkspaces: options.keepWorkspaces,
+        frozenInput: frozen, expectedReadKinds: baseline.read_kinds[row.id] ? { [row.id]: baseline.read_kinds[row.id] } : undefined, output: path.join(output, 'tasks', row.id, phase), signal: options.signal, keepWorkspaces: options.keepWorkspaces, saveArtifacts: options.saveArtifacts && (phase === 'old' || phase === 'new' || phase.startsWith('repair-verify-')),
         onProgress: message => options.onProgress?.(`${row.id} · ${phase} · ${message}`) });
       if (execution.inputHash !== frozen.hash || !available()) row.reason = 'Comparison input changed, was interrupted or exceeded the overall budget';
       const verdict = row.reason ? 'unknown' as const : phaseVerdict(execution);

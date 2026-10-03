@@ -212,3 +212,7 @@ scenario.observation.typescript.compiler 为项目内已安装 TypeScript 包目
 scenario.observation.esbuild 要求 bundler（项目内已安装 esbuild 包根）、metafile（完整 JSON 文件）和 output_root（专用产物目录）。均为 @workspace 下路径，metafile 必须在 output_root 内；仅 observe 要求整个 output_root 已有任务写授权，不能包含 node_modules 或配置工具；没有隐式授权。run/check/tighten 不因未使用的采集设置拒绝已有更窄的任务规则，导出配置继续可读取。
 
 仅 observe 清空隔离副本中声明的 output_root，并恢复显式准备目录与断言父目录。该目录不可包含任务需要的输入；原项目不清理。任务自己在一次执行中生成完整 metafile，命令不因该来源而改写，也不再构建一次。相对记录按工作区解析；检查报告输出在声明范围内、新文件及大小，并明确来源、版本、上限和缺口。完整示例与比较见 [bundle-inputs.md](bundle-inputs.md)。observation 至少选择一种来源；可选来源分别保留健康度。
+
+## 可选产物材料与成功条件诊断
+
+不需要改场景配置：在 run/tighten/check/observe 添加 `--save-artifacts`，每个任务取最终方案第一轮通过的验证，保存有界断言目标文件。`diagnose RESULT` 只读保存材料，按产物列检查和扰动结果，不重跑任务、不改变候选接受标准。默认关闭；旧报告缺字节时为未保存，采用基线不复制这些可选文件。预算、格式/内容分类、JUnit 计数与具体使用见 [成功条件诊断](success-diagnostics.md)。

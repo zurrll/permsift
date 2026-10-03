@@ -101,6 +101,8 @@ npm run self:verify
 | install.test.ts | 精确域名与上限、安装条件、锁文件与缓存种子、固定参数、传输未知和域名搜索 |
 | bundled-dependencies.test.ts | 内嵌归属、作用域/提升/环、孤立标记、下载信息、实际元数据、超限/取消、保存检查完整性 |
 | sandbox-supervisor.test.ts | worker 正常退出、卡住的清理、有界终止、结果缺失和取消 |
+| success-diagnostics.test.ts | 共用失败分类、有效结构化扰动、逐产物共同作用、最终身份、保存预算及材料损坏反例 |
+| integration/success-diagnostics.test.ts | 真实最终方案取样、候选不保存、check/observe、默认关闭、保存失败独立和项目清理后离线诊断 |
 | assertions.test.ts | 跳过测试、缺失测试、重复结果、JSON 类型、宿主读取限制、unknown |
 | search.test.ts | 实际收紧、必要授权、恢复失败、预算和非单调执行路径 |
 | scheduler.test.ts | 分组及拆分、延后复查、互相关联授权、相同失败线索、unknown、预算和不稳定恢复 |
@@ -176,3 +178,9 @@ CI 配置包含 Linux 单元测试与 macOS 完整测试。新增 CI 文件不�
 `test/bundled-dependencies.test.ts` 验证预检归属、实际包元数据和保存检查；`test/integration/bundled-install.test.ts` 用本地注册表验证真正的 npm ci、作用域/提升包观察、禁用脚本、错误 tarball、安装成功但子包缺失、父包声明和版本失配。测试 tarball 禁用 macOS 扩展属性打包，避免夹具携带 AppleDouble 文件；生产清单仍保持未知条目的可见性。
 
 `npm run bundled:verify` 通过公开 CLI 验证运行、采用、再检查、观察及项目清理后的离线查询。默认无需公开注册表，只做 3 次本地安装/任务，0 搜索；可选固定 glob-parent 旧上游源码与冻结锁，增加 1 次冷安装/原测试任务。全部输出写入新的 ignored 目录，不覆盖历史记录。参数和支持范围见 [内嵌依赖](bundled-dependencies.md)。macOS CI 配置了默认本地流程，未声称远端已运行。
+
+## 第六轮：成功条件诊断验收
+
+`npm run success:verify` 经公开 CLI 执行 demo 两任务与一个结构化报告夹具，共 3 次任务、0 新安装、0 搜索。已有 `third-party:prepare` 固定 clsx 后，可加 `-- --with-clsx`：共 4 次任务，实际原始构建及内部 smoke 保持，明确区分五条存在检查接受空文件与整体任务行为。准备联网/安装不计入诊断成本。
+
+单元反例使用注明为合成的原生证据，不冒称真实后端；三个新增真实用例核对完整最终重复验证、所选方案和产物来源，及共享路径的个别/共同结果。材料读回只使用固定布局和有限字节。改变成功语义评价器时仍需全量真实回归；离线历史投影验证不增加任务。使用、预算和具体结论见 [成功条件诊断](success-diagnostics.md)。

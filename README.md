@@ -40,6 +40,10 @@ Result overview · tighten reports verified · saved material complete
 
 现在也可以声明少量固定保护目标，例如“构建可以生成产物，但私人配置不能读取、源码目录不能修改”。目标会进入任务的实际禁止规则，并在搜索、恢复、宽对照和修复中保持；摘要分别显示任务与逐条保护结果。首批仅覆盖工作区内已有普通文件/目录的离线任务直接访问，不覆盖安装阶段。运行 `npm run protection:verify` 查看完整故事和额外耗时，或阅读 [保护目标](docs/protection-goals.md)。
 
+## 理解成功条件能检查什么
+
+执行时可选 `--save-artifacts`，保存最终方案一次验证的少量产物；之后 `node dist/cli.js diagnose .permsift/EXPERIMENT` 离线检查删除、清空、指定值改变和测试报告删改。按产物说明每条断言与共同结果，分开格式错误和内容不符合；不重新执行任务，不评价整体测试质量。`npm run success:verify` 提供无需注册表的完整例子，见 [成功条件诊断](docs/success-diagnostics.md)。
+
 ## 采用规则，持续复验
 
 验证通过后，可以明确采用基线。工具保存最终重复验证的必要 JSON 证据、采用理由和前一份选择；清理原实验目录后仍可追溯。

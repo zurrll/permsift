@@ -29,7 +29,10 @@ flowchart LR
 | src/probes.ts | 假数据、宿主对照、本地 TCP 端点及沙箱探针 |
 | src/protection.ts | 目标条件检查、独立微型夹具、批量直接操作探针及宿主对照 |
 | src/protection-facts.ts | 版本化保护事实、检查操作集合、独立覆盖结论 |
-| src/assertions.ts | 沙箱外的声明式产物验证 |
+| src/assertions.ts | 共用的声明式产物评价、读取/格式/内容原因；保留原验收 Check |
+| src/success-materials.ts | 最终验证的可选有界产物保存、字节/来源及固定布局 |
+| src/success-mutations.ts | 内存副本的具体产物扰动，保持 JSON/XML 与 suite 计数有效 |
+| src/success-diagnostics.ts | 最终证据选择、未修改对照、按产物离线诊断与呈现 |
 | src/junit.ts | 受限 JUnit XML 解析和用例结果验证 |
 | src/discovery.ts | 有界目录枚举、跨基线观察合并和自动规则 |
 | src/read-discovery.ts | 有界项目输入枚举、文件/目录读取候选及来源 |
