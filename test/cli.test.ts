@@ -12,9 +12,9 @@ test('observe is explicit, requires trusted limits and only accepts usage baseli
   assert.equal(cli('observe', '--config', 'tasks.yaml').status, 2);
   assert.equal(cli('observe', '--config', 'tasks.yaml', '--limits', 'limits.json', '--baseline', 'missing-usage.json').status, 2);
 });
-test('check requires a historical baseline and other commands reject that option', () => {
+test('check can resolve an adopted baseline and other commands reject baseline options', () => {
   const missing = cli('check', '--config', 'tasks.yaml', '--limits', 'limits.json');
-  assert.equal(missing.status, 2); assert.match(missing.stderr, /requires --baseline/);
+  assert.equal(missing.status, 2); assert.match(missing.stderr, /ENOENT/);
   assert.equal(cli('run', '--config', 'tasks.yaml', '--limits', 'limits.json', '--baseline', 'old.json').status, 2);
   assert.equal(cli('doctor', '--baseline', 'old.json').status, 2);
   assert.match(cli('--help').stdout, /check --config FILE --baseline REPORT_JSON/);

@@ -143,7 +143,33 @@ export function explainResult(result: ResultRecord): ResultSummary {
     }
   }
 
-  if (result.native) {
+  if (result.adoption) {
+    const a = result.adoption, m = a.manifest;
+    summary.workflow = { kind: 'adopt', reported_status: 'adopted' };
+    summary.claims.push(claim('adoption', 'recorded', `Explicitly adopted ${m.id} at ${m.selected_at}.${m.reason ? ' Reason: ' + m.reason : ''}`,
+      [ref(result, '/baseline'), ref(result, '/reason')], 'Run check with the current project configuration and independently trusted limits; historical verification does not establish current compatibility.'));
+    summary.claims.push(claim('history', m.previous ? a.parent_available ? 'linked' : 'unavailable' : 'first_selection',
+      m.previous ? `Previous selection: ${m.previous.id}; predecessor file ${a.parent_available ? 'available' : 'not available'}. Its evidence has not been reloaded by this inspection.` : 'No previous adoption is recorded.',
+      [ref(result, '/previous')], 'Inspect the previous record separately when reviewing why the adopted policy changed.'));
+    for (const retained of a.tasks) {
+      const task: TaskSummary = { task: retained.key, claims: [], decisions: [], stages: [] }; summary.tasks.push(task);
+      policy(task, retained.proofs[0].policy, [eref(retained.result, retained.proofs[0], '/policy')]);
+      outcomes(task, retained.result, retained.proofs, 'Historical adopted verification');
+      task.claims.push(claim('current_validation', 'not_run', 'Adoption records a choice of saved verification; it does not execute or check the current project.',
+        [ref(result, '/action')], 'Use check to establish current results before relying on this policy for changed inputs.'));
+      const facts = retained.proofs[0].facts;
+      task.claims.push(claim('conditions', 'recorded', `Verified input: ${present(facts.conditions.input_hash)}; environment: ${JSON.stringify(present(facts.conditions.environment))}; requirements: ${JSON.stringify(present(facts.conditions.requirements))}.`,
+        [ref(retained.result, '/inputs'), ref(retained.result, '/environment'),
+          { file: path.relative(root, path.join(path.dirname(retained.result.file), 'inputs.json')).split(path.sep).join('/'), pointer: '/config' }],
+        'These are historical conditions; new environment, input or installation changes require new validation.'));
+    }
+    summary.claims.push(claim('cost', 'recorded', 'Adoption and inspection execute 0 tasks and 0 installations; only bounded saved JSON evidence is read/copied.',
+      [ref(result, '/artifacts')], 'Measure actual check/repair costs separately.'));
+    summary.limitations.push('Adoption is an explicit selection of historical evidence, not a future guarantee or execution permission. Independently trusted limits remain required.',
+      'Protection evidence covers task-stage direct operations on the recorded paths and fixtures; installation and other access channels are outside its coverage.',
+      'Hashes check retained content consistency; they do not authenticate the producer. The host can modify the adoption store.',
+      'Long-term maintenance benefit and independent user understanding have not been established by this inspection.');
+  } else if (result.native) {
     const native = result.native, task: TaskSummary = { task: native.task.key, claims: [], decisions: [], stages: [] };
     summary.tasks.push(task); policy(task, native.policy, [ref(result, '/policy', native.policy.id)]);
     outcomes(task, result, result.executions, 'Single execution');
@@ -213,6 +239,9 @@ export function explainResult(result: ResultRecord): ResultSummary {
       }
     }
   } else if (model?.source.format === 'regression-v1') {
+    if (model.workflow.input_scope_change) summary.claims.push(claim('input_scope', 'changed',
+      `Snapshot exclusions changed: ${JSON.stringify(model.workflow.input_scope_change.before)} → ${JSON.stringify(model.workflow.input_scope_change.after)}. Passing current inputs does not establish the original input-selection conditions.`,
+      [ref(result, '/exclusion_change')], 'Review the changed input selection before adopting the current verification.'));
     for (const [index, row] of model.workflow.comparisons.entries()) {
       const task: TaskSummary = { task: row.task_key, claims: [], decisions: [], stages: [] }; summary.tasks.push(task);
       const base = '/tasks/' + index, reason = present(row.reason), stop = present(row.repair_stop);
@@ -242,6 +271,28 @@ export function explainResult(result: ResultRecord): ResultSummary {
         [ref(result, base + '/status'), ...task.stages.flatMap(s => s.evidence)], conflict ? 'Resolve stage/fact contradictions before interpreting this as a permission regression.' : row.reported_status === 'unresolved_failure' ? 'Inspect task errors and success checks under both policies before granting more access.' : 'Review the old/control/confirmation stages under matching preparation and inputs.'));
       if (conflict || row.reported_status === 'inconclusive' || row.reported_status === 'pending') gap(task.task + ': comparison ' + (conflict ? 'contradictory' : row.reported_status));
       if (present(row.definition_changed)) task.claims.push(claim('definition', 'changed', 'Producer reports a change in command, success checks, timeout or installation requirements; it does not isolate which changed.', [ref(result, base + '/task_definition_changed')], 'Review the current task/check definitions. Passing the new checks does not prove the original checks were preserved.'));
+      if (row.history) {
+        const h = row.history;
+        task.claims.push(claim('history_task', 'pass', 'Adopted historical task checks passed. This is separate from current verification.',
+          [ref(result, base + '/history/task')], 'Use the fresh stage results to assess the current project.'));
+        task.claims.push(claim('history_boundaries', 'pass', 'Adopted historical fixed boundary checks passed within their recorded scope.',
+          [ref(result, base + '/history/boundaries')], 'Read the fresh boundary checks and current environment separately.'));
+        for (const goal of h.protection_goals) task.claims.push(claim('history_protection_goal:' + goal.key, goal.status,
+          `${goal.key}: adopted historical protection checks passed; no current protection is inferred from that historical pass.`,
+          [ref(result, base + '/history/protection_goals')], 'Compare this goal with the current declaration and its fresh probe evidence.'));
+      }
+      if (row.terms) {
+        const terms = row.terms;
+        task.claims.push(claim('terms', terms.changed ? 'changed' : 'same', `${terms.presence} task; terms ${terms.changed ? 'changed' : 'unchanged'}. Current selected-policy verification: ${row.current_verification ?? 'not_saved'}.` +
+          (terms.changed ? ' Passing current checks does not establish preservation of the original terms.' : ''),
+          [ref(result, base + '/terms'), ref(result, base + '/current_verification')], 'Review the exact changes before explicitly adopting a new baseline.'));
+        for (const change of terms.changes) task.claims.push(claim('changed_' + change.dimension, 'changed',
+          `${change.dimension}: ${JSON.stringify(change.before ?? '(absent)')} → ${JSON.stringify(change.after ?? '(absent)')}.`,
+          [ref(result, base + '/terms/changes')], 'This is an exact definition difference; no stronger/weaker assertion inference is made.'));
+        for (const d of terms.dimensions.filter(d => d.dimension.startsWith('protection_goal:'))) task.claims.push(claim('continuity_' + d.dimension, d.relation,
+          `${d.dimension}: ${d.relation}. Historical checks remain historical; current proof is reported separately.`,
+          [ref(result, base + '/terms/dimensions')], d.relation === 'removed' ? 'This goal is absent from the current agreement; its old result is not a current protection promise.' : 'Read the fresh before/after protection checks for current coverage.'));
+      }
       const suggestionId = present(row.suggestion_policy), suggestion = model.policies.find(p => p.id === suggestionId);
       if (suggestion) {
         const stage = [...result.children].reverse().find(c => c.task === task.task && /^repair-verify-/.test(c.phase));
@@ -299,7 +350,9 @@ export function explainResult(result: ResultRecord): ResultSummary {
   }
   if (model || result.native) {
     const declared = result.native?.agreement.declaration.state === 'recorded' || model?.agreements.some(a => a.declaration.state === 'recorded') || result.executions.some(v => v.agreement?.declaration.state === 'recorded');
-    summary.claims.push(claim('agreement', declared ? 'recorded' : 'not_declared', declared ? 'Fixed user protection goals are retained; task claims report their bounded direct-access coverage separately. Baseline adoption is not recorded.' : 'No user protection-goal declaration or baseline adoption is recorded by these producers.',
+    const adopted = model?.baselines.find(b => b.selection === 'adopted_reference');
+    summary.claims.push(claim('agreement', declared ? 'recorded' : 'not_declared', (declared ? 'Protection declarations are retained; task claims distinguish current and historical coverage.' : 'No user protection-goal declaration is recorded.') +
+      (adopted ? ' Check records an explicitly adopted baseline reference; the source store is not followed by this saved-report inspection.' : ' Baseline adoption is not recorded.'),
       [ref(result, result.native ? '/agreement' : model?.source.format === 'regression-v1' ? '/baseline' : '/schema_version')], 'Review the tested tasks and fixed-probe scope; keep verified suggestions separate from adoption decisions.'));
     summary.limitations.push('Task success and fixed boundary probes are separate conclusions. Probes cover their recorded fixtures/stages, not all access channels or undeclared user protection goals.',
       'Results apply to recorded inputs, task checks, preparation, installation state, instrumentation and environment. Hash/reference validation checks consistency; it does not authenticate a producer.',

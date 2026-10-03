@@ -19,16 +19,19 @@ Usage:
   permsift run --config FILE --limits TRUSTED_FILE [options]
   permsift tighten --config FILE --limits TRUSTED_FILE [options]
   permsift check --config FILE --baseline REPORT_JSON --limits TRUSTED_FILE [options]
+  permsift check --config FILE --limits TRUSTED_FILE [options]  (uses adopted baseline)
+  permsift adopt RESULT --config FILE --limits TRUSTED_FILE [--output BASELINE_STORE] [--reason TEXT] [--json]
   permsift observe --config FILE --limits TRUSTED_FILE [--baseline USAGE_JSON] [options]
   permsift compare BEFORE_USAGE_JSON AFTER_USAGE_JSON [--output NEW_DIRECTORY] [--json]
   permsift inspect REPORT_JSON_OR_DIRECTORY [--json]
   permsift inspect USAGE_JSON --package NAME [--json]
 
 Options:
-  --output DIR       Evidence directory; must not already exist
+  --output DIR       Execution: new evidence directory; adopt: reusable baseline store
   --keep-workspaces  Preserve disposable workspaces for inspection
   --json             Print the full report as JSON (progress goes to stderr)
-  --baseline FILE    check: verified report.json; observe: previous usage.json for comparison
+  --baseline FILE    check: verified report.json, adopted baseline.json or store; observe: previous usage.json for comparison
+  --reason TEXT      adopt: explanation retained with the explicit selection
   --package NAME     inspect: exact package name, all installation instances across tasks
   --help             Show help
   --version          Print version
@@ -37,7 +40,8 @@ Task execution requires macOS. No unsandboxed fallback. Task commands run offlin
 optional npm install stages use explicit trusted domain grants.
 Limits must be explicitly supplied from a location you trust.
 compare/inspect only read saved reports; no sandbox, installation or task execution.
-Exit: 0 verified/compatible/observed, 1 failure/regression, 2 invalid setup/inconclusive/incomplete capture, 130 interrupted.
+adopt saves bounded JSON evidence and a selection; no task, installation or permission search.
+Exit: 0 verified/compatible/observed/adopted, 1 failure/regression/changed terms requiring review, 2 invalid setup/inconclusive/incomplete capture, 130 interrupted.
 Offline exit: 0 complete analysis (differences allowed), 1 inspect found no instance,
 2 invalid report or partial analysis. Overview exit codes describe saved-material analysis,
 not whether the recorded task passed. Source not collected stays distinct from no record.
@@ -47,11 +51,20 @@ async function main() {
     config: { type: 'string' }, limits: { type: 'string' }, output: { type: 'string' },
     'keep-workspaces': { type: 'boolean' }, json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' }, version: { type: 'boolean' },
     baseline: { type: 'string' },
-    package: { type: 'string' },
+    package: { type: 'string' }, reason: { type: 'string' },
   } });
   if (values.version) { console.log(VERSION); return; }
   if (values.help || positionals.length === 0) { console.log(help); return; }
   const mode = positionals[0];
+  if (values.reason !== undefined && mode !== 'adopt') throw new Error('--reason is only supported by adopt');
+  if (mode === 'adopt') {
+    if (positionals.length !== 2 || !values.config || !values.limits || values.package || values.baseline || values['keep-workspaces']) throw new Error('Expected adopt RESULT --config FILE --limits TRUSTED_FILE');
+    const { adopt } = await import('./src/adoption.js');
+    const adopted = await adopt({ source: positionals[1], configPath: values.config, limitsPath: values.limits, output: values.output, reason: values.reason });
+    const summary = explainResult(await readResult(adopted.file));
+    console.log(values.json ? JSON.stringify({ id: adopted.manifest.id, file: adopted.file, tasks: adopted.manifest.baseline.selections, task_executions: 0, installations: 0, summary }, null, 2) : summaryMarkdown(summary));
+    return;
+  }
   if (mode === 'compare' || mode === 'inspect') {
     if (values.config || values.limits || values.baseline || values['keep-workspaces']) throw new Error('compare/inspect use saved reports only; execution options are not supported');
     if (mode === 'compare') {
@@ -79,7 +92,6 @@ async function main() {
   if (values.package) throw new Error('--package is only supported by inspect');
   if (mode !== 'doctor' && (!values.config || !values.limits)) throw new Error('--config and --limits are required');
   if (mode === 'doctor' && (values.config || values.limits)) throw new Error('doctor uses built-in fixtures; use run to check a project configuration');
-  if (mode === 'check' && !values.baseline) throw new Error('check requires --baseline REPORT_JSON');
   if (mode !== 'check' && mode !== 'observe' && values.baseline) throw new Error('--baseline is only supported by check and observe');
   const { runExperiment } = await import('./src/engine.js');
   const controller = new AbortController();
@@ -103,7 +115,7 @@ async function main() {
     }
     if (mode === 'check') {
       const { runRegression } = await import('./src/regression.js');
-      const report = await runRegression({ configPath: values.config!, limitsPath: values.limits!, baselinePath: values.baseline!, output: values.output, keepWorkspaces: values['keep-workspaces'], signal: controller.signal, onProgress: message => console.error(message) });
+      const report = await runRegression({ configPath: values.config!, limitsPath: values.limits!, baselinePath: values.baseline, output: values.output, keepWorkspaces: values['keep-workspaces'], signal: controller.signal, onProgress: message => console.error(message) });
       if (values.json) console.log(JSON.stringify(report, null, 2));
       else {
         console.log(`\n${report.status.toUpperCase()} · ${report.trials} executions · input changed: ${report.inputs.input_changed ?? 'unknown'}`);
@@ -112,9 +124,9 @@ async function main() {
         console.log(`Overview: ${path.join(report.output, 'summary.md')}`);
         console.log(`Report: ${path.join(report.output, 'report.md')}`);
         if (report.status === 'compatible') console.log(`Policy: ${path.join(report.output, 'compatible.yaml')}`);
-        if (report.status === 'regressed' && report.tasks.every(t => t.status === 'compatible' || t.suggestion)) console.log(`Review suggestion: ${path.join(report.output, 'suggested.yaml')}`);
+        if (report.candidate_config && report.status !== 'compatible') console.log(`Review suggestion: ${path.join(report.output, report.candidate_config)}`);
       }
-      process.exitCode = controller.signal.aborted ? 130 : report.status === 'compatible' ? 0 : report.status === 'regressed' ? 1 : 2;
+      process.exitCode = controller.signal.aborted ? 130 : report.status === 'compatible' ? 0 : report.status === 'regressed' || report.status === 'review_required' ? 1 : 2;
       return;
     }
     let input;

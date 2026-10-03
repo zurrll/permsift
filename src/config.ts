@@ -61,7 +61,7 @@ export const scenarioSchema = z.object({
 export const configSchema = z.object({
   schema_version: z.literal(1),
   project: z.string().min(1).default('.'),
-  exclude: z.array(z.string().regex(/^[A-Za-z0-9_.-]+$/).refine(s => s !== '.' && s !== '..')).default(['.git', '.permsift', 'dist', 'reports']),
+  exclude: z.array(z.string().regex(/^[A-Za-z0-9_.-]+$/).refine(s => s !== '.' && s !== '..')).default(['.git', '.permsift', '.permsift-baselines', 'dist', 'reports']),
   scenarios: z.array(scenarioSchema).min(1).max(16),
 }).strict();
 export const limitsSchema = z.object({

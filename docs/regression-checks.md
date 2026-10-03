@@ -37,7 +37,7 @@ config 使用当前项目路径、任务命令和成功断言。initial_write_gr
 | unresolved_failure | 旧规则、宽规则都失败，尚不能确认由权限变化造成 |
 | inconclusive | 超时、中断、边界异常、输入/类型异常，或对照结果不稳定 |
 
-整个报告 status 为 compatible、regressed 或 inconclusive。有未知任务时优先为 inconclusive；全部 compatible 才返回成功。有任务失败时仍继续检查其他任务，除非整体预算或中断阻止后续运行。
+整个报告 status 为 compatible、review_required、regressed 或 inconclusive。当前任务全部通过但约定变化时为 review_required，CLI 返回 1，不能宣称原约定保持。有未知任务时优先为 inconclusive；全部 compatible 才返回成功。有任务失败时仍继续检查其他任务，除非整体预算或中断阻止后续运行。
 
 | CLI 退出码 | 含义 |
 | --- | --- |
@@ -87,7 +87,7 @@ node dist/cli.js run \
 
 报告标记输入哈希、Node/SRT/平台/工具版本、limits、排除目录，以及任务命令、超时和断言的变化。compatible 只说明当前记录的环境和断言通过，不表示历史环境被复现。
 
-基线导入校验 verified 状态、配置哈希、场景记录、通过的对应证据和精确读取类型。当前输入中原文件变成目录、原输入目标消失或经过符号链接时，不把旧文件授权扩大成新目录读取。记录为目录且会按统一准备列表预建的输出目录，可以在源码快照中不存在。任务 ID 增减或 explicit/legacy 模式变化需要建立新基线。
+基线导入校验 verified 状态、配置哈希、场景记录、通过的对应证据和精确读取类型。当前输入中原文件变成目录、原输入目标消失或经过符号链接时，不把旧文件授权扩大成新目录读取。记录为目录且会按统一准备列表预建的输出目录，可以在源码快照中不存在。新增任务独立验证、删除任务保留历史并标记本次未执行；任务列表改变要求审阅。explicit/legacy 模式变化使该任务不能沿用旧规则，记录为 inconclusive，继续其他任务。
 
 ## 可重复的代码与依赖变更演示
 
@@ -105,3 +105,9 @@ npm run regression:verify
 ## 分阶段基线
 
 v0.6 显式分阶段基线记录独立的 install_policies。导入须找到最终两段规则下重新安装的完整通过证据，不能只提供快照任务通过记录。生成依赖的历史读取类型在当前安装后验证。补充字段包括 install_write / added_install_write，安装失败提示只补充安装写策略，任务新增依赖只补充任务读取。切换阶段模式需要新基线；旧 v0.5 共用写模式继续按旧语义验证。详见 [分阶段说明](staged-permissions.md)。
+
+## 第五轮：明确采用与约定变化
+
+旧 --baseline report.json 比较入口继续可用。adopt 保存完整最终验证证据和明确选择；不传 --baseline 的 check 使用配置目录的 .permsift-baselines/current.json。基线来源、历史检查和本次结果分别记录。
+
+新 check 报告 wire v2 记录 previous_definition、terms、current_verification 和存在时的 history。全部当前任务有通过方案时，compatible 导出 compatible.yaml，约定变化或已验证修复导出 suggested.yaml；采用这份 check 结果会保留各任务实际通过阶段的原始证据，不重跑安装/任务。报告及 CLI 的失败或审阅结论不会被采用动作改写。完整用法和判定表见 [基线采用](baseline-adoption.md)。

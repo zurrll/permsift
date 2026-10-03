@@ -35,6 +35,7 @@ jobs:
       - run: npm run test:integration
       - run: npm run model:verify
       - run: npm run environment:verify
+      - run: npm run maintenance:verify
       - run: npm run protection:verify
       - run: npm run demo:read
       - run: npm run examples:prepare

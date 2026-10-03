@@ -36,9 +36,25 @@ Result overview · tighten reports verified · saved material complete
 
 完整报告位于命令输出的 `.permsift/<experiment-id>/` 目录。每次默认使用新目录，不覆盖历史证据。
 
-命令会自动显示并保存 summary.json / summary.md，解释验证范围、候选与恢复、搜索缺口或来源变化；原有详细报告前面也有同一份概览。原 JSON 报告与执行退出码保持兼容。见 [结果解释](docs/result-explanations.md)。
+命令会自动显示并保存 summary.json / summary.md，解释验证范围、候选与恢复、搜索缺口或来源变化；原有详细报告前面也有同一份概览。继续读取历史 JSON 报告；当前 check 报告使用 v2，并为约定变化增加要求审阅的结论。见 [结果解释](docs/result-explanations.md)。
 
 现在也可以声明少量固定保护目标，例如“构建可以生成产物，但私人配置不能读取、源码目录不能修改”。目标会进入任务的实际禁止规则，并在搜索、恢复、宽对照和修复中保持；摘要分别显示任务与逐条保护结果。首批仅覆盖工作区内已有普通文件/目录的离线任务直接访问，不覆盖安装阶段。运行 `npm run protection:verify` 查看完整故事和额外耗时，或阅读 [保护目标](docs/protection-goals.md)。
+
+## 采用规则，持续复验
+
+验证通过后，可以明确采用基线。工具保存最终重复验证的必要 JSON 证据、采用理由和前一份选择；清理原实验目录后仍可追溯。
+
+```sh
+node dist/cli.js adopt .permsift/EXPERIMENT \
+  --config tasks.yaml --limits /absolute/path/trusted-limits.json \
+  --reason '采用已验证的任务权限与保护目标'
+# 代码或依赖改变之后，读取已采用基线；不重新进行权限搜索
+node dist/cli.js check --config tasks.yaml --limits /absolute/path/trusted-limits.json
+node dist/cli.js inspect .permsift-baselines
+npm run maintenance:verify
+```
+
+默认基线存储位于配置目录的 `.permsift-baselines/`。采用与查看不执行任务或安装；check 仍做真实复验。成功条件、保护目标或任务列表变化时，即使当前任务通过也会明确要求审阅，返回 `review_required`；验证修复不会自动改变采用基线。用法、移动/历史记录、信任边界及大型项目检验见 [基线采用](docs/baseline-adoption.md)。
 
 ## 读取已有报告，不再运行项目
 

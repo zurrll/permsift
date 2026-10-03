@@ -109,7 +109,9 @@ test('a task requiring protected input fails under old and wider policies; check
   const summary = await assertSummary(check.output);
   assert.ok(summary.tasks[0].claims.some(c => c.dimension === 'protections' && c.status === 'pass'));
   f.config.scenarios[0].protection_goals = [] as unknown as typeof goals; await fs.writeFile(f.configPath, JSON.stringify({ ...f.config, scenarios: f.config.scenarios.map(({ protection_goals: _goals, ...s }) => s) }));
-  await assert.rejects(runRegression({ ...f, baselinePath, output: path.join(f.root, 'changed-agreement') }), /Protection agreement changed/);
+  const changed = await runRegression({ ...f, baselinePath, output: path.join(f.root, 'changed-agreement') });
+  assert.equal(changed.status, 'review_required'); assert.equal(changed.tasks[0].current_verification, 'pass');
+  assert.ok(changed.tasks[0].terms?.changes.some(c => c.dimension.startsWith('protection_goal:')));
   const trial = baseline.trials.at(-1)!; const evidencePath = path.join(baseline.output, trial.evidence); const evidence = JSON.parse(await fs.readFile(evidencePath, 'utf8')); delete evidence.protections; await fs.writeFile(evidencePath, JSON.stringify(evidence));
   await assert.rejects(loadBaseline(baselinePath), /passing declared protection evidence/);
 });

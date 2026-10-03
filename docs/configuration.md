@@ -9,7 +9,7 @@ scenario 可选添加 protection_goals（1–16 条）：key、target、target_k
 ```yaml
 schema_version: 1
 project: .
-exclude: [.git, .permsift, dist, reports]
+exclude: [.git, .permsift, .permsift-baselines, dist, reports]
 scenarios:
   - id: build
     command: [npm, run, build]
@@ -26,7 +26,7 @@ scenarios:
 
 project 相对场景文件所在目录解析；也可以是绝对路径。导出配置使用原项目的绝对路径，在另一台机器上使用时需要修改。
 
-exclude 是**顶层名称**列表，默认 `.git`、`.permsift`、`dist`、`reports`。不会按这个列表删除 node_modules 中的同名子目录。列表是整体替换；如果希望包含原有 dist 输入，应从列表去掉 dist，并确保输出断言不会把需要的输入删除。
+exclude 是**顶层名称**列表，默认 `.git`、`.permsift`、`.permsift-baselines`、`dist`、`reports`。不会按这个列表删除 node_modules 中的同名子目录。列表是整体替换；如果希望包含原有 dist 输入，应从列表去掉 dist，并确保输出断言不会把需要的输入删除。
 
 普通场景快照包括已准备好的依赖；install 场景必须显式排除顶层 node_modules，并在沙箱中安装。输入冻结后，各轮优先创建写时复制副本，不与原项目共享可写硬链接。内部符号链接转换成指向副本内部的相对链接；指向项目外部的链接、祖先循环链接和特殊文件会被拒绝。
 
@@ -175,7 +175,7 @@ Node 的 [JUnit reporter](https://nodejs.org/docs/latest-v24.x/api/test.html#tes
 
 ## 输出和重放
 
-`--output` 指定一个尚不存在的目录。目录位于原项目内部时，必须处于 exclude 列出的顶层目录中，避免快照递归包含自身。
+执行命令的 `--output` 指定一个尚不存在的目录。adopt 的 `--output` 则指定可复用的基线存储目录，内部创建新采用记录并切换当前选择，见 [基线采用](baseline-adoption.md)。目录位于原项目内部时，必须处于 exclude 列出的顶层目录中，避免快照递归包含自身。
 
 - report.json：机器可读汇总和证据索引；搜索记录的 rounds/round 为复查轮次，removed_grants 为分组成员，reuses 单独关联复用的失败证据；policies/searches 记录写规则，read_policies/read_searches 记录读规则，read_modes 区分 explicit/legacy，read_discovery 记录候选来源。
 - report.md：适合人工审阅的摘要。

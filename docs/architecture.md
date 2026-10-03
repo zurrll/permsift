@@ -45,7 +45,10 @@ flowchart LR
 | src/result-explanation.ts | 按路径/任务生成证据与行动，终端和 Markdown 共用结果 |
 | src/result-output.ts | 流程完成后保存概览并前置到原详细报告 |
 | src/engine.ts | 实验编排、候选/恢复、预算、快照发布、最终验证及导出 |
-| src/regression.ts | 历史规则导入、当前输入冻结、宽规则对照、有限补充及回归汇总 |
+| src/baseline.ts | 历史规则兼容导入及已采用证据的加载分派 |
+| src/adoption.ts | 最终验证证据选择、持久采用包、前序记录及原子当前选择 |
+| src/terms.ts | 任务、成功条件、执行要求与逐保护目标的精确比较 |
+| src/regression.ts | 当前输入冻结、逐任务约定维护、宽规则对照、有限补充及回归汇总 |
 | src/install.ts | npm 锁定输入检查、缓存条件、固定安装参数、输入不变检查与传输失败分类 |
 | src/sandbox-supervisor.ts / src/sandbox-worker.ts | 独立后端进程、真实结果 IPC、任务进程组、超时取消和有界代理清理 |
 
@@ -155,3 +158,5 @@ TaskObservation.bundling 与模块、compilation 各自保持来源和健康度�
 usage-report.ts 从普通文件有界读回 schema 1 的 usage，验证实例身份和来源引用；可选保留安装清单及模块文件，使旧比较输入也能用于跨任务查看。usage-comparison.ts 由 observe --baseline 和 compare 两个入口共用；原比较输出的段落也共用，避免实现漂移。offline-usage.ts 记录各侧来源状态、纯分析退出状态及可选工件导出。usage-inspection.ts 只投影匹配名称的每任务安装实例，不制造缺失来源、用途分类或权限建议。
 
 CLI 在加载 engine / backend 之前处理 compare / inspect，离线入口不依赖 SRT 或原项目。运行入口继续动态载入原执行器；version.ts 提供共享版本，engine 仍兼容导出 VERSION。没有改变快照、安装、边界探针、采集或搜索流程。
+
+第五轮明确采用在执行底座之外处理，只读取已保存的最终证据并写入独立存储，不运行任务。check 同时记录历史事实和当前事实：约定变化要求审阅；新增任务独立验证、删除任务保留历史，不能迁移的任务不阻止其他任务运行。详见 [基线采用](baseline-adoption.md)。

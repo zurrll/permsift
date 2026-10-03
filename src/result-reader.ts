@@ -9,6 +9,7 @@ import type { ExecutionEvidence, Model, PolicyPlan, ProtectionAgreement, Saved }
 import { canonical, freeze, semanticHash } from './model/identity.js';
 import { parseUsage, type Comparable } from './usage-report.js';
 import { readAliasSchema } from './config.js';
+import type { AdoptionRecord } from './adoption.js';
 
 const text = z.string().min(1).max(16384), count = z.number().int().nonnegative();
 const ref = z.object({ path: readAliasSchema, name: text, version: text });
@@ -33,6 +34,7 @@ const offlineComparisonSchema = z.object({ schema_version: z.literal(1), kind: z
   before: comparisonInput, after: comparisonInput, comparison: comparisonSchema });
 export type ExecutionView = { task: string; reference: string; facts: ExecutionEvidence; native: boolean; policy?: PolicyPlan; agreement?: ProtectionAgreement };
 export type ResultRecord = { file: string; artifact_hash: string; model?: Model; native?: NativeExecution; usage?: Comparable; comparison?: SavedComparison;
+  adoption?: AdoptionRecord;
   comparisonOnly?: { status: 'compared' | 'partial'; before: z.infer<typeof comparisonInput>; after: z.infer<typeof comparisonInput> };
   discovery?: { task: string; dimension: string; enabled?: boolean; truncated?: boolean; rules?: number; limitations: string[] }[];
   cost?: { trials: number; installations?: Record<string, { executed: number; reused: number; snapshots: number }>; duration_ms?: number; protections?: { duration_ms: number; calls: number } };
@@ -54,13 +56,13 @@ const sameKnown = (a: Saved<unknown>, b: Saved<unknown>, label: string) => {
 };
 
 /** Only conventional companions inside the selected result directory are read. No project/baseline paths are followed. */
-export async function readResult(selected: string): Promise<ResultRecord> {
+export async function readResult(selected: string, options: { verificationOnly?: boolean } = {}): Promise<ResultRecord> {
   let file = path.resolve(selected);
   const stat = await lstat(file);
   if (stat.isSymbolicLink()) throw new Error('Result selection must not be a symbolic link');
   if (stat.isDirectory()) {
     const directory = file; let found = false;
-    for (const name of ['usage.json', 'report.json', 'comparison.json']) {
+    for (const name of ['baseline.json', 'current.json', 'usage.json', 'report.json', 'comparison.json']) {
       try { await lstat(path.join(directory, name)); file = path.join(directory, name); found = true; break; }
       catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
     }
@@ -105,6 +107,7 @@ export async function readResult(selected: string): Promise<ResultRecord> {
     const evidence: Record<string, unknown> = {};
     if (initial.source.format === 'experiment-v1') {
       for (const e of initial.executions) {
+        if (options.verificationOnly && e.origin.phase !== (initial.workflow.kind === 'tighten' ? 'final' : 'baseline')) continue;
         if (!/^evidence\/[a-zA-Z0-9_-]+\.json$/.test(e.origin.record)) throw new Error('Invalid evidence companion reference');
         const value = await read(path.join(directory, e.origin.record), true);
         if (value !== undefined) evidence[e.origin.record] = value;
@@ -132,6 +135,7 @@ export async function readResult(selected: string): Promise<ResultRecord> {
           if (!/^[a-zA-Z0-9_-]+$/.test(entry.trial) || entry.facts !== `executions/${entry.trial}.json` || entry.evidence !== `evidence/${entry.trial}.json`) throw new Error('Invalid execution index reference');
           const old = model.executions.find(e => e.origin.record === entry.evidence);
           if (!old) { result.gaps.push('Index contains an execution absent from the workflow checkpoint; it does not establish workflow completion.'); continue; }
+          if (options.verificationOnly && old.origin.phase !== (model.workflow.kind === 'tighten' ? 'final' : 'baseline')) continue;
           const value = await read(path.join(directory, entry.facts), true);
           if (value === undefined) { result.gaps.push('Indexed native facts not available: ' + entry.facts); continue; }
           const facts = parseNativeExecution(value), e = facts.execution, task = model.tasks.find(t => t.id === old.task_id)!;
@@ -156,12 +160,17 @@ export async function readResult(selected: string): Promise<ResultRecord> {
           for (const key of ['input_hash', 'config_hash', 'limits_hash', 'environment', 'actual_command'] as const) sameKnown(old.conditions[key], e.conditions[key], key);
           native.set(entry.evidence, { reference: entry.facts, facts });
         }
-        for (const old of model.executions) if (!index.entries.some(e => e.evidence === old.origin.record)) result.gaps.push('Workflow trial lacks an index entry: ' + old.origin.record);
+        for (const old of model.executions) if ((!options.verificationOnly || old.origin.phase === (model.workflow.kind === 'tighten' ? 'final' : 'baseline')) && !index.entries.some(e => e.evidence === old.origin.record)) result.gaps.push('Workflow trial lacks an index entry: ' + old.origin.record);
       }
-      result.executions = model.executions.map(e => { const n = native.get(e.origin.record); return { task: model.tasks.find(t => t.id === e.task_id)!.key,
+      result.executions = model.executions.filter(e => !options.verificationOnly || e.origin.phase === (model.workflow.kind === 'tighten' ? 'final' : 'baseline')).map(e => { const n = native.get(e.origin.record); return { task: model.tasks.find(t => t.id === e.task_id)!.key,
         reference: n?.reference ?? e.origin.record, facts: n?.facts.execution ?? e, native: !!n, agreement: n?.facts.agreement ?? model.agreements.find(a => a.id === e.agreement_id), policy: n?.facts.policy ?? model.policies.find(p => p.id === (e.policy_id.state === 'recorded' ? e.policy_id.value : undefined)) }; });
     } else if (model.source.format === 'regression-v1') {
       for (const task of model.workflow.comparisons) for (const stage of task.stages) {
+        if (options.verificationOnly) {
+          const phase = task.reported_status === 'compatible' ? 'old' : task.reported_status === 'new_task_verified' ? 'new' :
+            task.suggestion_verified.state === 'recorded' && task.suggestion_verified.value ? [...task.stages].reverse().find(s => /^repair-verify-/.test(s.phase))?.phase : undefined;
+          if (stage.phase !== phase) continue;
+        }
         if (!/^[a-z][a-z0-9-]{0,63}$/.test(task.task_key) || !/^[a-z0-9-]+$/.test(stage.phase) || stage.report !== `tasks/${task.task_key}/${stage.phase}/report.md`) throw new Error('Invalid regression stage reference');
         const child = path.join(directory, stage.report.replace(/\.md$/, '.json')), value = await read(child, true);
         const loaded = value === undefined ? undefined : await load(child, value, depth + 1);
@@ -196,6 +205,11 @@ export async function readResult(selected: string): Promise<ResultRecord> {
   }
   const raw = await read(file);
   if (raw === undefined) throw new Error('Selected result exceeds read budget');
+  if (['permsift_adopted_baseline', 'permsift_baseline_selection'].includes(header.parse(raw).kind ?? '')) {
+    const { readAdoption } = await import('./adoption.js');
+    const adoption = await readAdoption(file);
+    return freeze({ file: adoption.file, artifact_hash: semanticHash(adoption.manifest), adoption, executions: [], children: [], gaps: [] });
+  }
   const result = await load(file, raw); result.gaps.push(...budgetGaps);
   return freeze(result);
 }

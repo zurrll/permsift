@@ -1,5 +1,6 @@
+import { termsComparisonSchema, historicalVerificationSchema, compareTerms } from '../terms.js';
 import { z } from 'zod';
-import { configSchema, limitsSchema, aliasSchema, readAliasSchema, domainSchema, isStaged, type Config, type Scenario } from '../config.js';
+import { configSchema, limitsSchema, aliasSchema, readAliasSchema, domainSchema, scenarioSchema, isStaged, type Config, type Scenario } from '../config.js';
 import { parseUsage, type Comparable } from '../usage-report.js';
 import { evaluateTask, evaluateBoundaries } from './conclusions.js';
 import { recorded, missing, objectId, grantSet, semanticHash, legacyHash, canonical, finishModel } from './identity.js';
@@ -47,15 +48,18 @@ const evidenceSchema = trialSchema.omit({ verdict: true, evidence: true }).exten
   protections: z.array(protectionStageSchema.passthrough().transform(s => ({ stage: s.stage, moment: s.moment, method: s.method, results: s.results }))).max(2).optional(),
   protection_checks_not_run: text.optional(),
   installation: z.object({ command: z.array(text).min(1), execution: z.object({ process: processFact }), verdict }).optional() });
-const regressionSchema = z.object({ schema_version: z.literal(1), kind: z.literal('regression'), id: text,
-  status: z.enum(['running', 'compatible', 'regressed', 'inconclusive']), baseline: text,
+const regressionSchema = z.object({ schema_version: z.union([z.literal(1), z.literal(2)]), kind: z.literal('regression'), id: text,
+  status: z.enum(['running', 'compatible', 'review_required', 'regressed', 'inconclusive']), baseline: text,
+  adoption: z.object({ id: text, selected_at: z.string().datetime() }).optional(),
+  exclusion_change: z.object({ before: configSchema.shape.exclude, after: configSchema.shape.exclude }).optional(),
   environment: z.record(z.string()), inputs: inputHashes,
-  tasks: z.array(z.object({ id: text, status: z.enum(['pending', 'compatible', 'permission_change', 'unresolved_failure', 'inconclusive']),
-    task_definition_changed: z.boolean(), repair_stop: text.optional(),
+  tasks: z.array(z.object({ id: text, status: z.enum(['pending', 'compatible', 'new_task_verified', 'removed_task', 'permission_change', 'unresolved_failure', 'inconclusive']),
+    task_definition_changed: z.boolean(), previous_definition: scenarioSchema.optional(), repair_stop: text.optional(), terms: termsComparisonSchema.optional(), history: historicalVerificationSchema.optional(),
+    current_verification: z.enum(['pass', 'fail', 'unknown', 'not_run']).optional(),
     reason: text.optional(),
     stages: z.array(z.object({ phase: text, verdict, report: text, trials: z.number().int().nonnegative(), prepared_directories: writes })).max(10000),
     suggestion: z.object({ write: writes, read: reads.optional(), network: domains.optional(), install_write: writes.optional(), verified: z.literal(true) }).optional(),
-  })).max(16) });
+  })).max(32) });
 const inputsSchema = z.object({ config: z.unknown(), limits: z.unknown().optional() });
 
 /** Companion objects are supplied explicitly. No producer path triggers a filesystem read. */
@@ -285,22 +289,30 @@ export function adaptRegression(raw: unknown, companions: LegacyCompanions = {})
   if (Object.keys(companions.evidence ?? {}).length) throw new Error('Regression stage references are aggregates; adapt child experiments separately');
   const report = regressionSchema.parse(raw), { model, ctx } = start('regression-v1', raw, report.inputs, report.environment, 'check', report.status, companions);
   if (new Set(report.tasks.map(t => t.id)).size !== report.tasks.length) throw new Error('Duplicate regression task key');
+  if (report.schema_version === 2 && report.tasks.some(t => !t.terms || !t.current_verification)) throw new Error('v2 regression lacks explicit terms/current verification');
+  if (report.status === 'compatible' && (report.tasks.some(t => t.terms?.changed) || report.exclusion_change)) throw new Error('Changed terms cannot be reported as compatible');
+  if (report.exclusion_change) model.workflow.input_scope_change = report.exclusion_change;
   for (const item of report.tasks) {
-    const { scenario } = addTask(model, item.id, ctx?.config);
+    const before = item.previous_definition;
+    if (before && before.id !== item.id) throw new Error('Previous task definition key mismatch');
+    if (item.terms && ctx && canonical(item.terms) !== canonical(compareTerms(before, ctx.config.scenarios.find(s => s.id === item.id)))) throw new Error('Retained terms comparison disagrees with definitions');
+    const { scenario } = addTask(model, item.id, item.status === 'removed_task' && before && ctx ? { ...ctx.config, scenarios: [before] } : ctx?.config);
     const suggestion = item.suggestion ? policy(model, item.id, scenario, item.suggestion.write, item.suggestion.read,
       scenario ? scenario.initial_read_grants === undefined ? 'legacy' : 'explicit' : undefined, item.suggestion.network, item.suggestion.install_write) : undefined;
     model.workflow.comparisons.push({ task_key: item.id, reported_status: item.status,
       reason: saved(item.reason, 'Comparison reason'), repair_stop: saved(item.repair_stop, 'Repair stop'),
       definition_changed: recorded(item.task_definition_changed), stages: item.stages.map(s => ({ phase: s.phase, reported_verdict: s.verdict,
         report: s.report, trials: s.trials, preparation: grantSet(s.prepared_directories) })), suggestion_policy: saved(suggestion, 'Suggested policy'),
-      suggestion_verified: saved(item.suggestion?.verified, 'Suggestion verification') });
+      suggestion_verified: saved(item.suggestion?.verified, 'Suggestion verification'),
+      ...item.terms ? { terms: item.terms } : {}, ...item.history ? { history: item.history } : {}, ...item.current_verification ? { current_verification: item.current_verification } : {} });
     // Stage.verdict summarizes an experiment, so it must never be rewritten as a single task execution.
     if (item.task_definition_changed) model.workflow.review_reasons.push(item.id + ': producer reports command, assertions, timeout or installation definition changed');
     if (item.status !== 'compatible') model.workflow.review_reasons.push(item.id + ': ' + item.status + (item.repair_stop ? ' (' + item.repair_stop + ')' : ''));
     if (suggestion) model.workflow.review_reasons.push(item.id + ': verified suggestion requires adoption review');
   }
-  const baseline = { selection: 'comparison_reference' as const, producer_reference: report.baseline,
-    adoption: 'not_recorded' as const, resolution: 'not_loaded' as const, task_ids: model.tasks.map(t => t.id) };
+  const baseline = report.adoption ? { selection: 'adopted_reference' as const, producer_reference: report.baseline,
+    adoption: 'recorded' as const, resolution: 'not_loaded' as const, adopted_id: report.adoption.id, selected_at: report.adoption.selected_at, task_ids: model.tasks.map(t => t.id) } :
+    { selection: 'comparison_reference' as const, producer_reference: report.baseline, adoption: 'not_recorded' as const, resolution: 'not_loaded' as const, task_ids: model.tasks.map(t => t.id) };
   model.baselines.push({ id: objectId('baseline', baseline), ...baseline });
   return finishModel(model);
 }

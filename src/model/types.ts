@@ -2,6 +2,7 @@ import type { Scenario } from '../config.js';
 import type { Check } from '../assertions.js';
 import type { Comparable } from '../usage-report.js';
 import type { ProtectionStage } from '../protection-facts.js';
+import type { TermsComparison, HistoricalVerification } from '../terms.js';
 
 /** Missing data is a fact about retention/declaration, never an empty result. */
 export type MissingState = 'not_saved' | 'not_declared' | 'not_run';
@@ -69,11 +70,22 @@ export type ExecutionEvidence = {
   outcomes: { task: Evaluation; boundaries: Evaluation; protections?: Evaluation };
 };
 /** A legacy check reference records comparison selection, not long-term adoption. */
-export type BaselineReference = {
+export type ComparisonBaseline = {
   id: string; selection: 'comparison_reference';
   producer_reference: string; adoption: 'not_recorded';
   resolution: 'not_loaded'; task_ids: string[];
 };
+/** A user selection freezes complete task/policy/agreement/evidence references. It never grants execution authority. */
+export type AdoptedBaseline = {
+  id: string; selection: 'explicit_adoption'; adoption: 'recorded'; resolution: 'validated';
+  selected_at: string; producer_reference: string; task_ids: string[];
+  selections: { task_key: string; task_id: string; agreement_id: string; policy_id: string; execution_ids: string[] }[];
+};
+export type AdoptedBaselineReference = {
+  id: string; selection: 'adopted_reference'; producer_reference: string; adoption: 'recorded'; resolution: 'not_loaded';
+  adopted_id: string; selected_at: string; task_ids: string[];
+};
+export type BaselineReference = ComparisonBaseline | AdoptedBaseline | AdoptedBaselineReference;
 export type Workflow = {
   kind: 'run' | 'tighten' | 'doctor' | 'observe' | 'check';
   reported_status: string;
@@ -88,8 +100,10 @@ export type Workflow = {
     reason: Saved<string>; repair_stop: Saved<string>;
     stages: { phase: string; reported_verdict: Verdict; report: string; trials: number; preparation: string[] }[];
     suggestion_policy: Saved<string>; suggestion_verified: Saved<boolean>;
+    terms?: TermsComparison; history?: HistoricalVerification; current_verification?: 'pass' | 'fail' | 'unknown' | 'not_run';
   }[];
   review_reasons: string[];
+  input_scope_change?: { before: string[]; after: string[] };
 };
 export type LegacySource = {
   format: 'experiment-v1' | 'usage-v1' | 'regression-v1';

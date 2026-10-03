@@ -1,6 +1,6 @@
 # 第一轮内部模型
 
-第一轮建立可运行、可回放的内部适配层。第二轮已将这些角色接入真实执行请求与独立事实文件，详见 [共同执行底座](execution-foundation.md)。现有 CLI、配置、报告格式和退出码保持兼容。第四轮已接入 [固定保护目标](protection-goals.md)；明确采用基线的入口仍属于第五轮。
+第一轮建立可运行、可回放的内部适配层。第二轮已将这些角色接入真实执行请求与独立事实文件，详见 [共同执行底座](execution-foundation.md)。旧 CLI 使用方式和历史报告继续支持；第五轮为约定变化提供独立判定及回归 wire v2。第四轮已接入 [固定保护目标](protection-goals.md)；第五轮已实现 [明确采用、保留证据和约定维护](baseline-adoption.md)。
 
 第三轮的只读消费者验证原生 v1 文件并核对工作流引用；旧搜索适配新增操作、前后规则和候选/恢复位置，旧字段缺失时保留 not_saved。回归的原因和修复停止同样进入投影。内部 model_version / identity_version 仍为 1，这些添加不改已有对象身份公式；新版摘要独立保存，见 [结果解释](result-explanations.md)。
 
@@ -28,7 +28,7 @@
 - 未保存命令的观察摘要保留旧场景指纹作为未知定义的来源锚点。补回完整定义时可生成新的内容 ID；`key` 继续提供逻辑连续性，不能把这种补回当作已知任务发生变化。
 - 执行引用具体任务、约定和方案 ID。未知方案显式保存缺口。适配结束检查引用存在且属于同一任务，拒绝重复身份和重复逻辑任务键，然后递归冻结结果。
 - 初始、候选、恢复、最终、建议是工作流角色，不是不同权限身份。相同保留内容可以共用方案。新内容生成新对象，不能原地改写旧执行引用。
-- 旧 check 的 baseline 是比较引用，状态为 `adoption: not_recorded`、`resolution: not_loaded`。其他旧成功实验没有采用对象。本轮没有采用动作；第五轮需扩展实际采用记录、验证引用和前后约定比较。
+- 旧 check 的 baseline 是比较引用，状态为 `adoption: not_recorded`、`resolution: not_loaded`。其他旧成功实验没有采用对象。第五轮新增 AdoptedBaseline（explicit_adoption / recorded / validated），保存完整的任务、约定、方案和重复执行身份；check 中的 AdoptedBaselineReference 则明确为 adopted_reference / recorded / not_loaded，离线解释不追踪外部存储。旧比较引用及身份公式保持原貌。
 
 新模型的 `model_version` 和 `identity_version` 当前均为 1。改变结构需显式迁移；改变内容归一化或 ID 含义需升级身份版本。不同身份版本禁止直接比较。模型修订不能写成项目、用户约定或权限发生变化。
 
@@ -111,3 +111,5 @@ const differences = compareModels(adapt(before), adapt(after));
 5. 身份冻结与运行目录、计时、随机执行标识的用途需继续分开。原报告保留全部证据，本模型只规范本轮需要解释的事实。
 
 运行 `npm run model:verify` 可检查真实样本映射与前后区别；`test/model.test.ts` 中的合成反例检验未知、约定变化和不一致引用。两个使用案例见 [模型案例](model-cases.md)，本机与跨环境状态见 [环境检验](environment-validation.md)。
+
+第五轮 check 使用 wire v2 保留历史任务定义与逐维度精确变化、当前验证和历史采用结果。旧 wire v1 继续按实际保留字段读取，不补造采用或历史验证。采用文件自身使用 wire v1 / kind: permsift_adopted_baseline；新角色沿用现有对象内容身份公式，采用记录与其 baseline 选择内容各自校验。

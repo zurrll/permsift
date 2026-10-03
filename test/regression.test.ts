@@ -65,11 +65,11 @@ test('baseline evidence must remain inside the report and preserve exact file ki
 test('task IDs, read modes, control coverage and current trusted ceilings are checked before execution', async t => {
   const f = await fixture(t); const baseline = await loadBaseline(f.reportFile);
   const changed = structuredClone(f.config); changed.scenarios[0].id = 'different';
-  assert.throws(() => regressionConfigs(changed, baseline, f.limits), /Task IDs changed/);
+  assert.equal(regressionConfigs(changed, baseline, f.limits).old.scenarios[0].id, 'different');
   const legacy = structuredClone(f.config); delete legacy.scenarios[0].initial_read_grants;
-  assert.throws(() => regressionConfigs(legacy, baseline, f.limits), /Read mode changed/);
+  assert.match(regressionConfigs(legacy, baseline, f.limits).unavailable.build, /Read mode changed/);
   const narrow = structuredClone(f.config); narrow.scenarios[0].initial_read_grants = [];
-  assert.throws(() => regressionConfigs(narrow, baseline, f.limits), /Control reads/);
+  assert.match(regressionConfigs(narrow, baseline, f.limits).unavailable.build, /Control reads/);
   assert.throws(() => regressionConfigs(f.config, baseline, { ...f.limits, allowed_write_roots: ['@cache'] }), /trusted limits/);
 });
 test('incomplete execution and boundary issues cannot be classified as a permission or ordinary task failure', () => {
@@ -125,8 +125,8 @@ test('historical network evidence, control ceilings and cache conditions are che
   await fs.writeFile(path.join(f.root,'inputs.json'),JSON.stringify({config:f.config}));await fs.writeFile(f.reportFile,JSON.stringify(report));await fs.writeFile(path.join(f.root,'evidence/abc.json'),JSON.stringify(evidence));
   const baseline=await loadBaseline(f.reportFile),configs=regressionConfigs(f.config,baseline,f.limits);
   assert.deepEqual(configs.old.scenarios[0].initial_network_grants,['registry.npmjs.org']);assert.deepEqual(configs.control.scenarios[0].initial_network_grants,['registry.npmjs.org','other.example']);
-  const changed=structuredClone(f.config);changed.scenarios[0].initial_network_grants=[];assert.throws(()=>regressionConfigs(changed,baseline,f.limits),/Control domains/);
-  changed.scenarios[0].initial_network_grants=['registry.npmjs.org'];changed.scenarios[0].install!.cache='warm';assert.throws(()=>regressionConfigs(changed,baseline,f.limits),/cache mode/);
+  const changed=structuredClone(f.config);changed.scenarios[0].initial_network_grants=[];assert.match(regressionConfigs(changed,baseline,f.limits).unavailable.build,/Control domains/);
+  changed.scenarios[0].initial_network_grants=['registry.npmjs.org'];changed.scenarios[0].install!.cache='warm';changed.scenarios[0].install!.cache_seed='@workspace/cache';assert.match(regressionConfigs(changed,baseline,f.limits).unavailable.build,/cache mode/);
   assert.throws(()=>regressionConfigs(f.config,baseline,{...f.limits,allowed_network_domains:[]}),/exceeds trusted/);
   await fs.writeFile(path.join(f.root,'evidence/abc.json'),JSON.stringify({...evidence,network_grants:['other.example']}));await assert.rejects(loadBaseline(f.reportFile),/network policy mismatch/);
 });
@@ -152,7 +152,7 @@ test('staged baselines require fresh full-flow evidence and preserve independent
   assert.deepEqual(configs.old.scenarios[0].install?.initial_write_grants, ['@workspace/node_modules']);
   assert.deepEqual(configs.control.scenarios[0].install?.initial_write_grants, ['@workspace']);
   const bounded = structuredClone(f.config); bounded.scenarios[0].install!.initial_write_grants = [];
-  assert.throws(() => regressionConfigs(bounded, baseline, f.limits), /Control install writes/);
+  assert.match(regressionConfigs(bounded, baseline, f.limits).unavailable.build, /Control install writes/);
   await fs.writeFile(f.reportFile, JSON.stringify({ ...report, trials: [{ ...report.trials[0], installation_reused: true }] })); await assert.rejects(loadBaseline(f.reportFile), /no passing evidence/);
   await fs.writeFile(f.reportFile, JSON.stringify(report)); await fs.writeFile(path.join(f.root,'evidence/abc.json'), JSON.stringify({ ...evidence, install_grants: [] })); await assert.rejects(loadBaseline(f.reportFile), /full-flow/);
 });

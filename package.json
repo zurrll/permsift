@@ -38,6 +38,7 @@
     "offline:verify": "npm run build && node scripts/verify-offline.mjs",
     "model:verify": "npm run build && node scripts/verify-model.mjs",
     "results:verify": "npm run build && node scripts/verify-results.mjs",
+    "maintenance:verify": "npm run build && node scripts/verify-maintenance.mjs",
     "protection:verify": "npm run build && node scripts/verify-protection.mjs",
     "environment:verify": "npm run build && node scripts/verify-environment.mjs"
   },
