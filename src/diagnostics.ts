@@ -6,7 +6,7 @@ import { within, type Roots } from './filesystem.js';
 export type Denial = { source: 'sandbox_log' | 'stderr'; operation: string; path?: string; detail: string };
 export type Diagnosis = {
   stage?: 'install' | 'task';
-  kind: 'passed' | 'execution_incomplete' | 'boundary_issue' | 'permission_denial_observed' | 'task_failed' | 'assertion_failure';
+  kind: 'passed' | 'execution_incomplete' | 'boundary_issue' | 'permission_denial_observed' | 'task_failed' | 'assertion_failure' | 'installation_verification_failure';
   summary: string; denials: Denial[]; failed_assertions: Check[]; boundary_issues: Check[];
   stderr_excerpt: string; log_limitations: string;
 };
@@ -31,7 +31,7 @@ export function extractDenials(stderr: string, violations: { line: string }[], r
   }
   return found.filter((item, i) => found.findIndex(other => other.source === item.source && other.operation === item.operation && other.path === item.path && other.detail === item.detail) === i).slice(0, 12);
 }
-export function diagnose(input: { task?: { process: ProcessResult; violations: { line: string }[] }; roots?: Roots; assertions: Check[]; boundaries: Check[]; verdict: string; reason?: string }): Diagnosis {
+export function diagnose(input: { task?: { process: ProcessResult; violations: { line: string }[] }; roots?: Roots; assertions: Check[]; boundaries: Check[]; verdict: string; reason?: string; installationChecks?: Check[] }): Diagnosis {
   const process = input.task?.process;
   const denials = process && input.roots ? extractDenials(process.stderr, input.task!.violations, input.roots) : [];
   const failed = input.assertions.filter(c => c.status !== 'pass');
@@ -40,6 +40,7 @@ export function diagnose(input: { task?: { process: ProcessResult; violations: {
   let summary = 'Task, fresh outputs and boundary checks passed.';
   if (input.verdict === 'unknown') { kind = 'execution_incomplete'; summary = input.reason ?? `Execution could not be verified (${process?.status ?? 'no task result'}).`; }
   else if (boundary.length) { kind = 'boundary_issue'; summary = 'A sandbox boundary or its control check failed; this policy is not acceptable.'; }
+  else if (input.verdict !== 'pass' && input.installationChecks?.some(c => c.status !== 'pass')) { kind = 'installation_verification_failure'; summary = 'npm completed, but extracted bundled package metadata did not match the locked installation; the task was skipped.'; }
   else if (input.verdict !== 'pass' && process?.exit_code === 0) { kind = 'assertion_failure'; summary = 'The command finished, but its fresh output or expected test results did not satisfy the assertions.'; }
   else if (input.verdict !== 'pass' && denials.length) { kind = 'permission_denial_observed'; summary = 'The task failed verification and permission-denial evidence was observed. Review the operation, path, assertions and recovery together.'; }
   else if (input.verdict !== 'pass' && process?.exit_code !== 0) { kind = 'task_failed'; summary = `The task exited with ${process?.exit_code ?? 'no exit code'}; no attributable permission denial was captured.`; }

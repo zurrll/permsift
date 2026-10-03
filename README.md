@@ -204,6 +204,8 @@ node dist/cli.js tighten \
 
 首版支持 npm、v2/v3 锁文件和注册表 tarball；旧安装配置保留完整工作区读取；分阶段配置支持任务读取收缩。暂不支持私有凭据、项目 .npmrc、Git/file 依赖、npm workspaces 或依赖生命周期脚本。详见 [安装与网络权限](docs/dependency-install.md)。
 
+支持能够确认父 tarball 归属的内嵌依赖：它们可以没有独立下载信息，安装后核对实际包的名称、版本和父包声明；失败时不执行后续任务。`npm run bundled:verify` 用本地注册表验证完整 CLI 流程，见 [内嵌依赖](docs/bundled-dependencies.md)。
+
 ## 分阶段安装与任务权限
 
 ```sh

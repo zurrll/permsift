@@ -1,5 +1,6 @@
 import { termsComparisonSchema, historicalVerificationSchema, compareTerms } from '../terms.js';
 import { z } from 'zod';
+import { assertBundledEvidence } from '../bundled-dependencies.js';
 import { configSchema, limitsSchema, aliasSchema, readAliasSchema, domainSchema, scenarioSchema, isStaged, type Config, type Scenario } from '../config.js';
 import { parseUsage, type Comparable } from '../usage-report.js';
 import { evaluateTask, evaluateBoundaries } from './conclusions.js';
@@ -193,6 +194,7 @@ function validateEvidence(trial: Trial, raw: unknown): Evidence {
 
 export function adaptExperiment(raw: unknown, companions: LegacyCompanions = {}): Model {
   const report = experimentSchema.parse(raw), { model, ctx } = start('experiment-v1', raw, report.inputs, report.environment, report.mode, report.status, companions);
+  const installations = z.object({ inputs: z.object({ installations: z.record(z.object({ bundled: z.unknown().optional() })).optional() }) }).parse(raw).inputs.installations;
   const keys = Object.keys(report.policies).sort();
   for (const map of [report.read_modes, report.read_policies, ...report.network_policies ? [report.network_policies] : []]) {
     if (!equalSet(Object.keys(map), keys)) throw new Error('Experiment policy task keys disagree');
@@ -205,6 +207,7 @@ export function adaptExperiment(raw: unknown, companions: LegacyCompanions = {})
   for (const [file, value] of Object.entries(companions.evidence ?? {})) {
     const trial = trials.get(file);
     if (!trial) throw new Error('Evidence is not referenced by this experiment');
+    assertBundledEvidence(installations?.[trial.scenario]?.bundled, z.object({ installation: z.unknown().optional() }).parse(value).installation);
     const e = validateEvidence(trial, value); evidence.set(file, e);
     model.source.evidence_records.push({ path: file, artifact_hash: semanticHash(value) });
   }

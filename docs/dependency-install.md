@@ -97,6 +97,8 @@ report.json 的 network_policies / network_searches 保存最终候选域名、�
 
 首版要求 Node 旁边可用的 npm、package-lock v2/v3、完整性校验的 registry tarball。拒绝项目 .npmrc、npm-shrinkwrap、workspaces、Git/file/link 依赖或私有凭据配置。安装器保留工作区读取。旧模式不做动态依赖读取搜索；v0.6 分阶段模式可对安装后的任务搜索项目和包读取。需要 postinstall 构建的包通常无法通过后续行为验证；未来应把生命周期脚本设计成独立权限阶段。
 
+第五轮后的接入修复支持有明确归属的内嵌依赖：父 tarball 保留 registry URL/SRI 检查，子条目沿声明及传递依赖确认来源，安装后核对实际名称/版本和父包声明。保存逐项核对，失败或未知时跳过任务；原始基线导入和 adopt 不能丢掉这些检查。配置不需增加字段，脚本仍禁用，详见 [内嵌依赖](bundled-dependencies.md)。
+
 域名授权不约束 URL 路径或返回内容，也不是供应链信任证明。固定锁和完整性校验只覆盖声明的安装输入。macOS、SRT 和文件系统边界仍有 [安全说明](security.md) 中的范围限制。
 
 依据：[npm ci 官方行为](https://docs.npmjs.com/cli/v11/commands/npm-ci/)、[Sandbox Runtime 官方说明](https://github.com/anthropics/sandbox-runtime#network-isolation)。实现针对仓库锁定的 SRT 0.0.77，并以本地真实测试核对行为。

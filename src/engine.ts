@@ -164,7 +164,7 @@ export async function runExperimentWithFacts(options: ExperimentOptions): Promis
         result.verdict = 'unknown'; result.reason = 'Install failed without independently captured domain denial; network removal is inconclusive';
       }
       result.diagnosis = { ...diagnose({ task: details.task ?? details.installation?.execution, roots: details.roots, assertions: details.assertions ?? [],
-        boundaries: [details.before, details.after_installation, details.before_offline_task, details.after].flatMap(s => s?.checks ?? []), verdict: result.verdict, reason: result.reason }),
+        boundaries: [details.before, details.after_installation, details.before_offline_task, details.after].flatMap(s => s?.checks ?? []), verdict: result.verdict, reason: result.reason, installationChecks: details.installation?.bundled_checks }),
         ...(staged ? { stage: result.execution_stage } : {}) };
       details.diagnosis = result.diagnosis;
       const trial = trialReport(result, { scenario: scenario.id, phase, policy: request.policy, staged, requestedReuse: !!stage.taskOnly });

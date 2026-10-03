@@ -1,0 +1,37 @@
+schema_version: 1
+project: ./project
+exclude: [.git, node_modules, .nyc_output, coverage, test.xunit]
+scenarios:
+  - id: upstream-tests
+    install:
+      manager: npm
+      cache: cold
+      initial_write_grants: ['@workspace/node_modules', '@cache', '@tmp']
+      auto_discover: false
+    initial_network_grants: [registry.npmjs.org]
+    initial_write_grants: ['@workspace', '@tmp']
+    initial_read_grants: ['@workspace']
+    auto_discover: false
+    auto_read_discover: false
+    timeout_seconds: 150
+    command: [npm, run, azure-pipelines]
+    assertions:
+      - type: junit
+        path: '@workspace/test.xunit'
+        expected_tests:
+          - should strip glob magic to return parent path
+          - should respect escaped characters
+          - should respect glob enclosures with embedded separators
+          - should handle nested braces
+          - should return parent dirname from non-glob paths
+          - should respect disabled auto flip backslashes
+          - should get a base name
+          - should get a base name from a nested glob
+          - should get a base name from a flat file
+          - should get a base name from character class pattern
+          - should get a base name from brace , expansion
+          - should get a base name from brace .. expansion
+          - should get a base name from extglob
+          - should get a base name from a path with non-exglob parens
+          - should get a base name from a complex brace glob
+          - should not be susceptible to SNYK-JS-GLOBPARENT-1016905

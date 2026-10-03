@@ -24,3 +24,11 @@ test('a captured denial is evidence with caveats, not a causal conclusion', () =
   assert.equal(d.kind, 'permission_denial_observed'); assert.equal(d.failed_assertions.length, 1);
   assert.match(d.log_limitations, /do not prove causation/);
 });
+test('extracted installation failures are distinct from output assertions and unknown reads', () => {
+  const input = { roots, assertions: [], boundaries: [], verdict: 'fail', task: { process: process({ exit_code: 0 }), violations: [] },
+    installationChecks: [{ name: 'bundled_package', status: 'fail' as const, detail: 'Package missing' }] };
+  const diagnosis = diagnose(input);
+  assert.equal(diagnosis.kind, 'installation_verification_failure'); assert.deepEqual(diagnosis.failed_assertions, []);
+  assert.match(diagnosis.summary, /task was skipped/);
+  assert.equal(diagnose({ ...input, verdict: 'unknown' }).kind, 'execution_incomplete');
+});

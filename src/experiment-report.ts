@@ -77,6 +77,7 @@ export function markdownReport(report: Report) {
         `- **${id}**: npm ci --ignore-scripts; cache: ${data.cache}; subsequent task command: offline`,
         `  - Lock SHA-256: ${data.lock_hash}; package SHA-256: ${data.package_hash}`,
         `  - Locked download hosts: ${data.resolved_domains.join(', ') || '(none)'} (observations do not add grants)`,
+        ...(data.bundled ? [`  - Bundled package instances: ${data.bundled.packages.length}, from ${data.bundled.owners.length} integrity-checked parent tarballs; extracted metadata is checked before the task.`] : []),
         ...(data.cache_seed_hash ? [`  - Fixed warm seed manifest SHA-256: ${data.cache_seed_hash}; npm uses --offline`] : ['  - Every actual installation starts with an empty npm cache; task-only trials clone the recorded installed state.']),
       ]), '',
     ] : [],

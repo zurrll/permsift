@@ -26,6 +26,7 @@
     "regression:prepare": "node scripts/prepare-regression.mjs",
     "regression:verify": "npm run build && node scripts/verify-regression.mjs",
     "install:verify": "npm run build && node scripts/verify-install.mjs",
+    "bundled:verify": "npm run build && node scripts/verify-bundled-install.mjs",
     "stages:verify": "npm run build && node scripts/verify-stages.mjs",
     "medium:prepare": "node scripts/prepare-fast-glob.mjs",
     "medium:verify": "npm run build && node scripts/verify-fast-glob.mjs",

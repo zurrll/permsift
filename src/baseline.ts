@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
+import { assertBundledEvidence } from './bundled-dependencies.js';
 import { aliasSchema, readAliasSchema, domainSchema, configSchema, isStaged, type Config } from './config.js';
 import { hash, within } from './filesystem.js';
 import { protectionAgreement } from './model/definitions.js';
@@ -37,7 +38,8 @@ const same = (a: string[], b: string[]) => hash([...a].sort()) === hash([...b].s
 export async function loadVerifiedBaseline(file: string): Promise<Baseline> {
   const canonical = await fs.realpath(file);
   const directory = path.dirname(canonical);
-  const report = baselineSchema.parse(await jsonFile(canonical));
+  const rawReport = await jsonFile(canonical), report = baselineSchema.parse(rawReport);
+  const installations = z.object({ inputs: z.object({ installations: z.record(z.object({ bundled: z.unknown().optional() })).optional() }) }).parse(rawReport).inputs.installations;
   const input = z.object({ config: configSchema }).parse(await jsonFile(path.join(directory, 'inputs.json')));
   if (hash(input.config) !== report.inputs.config_hash) throw new Error('Baseline config does not match its recorded hash');
   const ids = input.config.scenarios.map(s => s.id).sort();
@@ -57,9 +59,11 @@ export async function loadVerifiedBaseline(file: string): Promise<Baseline> {
     if (!trial) throw new Error(`Baseline has no passing evidence for ${id}`);
     const evidenceFile = await fs.realpath(path.join(directory, trial.evidence));
     if (!within(directory, evidenceFile)) throw new Error('Baseline evidence escapes its report directory');
+    const rawEvidence = await jsonFile(evidenceFile);
+    assertBundledEvidence(installations?.[id]?.bundled, z.object({ installation: z.unknown().optional() }).parse(rawEvidence).installation, true);
     const evidence = z.object({ scenario: z.literal(id), grants, read_grants: reads, prepared_directories: z.array(aliasSchema).max(2048),
       network_grants: domains.optional(), install_grants: grants.optional(), summary: z.object({ installation_reused: z.boolean().optional() }).optional(), stage_policy_mode: z.enum(['separate', 'shared']).optional(), read_grant_kinds: z.record(z.enum(['file', 'directory'])).optional(),
-      protections: z.array(protectionStageSchema.passthrough()).max(2).optional() }).parse(await jsonFile(evidenceFile));
+      protections: z.array(protectionStageSchema.passthrough()).max(2).optional() }).parse(rawEvidence);
     if (!same(evidence.grants, report.policies[id]) || !same(evidence.read_grants, report.read_policies[id])) throw new Error('Baseline evidence policy mismatch');
     if (!same(evidence.network_grants ?? [], network_policies[id])) throw new Error('Baseline evidence network policy mismatch');
     if (isStaged(scenario) && (evidence.stage_policy_mode !== 'separate' || evidence.summary?.installation_reused !== false || !same(evidence.install_grants ?? [], install_policies[id]))) throw new Error('Baseline lacks fresh full-flow installation policy evidence');

@@ -1,5 +1,26 @@
 # 实测记录
 
+## 第五轮后：内嵌依赖安装接入修复 — 2026-10-03
+
+本机 macOS 15.8 arm64 / Node 24.21.0 / npm 11.19.0 / SRT 0.0.77。最终单元/组件 **213/213** 通过，新增 8 项内嵌归属/元数据/保存证明及 1 项安装诊断反例。完整真实沙箱集成 **77/77** 通过，新增 4 项用例组；末次诊断及示例整理后再次核对新增 4 项通过，不重复累计。构建、类型检查、脚本语法与 Git 空白检查通过。日志 `.permsift/bundled-unit-final.log`、`bundled-full-integration.log`、`bundled-integration-final.log`。
+
+反例覆盖：孤立 inBundle、错误归属、缺父包 SRI、链接和异常路径、声明冲突、子包缺失/名称/版本不同、父包声明不同、超限/取消/超时，以及保存检查缺失、重复、错误名称或失败。真实 npm ci 在缺少声称的内嵌包时确实退出 0，工具的独立安装核对仍阻止任务；即使配置的文件存在断言通过，trial 也不能通过。父 tarball SRI 错误和未授权注册表继续被阻止；父/子 postinstall 不执行。
+
+公共 CLI 证据 `.permsift/bundled-validation-3K5gyj/verification.json`：
+
+| 案例 | 新安装 / 任务 | 结果 |
+| --- | --- | --- |
+| 本地父 tarball、作用域子包及内部提升的传递包 | 3 / 3，0 候选 | run → adopt → check → observe；每次只请求一个父 tarball，3 个实例均有模块加载记录，原项目未变，清理项目后仍能离线 inspect |
+| glob-parent 5.1.2 固定提交及原锁 | 1 / 1，0 候选 | 137 个内嵌实例、1 个父包，共 138 项安装核对通过；518 个实际安装实例，193 个有模块记录；原 azure-pipelines 的 16 项测试全部通过且全部逐名检查 |
+
+真实案例固定提交 `eb2c439de448c779b450472e591a2bc9e37e9668`，沿用此前被拒绝的锁；源码、测试和 package.json 改动为 0，未增加 reporter 参数或测试包装脚本。全流程单次约 **50.90 秒**，安装分项 **44.69 秒**，task **1.48 秒**；并行有开发测试，含网络/注册表开销，不能当作性能基准。新增 package.json 核对包含在安装分项，没有新增项目执行或权限候选。
+
+首次新代码试用 `.permsift/bundled-validation-jF3jvZ/glob-parent/observe/` 的安装及 138 项核对已经通过，但 nyc 13 的 spawn-wrap 因 `@tmp` 创建权限被拒绝，原任务失败。最终新示例在独立 limits 已允许的范围内明确声明 `@tmp` 写权限，保持原工作区写声明和原命令；工具没有替用户自动扩权。两次真实试用合计 2 次冷安装/任务，不把失败轮隐藏成“首次成功”。更早旧代码的 0 次执行预检拒绝仍保存在原试用记录中。
+
+旧模型、结果解释和离线来源回放通过，项目执行及安装数均为 0：`.permsift/model-replay-Y7Ezxh/`、`.permsift/result-replay-7QwRnd/`、`.permsift/offline-usage-yXGSj1/`。实际收益是解除这个已知接入障碍、保留真实命令并观察内嵌包；生命周期脚本、更多安装布局、其他机器/Node 22/远端 CI 与独立使用者收益仍未验证。复现及支持边界见 [内嵌依赖](bundled-dependencies.md)。
+
+另外复制本次真实 run 的保存材料，在副本中分别删除、重复和改成失败的安装核对；实际 result / baseline 两个读回入口均拒绝这些“仍声称通过”的材料。恢复副本后保留验证记录 `.permsift/bundled-proof-UIx6mg/verification.json`，0 项目执行/安装，原报告未改动。
+
 ## v0.12 — 2026-10-02
 
 全量单元/宿主组件 **135 项通过**，相关真实 macOS 观察/编译/打包集成 **16 项通过**，均 0 失败、0 跳过。末次读回边界整理后相关 **32 项组件测试通过**；不重复累计。日志 `.permsift/v0.12-unit-delivery.log`、`.permsift/v0.12-integration-delivery.log`、`.permsift/v0.12-reader-final.log`。构建、类型检查、脚本语法与 diff 检查通过；远端 CI 未执行。

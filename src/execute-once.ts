@@ -151,6 +151,7 @@ export async function executeOnce(request: ExecutionRequest): Promise<ExecutionR
         const install = await timings.measure('install', () => executeInstall(scenario, { ...installContext, invocationId: trialId + '-install', timeoutMs: Math.max(1, taskDeadline - Date.now()) }, request.resources.installInput!));
         evidence.installation = install; installVerdict = install.verdict; task = install.execution;
         if (install.verdict === 'unknown') trial.reason = install.inputs_unchanged ? 'Installation did not complete reliably (timeout, transport, DNS, TLS or registry failure)' : 'Installation changed its package manifest or lockfile';
+        if (install.bundled_checks?.some(c => c.status !== 'pass')) trial.reason = 'Bundled installation verification did not pass: ' + install.bundled_checks.filter(c => c.status !== 'pass').map(c => c.name + ' ' + c.status).join(', ');
         const afterInstall = await timings.measure('probes', () => boundaryChecks(trialFixtures, { ...installContext, invocationId: trialId + '-install-after', timeoutMs: Math.max(1, taskDeadline - Date.now()) }));
         evidence.after_installation = afterInstall; boundaries = [...boundaries, ...afterInstall.checks];
         if (boundaries.some(c => c.status !== 'pass')) installVerdict = 'unknown';
@@ -218,7 +219,7 @@ export async function executeOnce(request: ExecutionRequest): Promise<ExecutionR
       const afterTask = await scanRoots();
       const changes = Object.fromEntries(Object.keys(roots).map(name => [name, diffFiles(changeBase![name], afterTask[name])]));
       evidence.file_changes = changes.workspace; evidence.file_changes_by_root = changes;
-      trial.verdict = installVerdict === 'unknown' ? 'unknown' : protectionVerdict !== 'pass' ? protectionVerdict : classifyTrial(task!.process.status, task!.process.exit_code, assertions, boundaries);
+      trial.verdict = installVerdict !== 'pass' ? installVerdict : protectionVerdict !== 'pass' ? protectionVerdict : classifyTrial(task!.process.status, task!.process.exit_code, assertions, boundaries);
       if (!hasTime()) { trial.verdict = 'unknown'; trial.reason = 'Budget exhausted or interrupted before trial completion'; }
       if (readInventoryBefore && trial.verdict === 'pass') {
         const observation: ReadObservation = { ...readInventoryBefore, id: trialId }; evidence.read_discovery_observation = observation;
@@ -240,7 +241,7 @@ export async function executeOnce(request: ExecutionRequest): Promise<ExecutionR
     evidence.dependency_observation = trial.observation;
   }
   trial.duration_ms = Date.now() - started;
-  trial.diagnosis = { ...diagnose({ task, roots, assertions, boundaries, verdict: trial.verdict, reason: trial.reason }), ...(staged ? { stage: trial.execution_stage } : {}) };
+  trial.diagnosis = { ...diagnose({ task, roots, assertions, boundaries, verdict: trial.verdict, reason: trial.reason, installationChecks: evidence.installation?.bundled_checks }), ...(staged ? { stage: trial.execution_stage } : {}) };
   trial.timings = timings.snapshot();
   evidence.diagnosis = trial.diagnosis;
   trial.pendingSnapshot = pendingSnapshot;

@@ -68,6 +68,8 @@ node dist/cli.js inspect .permsift/native-pilot-Io8TQF/v6-after/usage.json --pac
 
 记录 `.permsift/native-pilot-Io8TQF/before/report.json` 和 `unsupported-v5.lock.json`。本轮没有放宽安装器或替换测试工具来伪造低成本接入；换用新版上游后才完成上面的试用。内嵌依赖及生命周期脚本等安装限制仍影响采用，需要独立设计，不能因为离线功能方便就忽略。
 
+2026-10-03 第五轮后的接入修复解决了上述内嵌归属障碍。原失败记录继续保留；旧版上游和冻结锁现在可在新目录完成原 azure-pipelines 任务。首次新代码执行暴露 nyc 的临时目录写需求，最终示例明确声明 limits 内的 `@tmp`；原源码、测试和 package.json 不变，16 项测试通过。生命周期脚本仍禁用。新记录见 [安装验证](validation.md)，用法见 [内嵌依赖](bundled-dependencies.md)。
+
 ## 本轮可以确认的收益
 
 确认了“多个长任务段落中的同名实例可以集中查看”和“两份已有记录无需再次运行任务即可比较”，并让观察条件和来源缺口随结果保留。新项目在不改上游代码的条件下能观察原测试任务，仍需锁、配置和诊断选项。

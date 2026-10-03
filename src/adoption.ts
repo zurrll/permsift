@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { assertBundledEvidence } from './bundled-dependencies.js';
 import { configSchema, limitsSchema, loadConfiguration, validatePolicy, isStaged, type Config } from './config.js';
 import { readLegacyJson } from './model/io.js';
 import { objectId, semanticHash, canonical } from './model/identity.js';
@@ -116,7 +117,9 @@ async function collectSource(file: string) {
     for (const proof of proofs) {
       const trial = result.model.executions.find(e => e.origin.phase === phase && e.origin.record === (proof.native ? 'evidence/' + path.basename(proof.reference) : proof.reference));
       if (!trial) throw new Error('Selected proof has no corresponding producer trial');
-      await reader.read(prefix + trial.origin.record);
+      const sidecar = z.object({ installation: z.unknown().optional() }).parse(await reader.read(prefix + trial.origin.record));
+      const proofInputs = z.object({ inputs: z.object({ installations: z.record(z.object({ bundled: z.unknown().optional() })).optional() }).optional() }).parse(taskInputs);
+      assertBundledEvidence(proofInputs.inputs?.installations?.[scenario.id]?.bundled, sidecar.installation, true);
       if (proof.native) await reader.read(prefix + proof.reference);
       else if (index) throw new Error('Indexed final native evidence is missing');
     }

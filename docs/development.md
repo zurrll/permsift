@@ -99,6 +99,7 @@ npm run self:verify
 | config.test.ts | 路径穿越、未知配置、最高权限、错误缩小、重复配置 |
 | filesystem.test.ts | 快照独立性、依赖目录保留、内部与外部链接、哈希、输出差异 |
 | install.test.ts | 精确域名与上限、安装条件、锁文件与缓存种子、固定参数、传输未知和域名搜索 |
+| bundled-dependencies.test.ts | 内嵌归属、作用域/提升/环、孤立标记、下载信息、实际元数据、超限/取消、保存检查完整性 |
 | sandbox-supervisor.test.ts | worker 正常退出、卡住的清理、有界终止、结果缺失和取消 |
 | assertions.test.ts | 跳过测试、缺失测试、重复结果、JSON 类型、宿主读取限制、unknown |
 | search.test.ts | 实际收紧、必要授权、恢复失败、预算和非单调执行路径 |
@@ -169,3 +170,9 @@ CI 配置包含 Linux 单元测试与 macOS 完整测试。新增 CI 文件不�
 `npm run protection:verify` 是一个小型公共 CLI 故事：正常构建、有/无目标成本记录、代码读取保护目标后的 check 以及无可执行 PATH 的离线 inspect。它创建独立示例和新报告目录，既有示例不会被改写。CI 的 macOS 作业已配置此流程，未声称远端 CI 已实际通过。范围和证据格式见 [保护目标](protection-goals.md)。
 
 维护流程：`npm run maintenance:verify`（真实 macOS 公共 CLI）；纯采用/完整性反例位于 test/adoption.test.ts，真实维护位于 test/integration/maintenance.test.ts。大型入口复用现有基线，参数见 [基线采用](baseline-adoption.md)，不重复权限搜索。
+
+## 内嵌依赖安装验证
+
+`test/bundled-dependencies.test.ts` 验证预检归属、实际包元数据和保存检查；`test/integration/bundled-install.test.ts` 用本地注册表验证真正的 npm ci、作用域/提升包观察、禁用脚本、错误 tarball、安装成功但子包缺失、父包声明和版本失配。测试 tarball 禁用 macOS 扩展属性打包，避免夹具携带 AppleDouble 文件；生产清单仍保持未知条目的可见性。
+
+`npm run bundled:verify` 通过公开 CLI 验证运行、采用、再检查、观察及项目清理后的离线查询。默认无需公开注册表，只做 3 次本地安装/任务，0 搜索；可选固定 glob-parent 旧上游源码与冻结锁，增加 1 次冷安装/原测试任务。全部输出写入新的 ignored 目录，不覆盖历史记录。参数和支持范围见 [内嵌依赖](bundled-dependencies.md)。macOS CI 配置了默认本地流程，未声称远端已运行。
