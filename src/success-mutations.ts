@@ -1,13 +1,13 @@
-import { XMLParser, XMLBuilder } from 'fast-xml-parser';
+import { XMLBuilder } from 'fast-xml-parser';
 import type { Assertion } from './config.js';
 import { testResultsSchema } from './assertions.js';
+import { parseJunitXml } from './junit.js';
 
 export type Mutation = { kind: string; description: string; content: string | undefined; intended: 'absence' | 'format' | 'content' | 'scope' };
 const changedValue = (v: unknown) => v === null ? false : typeof v === 'boolean' ? !v : typeof v === 'string' ? v + '_permsift_changed' : typeof v === 'number' ? v === 0 ? 1 : 0 : null;
-const xmlOptions = { preserveOrder: true, ignoreAttributes: false, attributeNamePrefix: '', parseTagValue: false, parseAttributeValue: false, processEntities: true };
 type XmlNode = Record<string, unknown> & { ':@'?: Record<string, string> };
 function junitMutation(content: string, kind: string, expected: string[]): string | undefined {
-  const tree = new XMLParser(xmlOptions).parse(content) as XmlNode[];
+  const tree = parseJunitXml(content) as XmlNode[];
   const cases: { parent: XmlNode[]; node: XmlNode; name: string }[] = [];
   function visit(nodes: XmlNode[]) {
     for (const node of nodes) for (const key of Object.keys(node)) {

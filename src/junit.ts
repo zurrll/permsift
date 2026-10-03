@@ -3,13 +3,32 @@ import { XMLParser, XMLValidator } from 'fast-xml-parser';
 type Element = { name: string; attrs: Record<string, string>; children: Element[] };
 export type JunitResult = { passed: boolean; detail: string };
 
-/** Strict supported JUnit subset; no DTD/entity expansion or project code. */
-export function checkJunit(xml: string, expected: string[]): JunitResult {
+// Decode exactly one XML reference layer. In the pinned parser, processEntities
+// alone leaves numeric references untouched; HTML mode expands extra named
+// entities too. Keeping this small XML-only decoder avoids both behaviors.
+function xmlReferences(value: string): string {
+  return value.replace(/&([^&;]*);/g, (_, reference: string) => {
+    const predefined: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+    if (Object.hasOwn(predefined, reference)) return predefined[reference];
+    if (!/^#(?:[0-9]+|x[0-9a-fA-F]+)$/.test(reference)) throw new Error('Unsupported XML entity reference: &' + reference + ';');
+    const code = reference.startsWith('#x') ? Number.parseInt(reference.slice(2), 16) : Number(reference.slice(1));
+    if (![9, 10, 13].includes(code) && !(code >= 0x20 && code <= 0xd7ff || code >= 0xe000 && code <= 0xfffd || code >= 0x10000 && code <= 0x10ffff)) throw new Error('Invalid XML character reference');
+    return String.fromCodePoint(code);
+  });
+}
+
+/** Shared strict parser for acceptance and diagnostic perturbations. */
+export function parseJunitXml(xml: string): unknown {
   if (/<!\s*(DOCTYPE|ENTITY)\b/i.test(xml)) throw new Error('JUnit DTD and entity declarations are forbidden');
   const validation = XMLValidator.validate(xml);
   if (validation !== true) throw new Error(`Malformed JUnit XML: ${validation.err.msg}`);
-  // Decode only XML's predefined/numeric references; custom entities were rejected above.
-  const ordered: unknown = new XMLParser({ preserveOrder: true, ignoreAttributes: false, attributeNamePrefix: '', parseTagValue: false, parseAttributeValue: false, processEntities: true }).parse(xml);
+  return new XMLParser({ preserveOrder: true, ignoreAttributes: false, attributeNamePrefix: '', parseTagValue: false, parseAttributeValue: false,
+    processEntities: false, attributeValueProcessor: (_name, value) => xmlReferences(value), tagValueProcessor: (_name, value) => xmlReferences(value) }).parse(xml);
+}
+
+/** Strict supported JUnit subset; no DTD/entity expansion or project code. */
+export function checkJunit(xml: string, expected: string[]): JunitResult {
+  const ordered = parseJunitXml(xml);
   let count = 0;
   function elements(value: unknown, depth = 0): Element[] {
     if (!Array.isArray(value) || depth > 64) throw new Error('JUnit structure is invalid or too deeply nested');

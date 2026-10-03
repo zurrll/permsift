@@ -138,7 +138,7 @@ assertions:
 
 DTD 与自定义实体声明禁止；只处理 XML 预定义和数字字符引用。仍受 1 MiB 普通文件限制；元素数量和嵌套深度有上限。宿主读取报告，不执行其中的代码。报告的文件新鲜度由每轮删除旧文件保证，不依赖报告自填的时间戳。
 
-Node 的 [JUnit reporter](https://nodejs.org/docs/latest-v24.x/api/test.html#test-reporters) 与 pytest 的 [--junitxml](https://docs.pytest.org/en/stable/how-to/output.html#creating-junitxml-format-files) 可生成这类报告。本机验证了 Node 原生 reporter；其他生产者须先确认报告符合以上支持范围。
+Node 的 [JUnit reporter](https://nodejs.org/docs/latest-v24.x/api/test.html#test-reporters) 与 pytest 的 [--junitxml](https://docs.pytest.org/en/stable/how-to/output.html#creating-junitxml-format-files) 可生成这类报告。本机验证了 Node 原生 reporter 和 Mocha 7 的 xunit 输出；其他生产者须先确认报告符合以上支持范围。预期名字填写解码后的原测试名；XML 预定义和十进制/十六进制数字引用只解码一层，额外 HTML 实体、自定义实体、DTD 和非法 XML 字符拒绝。
 
 项目自己的报告仍可能撒谎，因此第一版仅面向可信或审核过的任务。宿主验证器不执行项目提供的脚本，也不加载项目插件。
 

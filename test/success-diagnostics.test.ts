@@ -112,6 +112,19 @@ test('JUnit perturbations retain valid nested summaries, escaped names, classnam
   const renamed = mutationsFor(xml, [escaped]).find(m => m.kind === 'rename_expected')!;
   assert.equal(evaluateAssertion(escaped, renamed.content).cause, 'content_mismatch');
 });
+test('JUnit diagnostic selects numeric-escaped expected names and preserves literal reference text', () => {
+  const assertion: Assertion = { ...junit, expected_tests: ["quote '"] };
+  const xml = '<testsuite tests="2"><testcase name="quote &#x27;"/><testcase name="literal &amp;#39;"/></testsuite>';
+  assert.equal(evaluateAssertion(assertion, xml).status, 'pass');
+  const mutations = mutationsFor(xml, [assertion]);
+  for (const kind of ['remove_expected', 'rename_expected', 'duplicate_test', 'test_failed']) {
+    const m = mutations.find(m => m.kind === kind)!;
+    assert.ok(m); assert.equal(evaluateAssertion(assertion, m.content).cause, 'content_mismatch', kind);
+  }
+  const removed = mutations.find(m => m.kind === 'remove_unexpected')!;
+  assert.equal(evaluateAssertion(assertion, removed.content).status, 'pass');
+  assert.ok(mutations.find(m => m.kind === 'rename_expected')!.content!.includes('&amp;#39;'), 'Builder must preserve the literal ampersand reference');
+});
 test('material retention rejects links, oversized and interrupted reads, enforces aggregate limits and leaves originals unchanged', async t => {
   const root = await directory(t), workspace = path.join(root, 'workspace'); await fs.mkdir(workspace);
   await fs.writeFile(path.join(workspace, 'one'), '1234'); await fs.writeFile(path.join(workspace, 'two'), '5678');
