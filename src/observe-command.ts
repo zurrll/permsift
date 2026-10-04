@@ -64,7 +64,7 @@ export function usageMarkdown(report: UsageReport) {
   ].join('\n');
 }
 
-export async function runObservation(options: { configPath: string; limitsPath: string; output?: string; baselinePath?: string; keepWorkspaces?: boolean; saveArtifacts?: boolean; signal?: AbortSignal; onProgress?: (message: string) => void }): Promise<UsageReport> {
+export async function runObservation(options: { configPath: string; limitsPath: string; output?: string; baselinePath?: string; keepWorkspaces?: boolean; saveArtifacts?: boolean; signal?: AbortSignal; onProgress?: (message: string) => void; onProgressEvent?: (event: import('./progress.js').ProgressEvent) => void }): Promise<UsageReport> {
   const baseline = options.baselinePath ? await loadUsage(options.baselinePath) : undefined;
   const { report: execution, execution: phase } = await runExperimentWithFacts({ ...options, mode: 'observe' });
   const tasks: UsageReport['tasks'] = phase.taskKeys.map(task => phase.observations[task] ?? { task, capture_status: 'not_run', reason: 'Task did not reach instrumented execution; inspect execution report' });

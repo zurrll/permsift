@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { runExperiment, type Report } from '../../src/engine.js';
+import type { ProgressEvent } from '../../src/progress.js';
 import { runRegression } from '../../src/regression.js';
 import { manifest } from '../../src/filesystem.js';
 
@@ -53,7 +54,10 @@ test('cold npm install uses real domain filtering, fresh caches, disabled script
 
 test('fixed warm cache is cloned per trial, installs offline with no domains and replays while the registry is down',macOnly,async t=>{
   const f=await fixture(t);f.limits.repetitions=1;await f.save();
-  const cold=await runExperiment({...f,mode:'run',output:path.join(f.root,'cold'),keepWorkspaces:true});assert.equal(cold.status,'verified');
+  const progress: ProgressEvent[] = [];
+  const cold=await runExperiment({...f,mode:'run',output:path.join(f.root,'cold'),keepWorkspaces:true,onProgressEvent:event=>progress.push(event)});assert.equal(cold.status,'verified');
+  assert.deepEqual(progress.map(event=>event.stage),['prepare','install','task']);
+  assert.ok(progress.every(event=>event.task==='install'&&event.phase==='baseline'&&event.attempt===1&&event.repetitions===1));
   t.after(()=>fs.rm(cold.workspaces!,{recursive:true,force:true}));const e=await evidence(cold,0);
   await fs.cp(path.join(e.roots.cache,'npm'),path.join(f.project,'seed'),{recursive:true});const seed=await manifest(path.join(f.project,'seed'));
   const scenario=f.config.scenarios[0];Object.assign(scenario.install,{cache:'warm',cache_seed:'@workspace/seed'});scenario.initial_network_grants=[];f.limits.repetitions=2;await f.save();f.unavailable();const before=f.requests();

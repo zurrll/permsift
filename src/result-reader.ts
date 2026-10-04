@@ -34,6 +34,7 @@ const offlineComparisonSchema = z.object({ schema_version: z.literal(1), kind: z
   before: comparisonInput, after: comparisonInput, comparison: comparisonSchema });
 export type ExecutionView = { task: string; reference: string; facts: ExecutionEvidence; native: boolean; policy?: PolicyPlan; agreement?: ProtectionAgreement };
 export type ResultRecord = { file: string; artifact_hash: string; model?: Model; native?: NativeExecution; usage?: Comparable; comparison?: SavedComparison;
+  context?: { project?: string; input_changed?: boolean; terms_changed?: boolean; error?: string; limits_changed?: boolean; environment_changed?: string[] };
   adoption?: AdoptionRecord;
   comparisonOnly?: { status: 'compared' | 'partial'; before: z.infer<typeof comparisonInput>; after: z.infer<typeof comparisonInput> };
   discovery?: { task: string; dimension: string; enabled?: boolean; truncated?: boolean; rules?: number; limitations: string[] }[];
@@ -104,6 +105,12 @@ export async function readResult(selected: string, options: { verificationOnly?:
       return result;
     }
     const initial = adaptLegacy(raw), inputs = await read(path.join(directory, 'inputs.json'), true);
+    const context = z.object({ project: z.string().optional(), error: z.string().optional(), terms_changed: z.boolean().optional(),
+      inputs: z.object({ project: z.string().optional(), input_changed: z.boolean().optional(), limits_changed: z.boolean().optional() }).optional(),
+      environment_changes: z.record(z.unknown()).optional() }).parse(raw);
+    result.context = { project: context.project ?? context.inputs?.project, error: context.error, terms_changed: context.terms_changed,
+      input_changed: context.inputs?.input_changed, limits_changed: context.inputs?.limits_changed,
+      environment_changed: context.environment_changes ? Object.keys(context.environment_changes) : undefined };
     const evidence: Record<string, unknown> = {};
     if (initial.source.format === 'experiment-v1') {
       for (const e of initial.executions) {

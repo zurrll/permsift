@@ -6,6 +6,7 @@ import { explainResult, summaryMarkdown, type ResultSummary } from './result-exp
 import { readLegacyJson } from './model/io.js';
 import { adaptLegacy } from './model/legacy.js';
 import type { ResultRecord } from './result-reader.js';
+import { terminalView, type TerminalView } from './terminal.js';
 
 /** Once per completed workflow, outside the trial/search loop. No new task or project read. */
 export async function publishSummary(file: string, markdown: string): Promise<ResultSummary> {
@@ -20,6 +21,7 @@ export async function publishSummary(file: string, markdown: string): Promise<Re
   }
   const summary = explainResult(result), directory = path.dirname(file), overview = summaryMarkdown(summary);
   await saveJson(path.join(directory, 'summary.json'), summary);
+  await saveJson(path.join(directory, 'terminal.json'), terminalView(result, summary));
   await writeFile(path.join(directory, 'summary.md'), overview, { mode: 0o600 });
   const details = await readFile(markdown, 'utf8');
   await writeFile(markdown, overview + '\n---\n\n' + details, { mode: 0o600 });
@@ -29,4 +31,9 @@ export async function publishSummary(file: string, markdown: string): Promise<Re
 /** The CLI reads its just-published projection, avoiding a second traversal of execution sidecars. */
 export async function readPublishedSummary(directory: string): Promise<ResultSummary> {
   return await readLegacyJson(path.join(directory, 'summary.json')) as ResultSummary;
+}
+
+/** Display cache produced by this workflow, never used by inspect or policy acceptance. */
+export async function readPublishedTerminal(directory: string): Promise<TerminalView> {
+  return await readLegacyJson(path.join(directory, 'terminal.json')) as TerminalView;
 }

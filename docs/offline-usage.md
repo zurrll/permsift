@@ -14,7 +14,7 @@ node dist/cli.js compare before/usage.json after/usage.json --json
 node dist/cli.js compare before/usage.json after/usage.json --output .permsift/comparison
 ```
 
-默认 stdout 是 Markdown；--json 的 stdout 是完整比较 JSON。指定 --output 后保存 comparison.json / comparison.md，不覆盖输入或已有目录。compare 不接受 --config、--limits、--baseline、--package 或 --keep-workspaces。
+默认 stdout 是中文终端摘要；--details 展开来源、变化与依据，--json 的 stdout 仍是完整比较 JSON，两者不能同用。指定 --output 后保存 comparison.json / comparison.md，不覆盖输入或已有目录；不指定输出时不会生成一个虚构的结果文件路径。compare 不接受 --config、--limits、--baseline、--package 或 --keep-workspaces。
 
 compare 与 observe --baseline 共用 usage-comparison.ts 的比较逻辑及 Markdown 段落。按任务 ID 和安装位置比较模块包、编译输入及打包记录，保留任务结果、输入/config/limits/环境/采集器变化提示。输出变化包括输入/输出、版本、编译原因、贡献、引用链及 external；不从相同字节数推断内容相同。
 

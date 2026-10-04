@@ -11,6 +11,7 @@ import { hash, noSymlinks, resolveAlias, saveJson, snapshot, within } from './fi
 import type { Diagnosis } from './diagnostics.js';
 import { npmVersion } from './install.js';
 import { publishSummary } from './result-output.js';
+import type { ProgressEvent } from './progress.js';
 import { compareConfigurationTerms, type TermsComparison, type HistoricalVerification } from './terms.js';
 import { defaultSelection } from './adoption.js';
 
@@ -153,6 +154,7 @@ export function markdownRegression(report: RegressionReport) {
 export async function runRegression(options: {
   configPath: string; limitsPath: string; baselinePath?: string; output?: string; keepWorkspaces?: boolean; saveArtifacts?: boolean;
   signal?: AbortSignal; onProgress?: (message: string) => void;
+  onProgressEvent?: (event: ProgressEvent) => void;
 }): Promise<RegressionReport> {
   requirePlatform();
   const input = await loadConfiguration(options.configPath, options.limitsPath);
@@ -194,7 +196,8 @@ export async function runRegression(options: {
       if (!available()) throw new Error(options.signal?.aborted ? 'Regression check interrupted' : 'Regression budget exhausted');
       const { report: run, execution } = await runExperimentWithFacts({ mode: 'run', input: { ...input, config: { ...input.config, scenarios: [scenario] }, limits: { ...input.limits, repetitions, budget_seconds: Math.max(1, Math.ceil((deadline - Date.now()) / 1000)) } },
         frozenInput: frozen, expectedReadKinds: baseline.read_kinds[row.id] ? { [row.id]: baseline.read_kinds[row.id] } : undefined, output: path.join(output, 'tasks', row.id, phase), signal: options.signal, keepWorkspaces: options.keepWorkspaces, saveArtifacts: options.saveArtifacts && (phase === 'old' || phase === 'new' || phase.startsWith('repair-verify-')),
-        onProgress: message => options.onProgress?.(`${row.id} · ${phase} · ${message}`) });
+        onProgress: message => options.onProgress?.(`${row.id} · ${phase} · ${message}`),
+        onProgressEvent: event => options.onProgressEvent?.({ ...event, comparison: phase }) });
       if (execution.inputHash !== frozen.hash || !available()) row.reason = 'Comparison input changed, was interrupted or exceeded the overall budget';
       const verdict = row.reason ? 'unknown' as const : phaseVerdict(execution);
       row.stages.push({ phase, verdict, report: path.relative(output, path.join(run.output, 'report.md')).split(path.sep).join('/'), trials: execution.trials.length, prepared_directories: scenario.prepare_directories });

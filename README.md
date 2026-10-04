@@ -40,7 +40,7 @@ node dist/cli.js doctor
 
 完整报告位于命令输出的 `.permsift/<experiment-id>/` 目录，每次默认使用新目录。结果限定于本次测试集合，不代表全局最小权限。
 
-命令会自动显示并保存 summary.json / summary.md，解释验证范围、候选与恢复、搜索缺口或来源变化；原有详细报告前面也有同一份概览。继续读取历史 JSON 报告；当前 check 报告使用 v2，并为约定变化增加要求审阅的结论。见 [结果解释](docs/result-explanations.md)。
+终端默认显示中文摘要：结论、任务/边界结果、权限或依赖记录、成本与结果位置；异常和材料缺口优先显示。`inspect 结果目录 --details` 只读展开完整依据，`--json` 保持原结构化输出。保存的 summary.json / summary.md 与详细报告继续保留候选、恢复和来源事实。当前 check 报告使用 v2，并为约定变化增加要求审阅的结论。见 [终端展示](docs/terminal-output.md) 和 [结果解释](docs/result-explanations.md)。
 
 现在也可以声明少量固定保护目标，例如“构建可以生成产物，但私人配置不能读取、源码目录不能修改”。目标会进入任务的实际禁止规则，并在搜索、恢复、宽对照和修复中保持；摘要分别显示任务与逐条保护结果。首批仅覆盖工作区内已有普通文件/目录的离线任务直接访问，不覆盖安装阶段。运行 `npm run protection:verify` 查看完整故事和额外耗时，或阅读 [保护目标](docs/protection-goals.md)。
 
@@ -80,7 +80,7 @@ npm run offline:verify
 npm run results:verify
 ```
 
-compare / inspect 不需要 config、limits、原项目或沙箱，默认输出 Markdown，--json 输出结构化结果。compare 可用 --output NEW_DIRECTORY 保存 comparison.json/md；它与 observe --baseline 共用比较逻辑。各任务、安装实例和来源健康度分别展示，明确区分未采集、不完整、没有记录和贡献 0 字节。差异不是自动回归判定；离线分析不能替代执行验证。用法和退出码见 [离线分析](docs/offline-usage.md)，接入与收益检验见 [使用记录](docs/offline-pilot.md)。
+compare / inspect 不需要 config、limits、原项目或沙箱，默认输出终端摘要，--details 展开依据，--json 输出结构化结果。compare 可用 --output NEW_DIRECTORY 保存 comparison.json/md；它与 observe --baseline 共用比较逻辑。各任务、安装实例和来源健康度分别展示，明确区分未采集、不完整、没有记录和贡献 0 字节。差异不是自动回归判定；离线分析不能替代执行验证。用法和退出码见 [离线分析](docs/offline-usage.md)，接入与收益检验见 [使用记录](docs/offline-pilot.md)。
 
 ## 依赖使用观察
 

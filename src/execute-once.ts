@@ -53,7 +53,7 @@ export type ExecutionResult = {
 };
 
 /** One controlled trial. No candidates, repetitions, report paths, or snapshot publication. */
-export async function executeOnce(request: ExecutionRequest): Promise<ExecutionResult> {
+export async function executeOnce(request: ExecutionRequest, onStage?: (stage: 'install' | 'task') => void): Promise<ExecutionResult> {
   const { task: scenario, limits, sources } = request;
   const { scratch, fixtures, readProbeDirectories } = request.resources;
   const marker = fixtures.marker, inputRoot = request.conditions.input.path, deadline = request.budget.deadline;
@@ -148,6 +148,7 @@ export async function executeOnce(request: ExecutionRequest): Promise<ExecutionR
       let installVerdict: TrialVerdict = 'pass';
       if (scenario.install && !taskOnly) {
         trial.execution_stage = 'install'; trial.installationAttempted = true;
+        onStage?.('install');
         const install = await timings.measure('install', () => executeInstall(scenario, { ...installContext, invocationId: trialId + '-install', timeoutMs: Math.max(1, taskDeadline - Date.now()) }, request.resources.installInput!));
         evidence.installation = install; installVerdict = install.verdict; task = install.execution;
         if (install.verdict === 'unknown') trial.reason = install.inputs_unchanged ? 'Installation did not complete reliably (timeout, transport, DNS, TLS or registry failure)' : 'Installation changed its package manifest or lockfile';
@@ -206,6 +207,7 @@ export async function executeOnce(request: ExecutionRequest): Promise<ExecutionR
               ...(scenario.observation?.esbuild ? { bundling: { source: 'esbuild_metafile', ...scenario.observation.esbuild, output_directory_cleared: true, executed_command: compilationCommand(scenario) } } : {}) };
           }
           trial.actualCommand = sources.dependencies ? compilationCommand(scenario) : [...scenario.command];
+          onStage?.('task');
           task = await timings.measure('task', () => executeSandbox(trial.actualCommand!, { ...offlineContext,
             ...observer ? { observer: { bootstrap: observer.bootstrap, directory: observer.directory } } : {},
             timeoutMs: Math.max(1, taskDeadline - Date.now()) })); evidence.task = task;

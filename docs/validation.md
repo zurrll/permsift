@@ -1,5 +1,22 @@
 # 实测记录
 
+## 终端体验：简要结论、按命令展示与只读展开 — 2026-10-04
+
+本机 macOS 15.8 arm64 / Node 24.21.0 / npm 11.19.0 / SRT 0.0.77。最终单元/组件 **265/265**，0 失败、0 跳过；新增 15 项终端反例全部从已有事实或明确标注的合成材料生成，不增加沙箱任务。构建、类型与 Git 空白检查通过。完整日志 `.permsift/terminal-unit-delivery.log`；终端与 CLI 定向检验另见 `terminal-focused-final.log`，不与完整套件重复累计。
+
+公共 CLI 的结果回放和依赖查询/比较均通过，0 项目执行/安装；收据 `.permsift/result-replay-dHXCd7/verification.json` 和 `.permsift/offline-usage-CUziW8/summary.json`。缺子报告/sidecar 的投影仍退出 2 并显示缺口；JSON 结构和来源字节保持。对用户已保存的 manual-check 和 manual-observe-before 也做只读查看，未修改试用项目或重跑用户任务。
+
+| 本轮真实流程 | 任务进程 / 安装进程 / 搜索候选 | 检查目的 |
+| --- | --- | --- |
+| bundle-kit 入门维护烟测 | 4 / 0 / 0 | run、adopt、两次 observe、源码变化后 check；清理副本项目后仍能读取/比较 |
+| 既有冷/暖缓存回放用例 | 5 / 5 / 0 | 本地注册表，真正安装并断网构建；增加准备→安装→任务进度顺序断言 |
+| 明确预期失败的专用夹具 | 1 / 0 / 0 | 退出码 7 的任务仍使 run 退出 1，固定边界独立通过；只读 details/JSON 不改原报告 |
+| doctor | 1 / 0 / 0 | 交互终端更新同一行，显示内置任务和边界结果 |
+
+合计 10 次项目任务和 1 次 doctor，5 次沙箱安装，0 搜索。安装准备使用本地测试 tarball，不下载公开项目。入门收据 `.permsift/onboarding-validation-UROkFT/verification.json`，原配置和原 bundle-kit 源码未变；安装日志 `terminal-install.log`（1 项既有集成用例通过）；失败收据 `.permsift/terminal-failure-ctcjnU/verification.json`；doctor 原事实 `.permsift/terminal-doctor-2026-10-04/report.json`。最后的范围/成本常显和进度词微调从这些保存材料与单元反例检验，未为文本调整重跑沙箱。
+
+未重跑完整 80 项集成套件，后端规则、搜索、断言语义和配置不变。此次验证说明呈现、进度及接口兼容符合约定，不说明独立用户更容易理解或节省了多少人类时间。新格式约定和查看旧结果的方法见 [终端展示](terminal-output.md)。
+
 ## 第七轮工程收口：干净试用包与外部项目维护 — 2026-10-03
 
 同一本机 macOS 15.8 arm64 / Node 24.21.0 / npm 11.19.0 / SRT 0.0.77。最终单元/组件 **249/249**，新增 4 项试用材料/失败计数检验、3 项 JUnit 数字引用反例、1 项诊断解码一致性检验；类型、脚本语法与 Git 空白检查通过。日志 `.permsift/trial-unit-final.log`。定向真实 Node JUnit reporter / 陈旧输出删除 / 跳过项拒绝 **1 项通过**，见 `trial-junit-integration.log`，未重跑完整 80 项集成套件。

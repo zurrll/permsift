@@ -21,6 +21,7 @@ import { ExecutionJournal } from './execution-journal.js';
 import { nativeExecution } from './model/native.js';
 import type { ExecutionPhase } from './execution-phase.js';
 import { publishSummary } from './result-output.js';
+import type { ProgressEvent } from './progress.js';
 
 import { VERSION } from './version.js';
 export { VERSION } from './version.js';
@@ -32,6 +33,7 @@ type ExperimentInput = { config: Config; limits: Limits; project: string; config
 export type ExperimentOptions = {
   mode: 'run' | 'tighten' | 'doctor' | 'observe'; configPath?: string; limitsPath?: string; input?: ExperimentInput;
   output?: string; keepWorkspaces?: boolean; saveArtifacts?: boolean; signal?: AbortSignal; onProgress?: (message: string) => void;
+  onProgressEvent?: (event: ProgressEvent) => void;
   expectedReadKinds?: Record<string, Record<string, 'file' | 'directory'>>;
   frozenInput?: { path: string; hash: string; protectedPaths?: string[] };
   /** Diagnostic harness only: observe post-install/pre-task state, adding full scans. */
@@ -106,6 +108,7 @@ export async function runExperimentWithFacts(options: ExperimentOptions): Promis
   let candidateCount = 0;
   const observations = new Map<string, Observation[]>();
   const readObservations = new Map<string, ReadObservation[]>();
+  const progressAttempts = new Map<string, number>();
   const installObservations = new Map<string, Observation[]>();
   const installed = new InstalledSnapshots(path.join(scratch, 'installed'), limits.max_snapshot_bytes);
   const installedKinds = new Map<string, Record<string, 'file' | 'directory'>>();
@@ -156,7 +159,12 @@ export async function runExperimentWithFacts(options: ExperimentOptions): Promis
           protectedPaths: [project, input.configFile, input.limitsFile, canonicalOutput, options.frozenInput?.path ?? '', ...options.frozenInput?.protectedPaths ?? []].filter(Boolean) } });
       if (phase.startsWith('candidate')) candidateCount++;
       options.onProgress?.(`${scenario.id} · ${phase} · write: ${grants.join(', ') || '(none)'}${readMode === 'explicit' ? ` · read: ${readGrants.join(', ') || '(none)'}` : ''}${scenario.install ? ` · network: ${networkGrants.join(', ') || '(offline)'}` : ''}${staged ? ` · install write: ${installGrants.join(', ') || '(none)'} · ${stage.taskOnly ? 'snapshot' : 'fresh install'}` : ''}`);
-      const result = await executeOnce(request), details = result.details;
+      const progressKey = scenario.id + ':' + phase, attempt = (progressAttempts.get(progressKey) ?? 0) + 1;
+      progressAttempts.set(progressKey, attempt);
+      const progress = { task: scenario.id, phase, attempt,
+        ...['baseline', 'final', 'observe'].includes(phase) ? { repetitions: options.mode === 'observe' ? 1 : limits.repetitions } : {} };
+      options.onProgressEvent?.({ ...progress, stage: 'prepare' });
+      const result = await executeOnce(request, stage => options.onProgressEvent?.({ ...progress, stage })), details = result.details;
       if (!hasTime()) {
         result.verdict = 'unknown'; result.reason = options.signal?.aborted ? 'Experiment interrupted' : 'Experiment budget exhausted before evidence completion';
         if (result.observation) result.observation.verdict = 'unknown';

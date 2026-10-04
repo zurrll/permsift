@@ -1,5 +1,11 @@
 # 开发与测试
 
+## 终端展示
+
+`src/terminal.ts` 负责按命令展示已验证事实，`src/progress.ts` 负责结构化进度。工作流结束后保存非权威的 terminal.json 展示缓存；离线 inspect 忽略缓存，重新解释原材料。原报告/summary JSON、模型身份与退出码不变。`test/terminal.test.ts` 用已有材料与明确标注的合成反例检查成功、边界失败、缺文件、预算停止、安装失败/未知复用、来源状态差异、缓存篡改、只读 JSON 兼容、大列表和进度控制字符；无需真实任务。完整规则见 [终端展示](terminal-output.md)。
+
+改变进度钩子时可定向运行既有本地注册表用例（构建后）：`node --test --test-concurrency=1 --test-name-pattern='fixed warm cache' dist/test/integration/install.test.js`。它复用冷安装及暖缓存回放的实际任务，并断言阶段顺序；共 5 次安装/任务，无搜索或公开注册表下载。呈现文字本身用离线材料检验。
+
 ## 试用包与真实维护流程
 
 `npm run trial:bundle` 导出 Git 跟踪/索引中的当前普通文件，包含源码清单，不带依赖、构建产物或历史实验；`trial:verify` 实际解压、比对文件、新缓存安装、构建、doctor，再从公共 CLI 重走两份入门。`--with-maintenance` 增加固定 glob-parent 原测试及 Mocha 升级：显式准备缓存，随后四次新沙箱离线安装；冷下载另用 external:verify -- --cold。这些网络流程手动选择，未加入每次 CI 的默认范围。

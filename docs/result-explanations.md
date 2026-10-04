@@ -4,7 +4,7 @@
 
 ## 日常怎样使用
 
-run / tighten / doctor / check / observe 完成后自动显示概览，并生成 `summary.json`、`summary.md`。概览也放到原有 report.md 或 usage.md 前面。compare 的文字输出同样带概览，指定 --output 时还会保存概览工件。原来的 report.json、usage.json、comparison.json 和各命令 --json 格式不变。
+run / tighten / doctor / check / observe 完成后默认显示按命令组织的中文终端摘要，并生成 `summary.json`、`summary.md`。完整概览仍放到原有 report.md 或 usage.md 前面。`--details` 展开原始检查说明与依据；compare 指定 --output 时保存概览工件。原来的 report.json、usage.json、comparison.json、summary.json 和各命令 --json 格式不变。终端展示与进度规则见 [终端展示](terminal-output.md)。
 
 ```sh
 # 阅读一轮已保存实验，不需要原项目
