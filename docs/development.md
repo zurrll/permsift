@@ -20,6 +20,8 @@ npm run onboarding:verify -- --live
 
 `test/configuration-explanation.test.ts` 覆盖默认来源、上限与实际授权、空读取、安装继承/分阶段、模式差异、按产物说明、准备目录、错误定位及禁止子进程/联网时的公共 CLI；`cli.test.ts` 覆盖参数与退出码。
 
+CLI 执行入口会先检查平台，再加载配置和基线。因此缺失输入文件的测试在 macOS 预期 `ENOENT`，在 Linux 等不支持执行的平台预期明确的平台拒绝；不能把 macOS 的错误顺序当作跨平台约定。参数拒绝仍在平台检查前独立验证，Linux 的单元测试不跳过这些用例。
+
 ## 安装和构建
 
 ```sh

@@ -12,12 +12,26 @@ test('observe is explicit, requires trusted limits and only accepts usage baseli
   assert.equal(cli('observe', '--config', 'tasks.yaml').status, 2);
   assert.equal(cli('observe', '--config', 'tasks.yaml', '--limits', 'limits.json', '--baseline', 'missing-usage.json').status, 2);
 });
-test('check can resolve an adopted baseline and other commands reject baseline options', () => {
+test('check accepts the implicit baseline form and other commands reject baseline options', () => {
   const missing = cli('check', '--config', 'tasks.yaml', '--limits', 'limits.json');
-  assert.equal(missing.status, 2); assert.match(missing.stderr, /ENOENT/);
-  assert.equal(cli('run', '--config', 'tasks.yaml', '--limits', 'limits.json', '--baseline', 'old.json').status, 2);
-  assert.equal(cli('doctor', '--baseline', 'old.json').status, 2);
+  assert.equal(missing.status, 2);
+  // Unsupported hosts fail at the platform gate before configuration or baseline loading.
+  assert.match(missing.stderr, process.platform === 'darwin' ? /ENOENT/ : /^Permsift: Permsift requires macOS\. No unsandboxed fallback is available\.\n$/);
+  for (const args of [['run', '--config', 'tasks.yaml', '--limits', 'limits.json'], ['doctor']]) {
+    const rejected = cli(...args, '--baseline', 'old.json');
+    assert.equal(rejected.status, 2);
+    assert.match(rejected.stderr, /--baseline is only supported by check and observe/);
+  }
   assert.match(cli('--help').stdout, /check --config FILE --baseline REPORT_JSON/);
+});
+test('execution commands check the host platform before reading missing input files', () => {
+  for (const mode of ['run', 'tighten', 'check', 'observe']) {
+    const result = cli(mode, '--config', 'tasks.yaml', '--limits', 'limits.json');
+    assert.equal(result.status, 2, mode);
+    assert.equal(result.stdout, '', mode);
+    if (process.platform === 'darwin') assert.match(result.stderr, /ENOENT/, mode);
+    else assert.equal(result.stderr, 'Permsift: Permsift requires macOS. No unsandboxed fallback is available.\n', mode);
+  }
 });
 test('CLI requires an explicit limits file and rejects misspelled flags', () => {
   assert.equal(cli('tighten', '--config', 'anything').status, 2);
