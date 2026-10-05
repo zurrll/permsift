@@ -59,8 +59,8 @@ test('a failed observed task keeps its records and does not suppress other confi
 test('real sandbox preserves late load facts after resolution pressure in online, native and offline results', macOnly, async t => {
   const f = await observationFixture(t);
   await fs.writeFile(path.join(f.roots.workspace, 'common.cjs'), 'module.exports=1;');
-  await fs.writeFile(path.join(f.roots.workspace, 'task.cjs'), `const {createRequire}=require('node:module'),p=require('node:path'),fs=require('node:fs');
-for(let i=0;i<12000;i++)createRequire(p.join(__dirname,'virtual-'+i+'.cjs')).resolve('./common.cjs');
+  await fs.writeFile(path.join(f.roots.workspace, 'task.cjs'), `const fs=require('node:fs');
+for(let i=0;i<12000;i++)require('./'+i.toString(2).padStart(14,'0').split('').map(b=>b==='1'?'.//':'./').join('')+'common.cjs');
 if(require('unused')!==1)throw Error('late package');fs.mkdirSync('dist',{recursive:true});fs.writeFileSync('dist/result','fresh');`);
   const report = await runObservation({ ...f, output: path.join(f.root, 'observed') });
   assert.equal(report.status, 'incomplete'); const task = report.tasks[0]; if (task.capture_status === 'not_run') throw new Error();

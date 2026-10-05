@@ -122,8 +122,9 @@ test('corrupt counters and final worker states cannot be promoted by raw or save
 });
 
 test('late package loads survive resolution event and byte pressure with a valid shared dictionary', async t => {
-  const code = `const {createRequire}=require('node:module'),p=require('node:path');
-for(let i=0;i<12000;i++)createRequire(p.join(__dirname,'virtual-'+i+'.cjs')).resolve('./common.cjs');
+  // Unique equivalent requests exercise real require resolution on Node 22/24;
+  // require.resolve hook behavior differs between those runtimes.
+  const code = `for(let i=0;i<12000;i++)require('./'+i.toString(2).padStart(14,'0').split('').map(b=>b==='1'?'.//':'./').join('')+'common.cjs');
 if(require('unused')!==1)throw Error('late package');require('unused');`;
   for (const [bytes, reason] of [[2_000_000, 'event_limit'], [100_000, 'byte_limit']] as const) {
     const { observed, parent, root } = await run(t, code, 10_000, bytes, { 'common.cjs': 'module.exports=1;' });
