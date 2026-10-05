@@ -134,6 +134,12 @@ test('unknown and legacy source issues remain visible and fully inspectable', as
   assert.ok(terminalText(view, { details: true }).includes('Synthetic future collector failure'));
   o.trace_diagnostics = [{ file: '42-0.jsonl', bytes: 0, records: 0, reported_events: 0, footer: 'present', reasons: ['future_reason'], limits: { events: 10, bytes: 10 } }];
   assert.match(terminalText(terminalView(record, explainResult(record))), /异常 future_reason/);
+  // Complete channel records do not imply that the overall observer workflow finished.
+  delete o.trace_diagnostics; o.module_capture_status = 'captured';
+  o.attribution_issues = ['Synthetic module attribution gap']; o.issues = [...o.attribution_issues];
+  const summary = explainResult(record); assert.equal(summary.analysis.status, 'complete');
+  const text = terminalText(terminalView(record, summary));
+  assert.match(text, /^任务通过 · 本次观察仍有缺口/); assert.ok(!text.includes('观察完成 ·'));
 });
 
 test('task failure and failed assertions remain before positive source counts despite partial analysis', async t => {

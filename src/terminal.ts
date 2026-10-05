@@ -51,7 +51,7 @@ function resultTitle(record: ResultRecord, summary: ResultSummary, fallback: str
     if (status === 'compatible' && supported) return rows.every(r => r.terms || saved(r.definition_changed) === false) ?
       '复验通过 · 旧权限适用于本次这组任务' : '旧规则本次执行通过 · 任务约定变化未保存';
   } else if (kind === 'observe' && allTasksPass) {
-    return summary.analysis.status === 'partial' ? '任务通过 · 本次观察仍有缺口' : '观察完成 · 本次任务通过';
+    return summary.analysis.status === 'partial' || !['observed', 'verified'].includes(status ?? '') ? '任务通过 · 本次观察仍有缺口' : '观察完成 · 本次任务通过';
   } else if (['run', 'tighten', 'doctor'].includes(kind ?? '') && status === 'verified' && tasks.length && tasks.every(checksPassed)) {
     return fallback;
   } else if (kind === 'adopt' && summary.claims.some(c => c.dimension === 'adoption' && c.status === 'recorded')) return fallback;
