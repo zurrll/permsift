@@ -90,7 +90,8 @@ test('repair candidate budgets preserve the regression result without inventing 
 test('CLI check returns regression exit code even for a verified repair and separates JSON from progress',macOnly,async t=>{
   const f=await fixture(t);await fs.writeFile(path.join(f.project,'added.json'),'42');await fs.writeFile(path.join(f.project,'task.cjs'),"require('node:fs').readFileSync('added.json','utf8');"+writer);
   const result=spawnSync(process.execPath,['dist/cli.js','check','--config',f.configPath,'--limits',f.limitsPath,'--baseline',f.baselinePath,'--output',path.join(f.root,'cli'),'--json'],{encoding:'utf8',timeout:30000});
-  assert.equal(result.status,1,result.stderr);assert.equal(JSON.parse(result.stdout).status,'regressed');assert.match(result.stderr,/old-confirm/);
+  assert.equal(result.status,1,result.stderr);const report=JSON.parse(result.stdout);assert.equal(report.status,'regressed');
+  assert.ok(report.tasks[0].stages.some((s:{phase:string})=>s.phase==='old-confirm'));assert.match(result.stderr,/确认旧规则失败/);
 });
 test('new write directories are compared again under shared preparation before a precise repair is accepted',macOnly,async t=>{
   const f=await fixture(t);await fs.writeFile(path.join(f.project,'task.cjs'),writer+"fs.mkdirSync('extra',{recursive:true});fs.writeFileSync('extra/log','needed');");
