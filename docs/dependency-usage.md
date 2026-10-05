@@ -63,6 +63,8 @@ v0.10 明确开启后采集直接 tsc 的 explainFiles；详见 [编译输入](t
 
 每进程/线程最多 10,000 个事件、2 MB 日志；模块和子进程启动事件去重。v5 在原上限内为 worker 创建/历史预留 128 事件、64 KB，明细最多 9,872 事件；最终 footer 预留 8,192 字节。两类明细各自停止，已跟踪的最多 16 个 worker 最终状态仍可在父 footer 保存。读回最多 64 个日志、32 MB 总字节；安装清单最多 2048 个包。超过上限、损坏记录、缺结束标记或不支持的 Node 都显式保留问题。URL 查询/片段与非文件 URL 内容被去除，child_process 不记录完整命令参数；包路径、模块请求、package.json 名称仍可能包含项目内部信息，分享报告前应审阅。
 
+事件数量与被处理的项目文件数不同。用户的 XO 全项目/单文件对照均耗尽明细事件预算，保留下来的依赖文件、包实例与工作区解析边分别相同；重型工具链自身就可能使当前观察截断。已记录包数包含工具和间接依赖，截断时是部分正向记录，不是完整使用数量。条件及证据见 [工具链事件压力](toolchain-event-pressure.md)。
+
 node-module-load-v3 记录 event_limit、byte_limit、text_limit、io_error；读回另识别 count_mismatch 和 missing_footer。trace_diagnostics 保存每份进程/线程日志的计数、字节、footer 状态和上限。旧 footer 只说 truncated 而没有具体原因时显示 truncation_reason_not_saved，不猜测触发哪个上限。原始模块采集 module_capture_status 与安装清单/归属问题分开；capture_status 仍保留综合缺口，整体退出码没有放宽。任务通过与采集不完整可以同时成立，见 [本轮实测](real-task-results.md)。
 
 node-module-load-v5 延续 v4 的 interned-v1：重复的模块位置和请求复用字符串编号，读回仍保留完整路径、加载文件和解析关系。定义随首次事件一起写入，没有独立字典记录；日志中断后仍可还原有效前缀。每份日志最多 30,000 个字符串定义，上述事件、字节和文本上限没有提高。旧的完整字符串日志仍可读；未知编号、损坏定义或中途截断保留缺口，不补出未记录事件。
