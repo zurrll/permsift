@@ -9,8 +9,9 @@ function preload(settings: { directory: string; maxEvents: number; maxBytes: num
   const cp = require('node:child_process') as typeof import('node:child_process');
   const fd = fs.openSync(path.join(settings.directory, `${process.pid}-${threadId}.jsonl`), 'wx', 0o600);
   let count = 0, bytes = 0, truncated = false, ioError = false;
+  const reasons = new Set<string>();
   const seen = new Set<string>();
-  const short = (s: unknown) => { if (typeof s !== 'string') return ''; if (s.length > 4096) truncated = true; return s.slice(0, 4096); };
+  const short = (s: unknown) => { if (typeof s !== 'string') return ''; if (s.length > 4096) { truncated = true; reasons.add('text_limit'); } return s.slice(0, 4096); };
   const location = (s: string | undefined) => {
     if (!s) return '';
     if (s.startsWith('file:')) { const u = new URL(s); u.search = ''; u.hash = ''; return short(u.href); }
@@ -19,11 +20,13 @@ function preload(settings: { directory: string; maxEvents: number; maxBytes: num
     return protocol ? protocol[1] + ':' : short(s);
   };
   const emit = (record: object, control = false) => {
-    if (ioError) return;
+    if (ioError && !control) return;
     const line = JSON.stringify(record) + '\n';
-    if (!control && (count >= settings.maxEvents || bytes + Buffer.byteLength(line) > settings.maxBytes - 8192)) { truncated = true; return; }
+    if (!control && (count >= settings.maxEvents || bytes + Buffer.byteLength(line) > settings.maxBytes - 8192)) {
+      truncated = true; reasons.add(count >= settings.maxEvents ? 'event_limit' : 'byte_limit'); return;
+    }
     try { fs.writeSync(fd, line); bytes += Buffer.byteLength(line); if (!control) count++; }
-    catch { ioError = true; }
+    catch { ioError = true; reasons.add('io_error'); }
   };
   const unique = (record: object) => {
     if (truncated || ioError) return;
@@ -69,12 +72,12 @@ function preload(settings: { directory: string; maxEvents: number; maxBytes: num
     };
   }
   process.once('exit', () => {
-    emit({ kind: 'end', count, truncated, io_error: ioError }, true);
+    emit({ kind: 'end', count, truncated, io_error: ioError, reasons: [...reasons], bytes_before_footer: bytes }, true);
     try { fs.closeSync(fd); } catch { /* The reader requires a valid footer. */ }
   });
 }
 
-export const OBSERVER_VERSION = 'node-module-load-v2';
+export const OBSERVER_VERSION = 'node-module-load-v3';
 export function observationPreload(directory: string, maxEvents: number, maxBytes: number): string {
   return `'use strict';\ntry { (${preload.toString()})(${JSON.stringify({ directory, maxEvents, maxBytes })}); } catch (error) { console.error('Permsift observer could not start:', error.code || error.message); }\n`;
 }

@@ -1,9 +1,12 @@
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { noSymlinks, within } from './filesystem.js';
+import { buildPackageContext, type PackageContext } from './package-context.js';
 
 export type PackageInstance = { path: string; name: string; version: string; declarations: string[] };
 export type DependencyInventory = { packages: PackageInstance[]; complete: boolean; issues: string[];
+  ignored_entries?: string[];
+  context?: PackageContext;
   locked_instances?: number; locked_not_installed?: string[]; lock_version_mismatches?: string[] };
 
 async function smallJson(file: string) {
@@ -13,11 +16,13 @@ async function smallJson(file: string) {
 }
 
 /** npm directory layout only: scoped, hoisted and nested copies. No link traversal. */
-export async function dependencyInventory(workspace: string, maximum = 2048, signal?: AbortSignal): Promise<DependencyInventory> {
-  const result: DependencyInventory = { packages: [], complete: true, issues: [] };
+export async function dependencyInventory(workspace: string, maximum = 2048, signal?: AbortSignal, manifest?: Record<string, string>): Promise<DependencyInventory> {
+  const result: DependencyInventory = { packages: [], complete: true, issues: [], ignored_entries: [] };
   const issue = (message: string) => { result.complete = false; if (result.issues.length < 64) result.issues.push(message); };
   const alias = (file: string) => '@workspace/' + path.relative(workspace, file).split(path.sep).join('/');
   const root: Record<string, any> = await smallJson(path.join(workspace, 'package.json')).catch(() => ({}));
+  const metadata = new Map<string, Record<string, any>>();
+  if (Object.keys(root).length) metadata.set('@workspace', root);
   const declarations = (name: string) => ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'].filter(k => Object.hasOwn(root[k] ?? {}, name));
   const queue = [path.join(workspace, 'node_modules')];
   let visited = 0;
@@ -34,6 +39,7 @@ export async function dependencyInventory(workspace: string, maximum = 2048, sig
         if (++visited > maximum * 4 || result.packages.length >= maximum) { issue('Installed package inventory limit reached'); queue.length = 0; break; }
         if (entry.name === '.bin' || entry.name === '.package-lock.json' || entry.name.startsWith('.permsift-read-')) continue;
         const target = path.join(directory, entry.name);
+        if (entry.name === '.cache' && entry.isDirectory() && !entry.isSymbolicLink()) { result.ignored_entries!.push(alias(target)); continue; }
         if (entry.isSymbolicLink() || !entry.isDirectory() || entry.name.startsWith('.')) { issue(`Unsupported dependency entry: ${alias(target)}`); continue; }
         if (entry.name.startsWith('@')) { queue.push(target); continue; }
         try {
@@ -41,6 +47,7 @@ export async function dependencyInventory(workspace: string, maximum = 2048, sig
           const data = await smallJson(path.join(target, 'package.json'));
           if (typeof data.name !== 'string' || !data.name.length || data.name.length > 256 || typeof data.version !== 'string' || !data.version.length || data.version.length > 128) throw new Error('Missing or invalid name/version');
           result.packages.push({ path: alias(target), name: data.name, version: data.version, declarations: declarations(data.name) });
+          metadata.set(alias(target), data);
           queue.push(path.join(target, 'node_modules'));
         } catch { issue(`Unreadable package metadata: ${alias(target)}`); }
       }
@@ -61,6 +68,8 @@ export async function dependencyInventory(workspace: string, maximum = 2048, sig
     result.locked_not_installed = records.filter(([p]) => !installed.has(p)).map(([p]) => '@workspace/' + p).sort();
     result.lock_version_mismatches = records.filter(([p, data]) => installed.has(p) && installed.get(p)!.version !== (data as any)?.version).map(([p]) => '@workspace/' + p).sort();
   } catch { issue('Installed inventory available, but lock-file comparison unavailable'); }
+  result.context = buildPackageContext(result.packages, metadata, manifest, result.ignored_entries);
+  if (!result.complete) { result.context.complete = false; result.context.issues.push('Installed inventory is incomplete; declaration relationships may be missing'); }
   return result;
 }
 

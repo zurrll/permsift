@@ -16,15 +16,23 @@ export type LoadEdge = { parent: string; target: string; request: string; packag
 export type TaskObservation = {
   task: string; trial: string; task_definition_hash: string; command: string[]; verdict: 'pass' | 'fail' | 'unknown';
   capture_status: 'captured' | 'incomplete' | 'unavailable'; source: 'node_module_hooks'; observer_version: string;
+  module_capture_status?: 'captured' | 'incomplete' | 'unavailable';
+  attribution_issues?: string[];
   inventory: DependencyInventory; loaded_packages: LoadedPackage[]; not_observed: PackageInstance[];
   loaded_modules: string[]; edges: LoadEdge[]; events: number;
   processes: { pid: number; thread: number; node: string; entry: string; finished: boolean }[];
   child_launches: { method: string; executable: string; preload_inherited: boolean }[];
   coverage_gaps: string[];
   issues: string[]; limitations: string[]; duration_ms?: number;
+  trace_diagnostics?: TraceDiagnostic[];
   compilation?: CompilationObservation;
   bundling?: BundlingObservation;
 };
+export const traceDiagnosticSchema = z.object({ file: z.string().regex(/^\d+-\d+\.jsonl$/), bytes: z.number().int().nonnegative().max(2_000_000),
+  records: z.number().int().nonnegative().max(10_002), reported_events: z.number().int().nonnegative().max(10_000).nullable(),
+  footer: z.enum(['present', 'missing']), reasons: z.array(z.string().max(128)).max(16),
+  limits: z.object({ events: z.number().int().positive().max(10_000), bytes: z.number().int().positive().max(2_000_000) }).strict() }).strict();
+export type TraceDiagnostic = z.infer<typeof traceDiagnosticSchema>;
 export const OBSERVATION_SCOPE = [
   'Records successful Node module resolution/load hooks, not function execution, every file read, necessity or bundle contents.',
   'Import relationships are edges observed in this execution; declared package dependencies are a different graph.',
@@ -33,20 +41,21 @@ export const OBSERVATION_SCOPE = [
   'Cooperative instrumentation for trusted tasks; writable trace logs are not tamper-proof security evidence.',
 ];
 
-export async function prepareObservation(roots: Roots, signal?: AbortSignal): Promise<ObservationSetup> {
+export async function prepareObservation(roots: Roots, signal?: AbortSignal, manifest?: Record<string, string>): Promise<ObservationSetup> {
   const base = path.join(roots.tmp, '.permsift-observer');
   const directory = path.join(base, 'logs');
   await fs.mkdir(directory, { recursive: true, mode: 0o700 });
   const bootstrap = path.join(base, 'preload.cjs');
   const text = observationPreload(directory, OBSERVATION_LIMITS.max_events_per_process, OBSERVATION_LIMITS.max_bytes_per_process);
   await fs.writeFile(bootstrap, text, { mode: 0o400, flag: 'wx' });
-  return { bootstrap, directory, bootstrap_hash: hash(text), inventory: await dependencyInventory(roots.workspace, OBSERVATION_LIMITS.max_packages, signal) };
+  return { bootstrap, directory, bootstrap_hash: hash(text), inventory: await dependencyInventory(roots.workspace, OBSERVATION_LIMITS.max_packages, signal, manifest) };
 }
 
 const string = z.string().max(4096);
 const eventSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('start'), pid: z.number().int().positive(), thread: z.number().int().nonnegative(), node: string, hooks: z.boolean(), entry: string }).strict(),
-  z.object({ kind: z.literal('end'), count: z.number().int().nonnegative().max(10_000), truncated: z.boolean(), io_error: z.boolean() }).strict(),
+  z.object({ kind: z.literal('end'), count: z.number().int().nonnegative().max(10_000), truncated: z.boolean(), io_error: z.boolean(),
+    reasons: z.array(z.enum(['event_limit', 'byte_limit', 'text_limit', 'io_error'])).max(4).optional(), bytes_before_footer: z.number().int().nonnegative().max(2_000_000).optional() }).strict(),
   z.object({ kind: z.literal('resolve'), url: string, parent: string, request: string }).strict(),
   z.object({ kind: z.literal('load'), url: string }).strict(),
   z.object({ kind: z.literal('child'), method: string, executable: string, preload_inherited: z.boolean() }).strict(),
@@ -69,7 +78,9 @@ function normalize(value: string, roots: Roots, url = true): string {
 export async function collectObservation(setup: ObservationSetup, roots: Roots): Promise<Omit<TaskObservation, 'task' | 'trial' | 'task_definition_hash' | 'command' | 'verdict' | 'duration_ms'>> {
   const issues = [...setup.inventory.issues];
   const events: Event[] = [], processes: TaskObservation['processes'] = [];
-  let totalBytes = 0, bad = !setup.inventory.complete;
+  const trace_diagnostics: TraceDiagnostic[] = [];
+  let totalBytes = 0, bad = false;
+  const attribution_issues: string[] = [];
   const issue = (s: string) => { bad = true; if (issues.length < 128) issues.push(s); };
   if (hash(await fs.readFile(setup.bootstrap, 'utf8').catch(() => '')) !== setup.bootstrap_hash) issue('Observer preload changed or disappeared');
   const entries = (await fs.readdir(setup.directory).catch(() => [])).sort();
@@ -93,10 +104,14 @@ export async function collectObservation(setup: ObservationSetup, roots: Roots):
       const start = records[0], end = records.at(-1);
       if (start?.kind !== 'start' || `${start.pid}-${start.thread}.jsonl` !== name) throw new Error('Missing or inconsistent process header');
       const finished = end?.kind === 'end';
+      const reasons: string[] = finished ? [...end.reasons ?? [], ...end.io_error && !end.reasons?.includes('io_error') ? ['io_error'] : [],
+        ...end.count !== records.length - 2 ? ['count_mismatch'] : [], ...end.truncated && !end.reasons?.length ? ['truncation_reason_not_saved'] : []] : ['missing_footer'];
+      trace_diagnostics.push({ file: name, bytes: Buffer.byteLength(text), records: records.length, reported_events: finished ? end.count : null,
+        footer: finished ? 'present' : 'missing', reasons, limits: { events: OBSERVATION_LIMITS.max_events_per_process, bytes: OBSERVATION_LIMITS.max_bytes_per_process } });
       processes.push({ pid: start.pid, thread: start.thread, node: start.node, entry: normalize(start.entry, roots, false), finished });
       if (!start.hooks) issue(`Module hooks unsupported in ${start.node}`);
       if (!finished) issue(`A Node process/thread did not finish its trace (${name})`);
-      else if (end.truncated || end.io_error || end.count !== records.length - 2) issue(`Trace incomplete or bounded (${name})`);
+      else if (reasons.length) issue(`Trace incomplete or bounded (${name}): ${reasons.join(', ')}; ${records.length - 2}/${OBSERVATION_LIMITS.max_events_per_process} events, ${Buffer.byteLength(text)}/${OBSERVATION_LIMITS.max_bytes_per_process} bytes`);
       if (records.slice(1, finished ? -1 : undefined).some(e => e.kind === 'start' || e.kind === 'end')) throw new Error('Unexpected control record inside trace');
       events.push(...records.filter(e => e.kind !== 'start' && e.kind !== 'end'));
     } catch (e) { issue(`Cannot consume trace ${name}: ${String(e).slice(0, 300)}`); }
@@ -107,7 +122,7 @@ export async function collectObservation(setup: ObservationSetup, roots: Roots):
   for (const module of modules) {
     const p = packageForModule(module, setup.inventory.packages);
     if (p) { const row = packages.get(p.path) ?? { ...p, modules: [] }; row.modules.push(module); packages.set(p.path, row); }
-    else if (module.startsWith('@workspace/') && module.includes('/node_modules/')) issue(`Loaded module is outside the identified package inventory: ${module}`);
+    else if (module.startsWith('@workspace/') && module.includes('/node_modules/')) { const s = `Loaded module is outside the identified package inventory: ${module}`; if (attribution_issues.length < 128) attribution_issues.push(s); if (issues.length < 128) issues.push(s); }
   }
   const edges = [...new Map(events.flatMap(e => {
     if (e.kind !== 'resolve') return [];
@@ -120,8 +135,9 @@ export async function collectObservation(setup: ObservationSetup, roots: Roots):
   const launches = [...new Map(events.flatMap(e => e.kind === 'child' ? [[JSON.stringify(e), { method: e.method, executable: normalize(e.executable, roots, false), preload_inherited: e.preload_inherited }] as const] : [])).values()];
   const coverage_gaps = launches.flatMap(c => !c.preload_inherited ? [`Child launch did not retain the preload environment: ${c.executable}`] :
     c.method === 'fork' || /(?:^|\/)node(?:\.exe)?$/.test(c.executable) ? [] : [`Child launch may execute native/shell code outside module-hook coverage: ${c.executable}`]);
-  return { capture_status: !processes.length ? 'unavailable' : bad ? 'incomplete' : 'captured', source: 'node_module_hooks', observer_version: OBSERVER_VERSION,
+  return { capture_status: !processes.length ? 'unavailable' : bad || !setup.inventory.complete || attribution_issues.length ? 'incomplete' : 'captured',
+    module_capture_status: !processes.length ? 'unavailable' : bad ? 'incomplete' : 'captured', attribution_issues, source: 'node_module_hooks', observer_version: OBSERVER_VERSION,
     inventory: setup.inventory, loaded_packages: [...packages.values()].sort((a, b) => a.path.localeCompare(b.path)),
     not_observed: setup.inventory.packages.filter(p => !packages.has(p.path)), loaded_modules: modules, edges, events: events.length, processes,
-    child_launches: launches, coverage_gaps, issues, limitations: [...OBSERVATION_SCOPE, 'The package denominator counts installed npm directory instances; unique names and name/version pairs are reported separately. Lock entries are not assumed installed.'] };
+    child_launches: launches, coverage_gaps, issues, trace_diagnostics, limitations: [...OBSERVATION_SCOPE, 'The package denominator counts installed npm directory instances; unique names and name/version pairs are reported separately. Lock entries are not assumed installed.'] };
 }

@@ -3,17 +3,23 @@ import { constants } from 'node:fs';
 import { z } from 'zod';
 import { compilationSchema } from './typescript-observation.js';
 import { bundlingSchema, validateBundling } from './esbuild-observation.js';
+import { contextSchema, validateContext } from './package-context.js';
+import { traceDiagnosticSchema } from './observation.js';
 
 const text = z.string().max(4096), digest = z.string().regex(/^[a-f0-9]{64}$/);
 const location = text.refine(s => s.startsWith('@workspace/') && !/[\u0000-\u001f\u007f]/.test(s) && !s.split('/').some(p => p === '.' || p === '..' || !p), 'Expected a normalized workspace location');
 const pkg = z.object({ path: location, name: text.min(1), version: text.min(1) });
 const strings = z.array(text).max(128);
-const inventory = z.object({ packages: z.array(pkg).max(2048), complete: z.boolean(), issues: strings });
+const inventory = z.object({ packages: z.array(pkg).max(2048), complete: z.boolean(), issues: strings,
+  ignored_entries: z.array(location).max(8192).optional(), context: contextSchema.optional() });
 const taskSchema = z.union([
   z.object({ task: text, capture_status: z.literal('not_run'), reason: text }),
   z.object({ task: text, capture_status: z.enum(['captured', 'incomplete', 'unavailable']), task_definition_hash: digest,
     verdict: z.enum(['pass', 'fail', 'unknown']), loaded_packages: z.array(pkg.extend({ modules: z.array(text).max(640000).optional() })).max(2048),
     inventory: inventory.optional(), issues: strings.optional(), coverage_gaps: z.array(text).max(640000).optional(),
+    module_capture_status: z.enum(['captured', 'incomplete', 'unavailable']).optional(), attribution_issues: strings.optional(),
+    trace_diagnostics: z.array(traceDiagnosticSchema).max(64).optional(),
+    edges: z.array(z.object({ parent: text, target: text, request: text, package: location.optional() })).max(640000).optional(),
     compilation: compilationSchema.optional(), bundling: bundlingSchema.optional() }),
 ]);
 const usageSchema = z.object({ schema_version: z.literal(1), kind: z.literal('dependency_usage'), observer_version: text, version: text.optional(),
@@ -50,12 +56,23 @@ export function parseUsage(value: unknown): Comparable {
   for (const task of parsed.tasks) if (task.capture_status !== 'not_run') {
     const packages = new Map<string, { name: string; version: string }>();
     if (task.inventory && new Set(task.inventory.packages.map(p => p.path)).size !== task.inventory.packages.length) throw new Error('Duplicate installed package instances');
+    if (task.inventory?.context) validateContext(task.inventory.context, task.inventory.packages);
+    if (task.trace_diagnostics) {
+      if (new Set(task.trace_diagnostics.map(d => d.file)).size !== task.trace_diagnostics.length) throw new Error('Duplicate trace diagnostics');
+      for (const d of task.trace_diagnostics) {
+        if ((d.footer === 'present') !== (d.reported_events !== null) || d.records < (d.footer === 'present' ? 2 : 1)) throw new Error('Trace footer diagnostics are inconsistent');
+        if (d.footer === 'present' && (d.reported_events !== d.records - 2) !== d.reasons.includes('count_mismatch')) throw new Error('Trace count diagnostics are inconsistent');
+        if (d.footer === 'missing' && !d.reasons.includes('missing_footer')) throw new Error('Missing trace footer cause was not retained');
+        if (task.module_capture_status === 'captured' && (d.footer === 'missing' || d.reasons.length)) throw new Error('Complete module capture contradicts trace diagnostics');
+      }
+    }
     for (const p of [...task.inventory?.packages ?? [], ...task.loaded_packages, ...task.compilation?.packages ?? [], ...task.bundling?.packages ?? []]) {
       pkg.parse(p);
       const old = packages.get(p.path);
       if (old && (old.name !== p.name || old.version !== p.version)) throw new Error('Conflicting package identity at one installed location');
       packages.set(p.path, p);
     }
+    if (task.edges?.some(e => e.package && (!packages.has(e.package) || !e.target.startsWith(e.package + '/')))) throw new Error('Observed resolution edge does not match an identified package instance');
     for (const p of task.loaded_packages) if (p.modules) {
       if (new Set(p.modules).size !== p.modules.length || p.modules.some(m => !m.startsWith(p.path + '/'))) throw new Error('Loaded module does not belong to its package instance');
       for (const module of p.modules) location.parse(module);

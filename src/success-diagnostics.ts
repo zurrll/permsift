@@ -1,7 +1,7 @@
 import path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { z } from 'zod';
-import { configSchema, type Assertion } from './config.js';
+import { configSchema, assertionName, isFileAssertion, type Assertion } from './config.js';
 import { evaluateAssertion, type AssertionEvaluation } from './assertions.js';
 import { readResult, type ResultRecord, type ExecutionView } from './result-reader.js';
 import { canonical, legacyHash } from './model/identity.js';
@@ -28,7 +28,7 @@ const passes = (v: ExecutionView) => v.native && v.facts.reported_verdict.state 
     v.facts.installation.state === 'recorded' && v.facts.installation.value.reported_verdict === 'pass' && v.facts.installation.value.reused.state === 'recorded' && !v.facts.installation.value.reused.value) &&
   v.facts.outcomes.task.status === 'pass' && v.facts.outcomes.boundaries.status === 'pass' && (!v.facts.outcomes.protections || v.facts.outcomes.protections.status === 'pass');
 const message = (e: unknown) => String(e).slice(0, 1800);
-const evaluate = (defs: Assertion[], contents: Map<string, string | undefined>): Evaluation[] => defs.map((a, index) => ({ index, ...evaluateAssertion(a, contents.get(a.path)) }));
+const evaluate = (defs: Assertion[], contents: Map<string, string | undefined>): Evaluation[] => defs.flatMap((a, index) => isFileAssertion(a) ? [{ index, ...evaluateAssertion(a, contents.get(a.path)) }] : []);
 
 /** Saved outputs only. Never launches a process, follows workspace paths, or changes a policy. */
 export async function diagnoseSuccess(selected: string): Promise<SuccessDiagnostic> {
@@ -73,7 +73,8 @@ export async function diagnoseSuccess(selected: string): Promise<SuccessDiagnost
         if (!policyId || !proofs.every(v => v.policy?.id === policyId)) throw new Error('Final proof does not match the selected policy');
         const chosen = proofs[0];
         const retained = chosen.facts.assertions;
-        if (retained.state !== 'recorded' || proofs.some(p => p.facts.assertions.state !== 'recorded' || canonical(p.facts.assertions.value.map(c => c.name)) !== canonical(definitions.map(a => `${a.type}:${a.path}`)))) throw new Error('Final proof does not cover the configured assertion sequence');
+        if (retained.state !== 'recorded' || proofs.some(p => p.facts.assertions.state !== 'recorded' || canonical(p.facts.assertions.value.map(c => c.name)) !== canonical(definitions.map(assertionName)))) throw new Error('Final proof does not cover the configured assertion sequence');
+        if (!definitions.some(isFileAssertion)) { result.tasks.push({ task: task.key, state: 'diagnosed', reason: 'Exit-code checks only; no artifact assertions to perturb. Completed process evidence was checked, task-internal tests were not re-run.', artifacts: [] }); continue; }
         const trial = path.basename(chosen.reference, '.json');
         if (!/^[a-zA-Z0-9_-]+$/.test(trial)) throw new Error('Invalid final trial reference');
         const evidence = z.object({ success_artifacts: noticeSchema.optional() }).parse(JSON.parse((await read(root, `evidence/${trial}.json`, 32_000_000)).toString('utf8')));
@@ -83,7 +84,7 @@ export async function diagnoseSuccess(selected: string): Promise<SuccessDiagnost
         const manifest = materialSchema.parse(JSON.parse((await read(root, notice.manifest)).toString('utf8')));
         if (bytesHash(Buffer.from(JSON.stringify(manifest))) !== notice.hash || manifest.source.trial !== trial || manifest.source.task !== task.key || manifest.source.task_id !== task.id ||
           manifest.source.execution_id !== chosen.facts.id || manifest.source.policy_id !== policyId || manifest.source.phase !== phase) throw new Error('Retained material identity/hash does not match final verification');
-        const paths = [...new Set(definitions.map(a => a.path))];
+        const paths = [...new Set(definitions.filter(isFileAssertion).map(a => a.path))];
         if (new Set(manifest.files.map(f => f.path)).size !== manifest.files.length || canonical([...manifest.files.map(f => f.path)].sort()) !== canonical([...paths].sort())) throw new Error('Material paths do not match success conditions');
         const saved = manifest.files.filter(f => f.state === 'saved');
         if (saved.length > manifest.limits.files || new Set(saved.map(f => f.file)).size !== saved.length || saved.some(f => f.bytes > manifest.limits.file_bytes) ||
@@ -93,7 +94,7 @@ export async function diagnoseSuccess(selected: string): Promise<SuccessDiagnost
         result.tasks.push(row); addedRow = row;
         const contents = new Map<string, string | undefined>();
         for (const file of manifest.files) {
-          const artifact: ArtifactDiagnostic = { path: file.path, state: 'not_saved', assertions: definitions.flatMap((definition, index) => definition.path === file.path ? [{ index, definition }] : []), mutations: [], skipped_perturbations: [], findings: [] };
+          const artifact: ArtifactDiagnostic = { path: file.path, state: 'not_saved', assertions: definitions.flatMap((definition, index) => isFileAssertion(definition) && definition.path === file.path ? [{ index, definition }] : []), mutations: [], skipped_perturbations: [], findings: [] };
           row.artifacts.push(artifact);
           if (file.state === 'not_saved') { artifact.reason = file.reason; continue; }
           try {
@@ -105,7 +106,7 @@ export async function diagnoseSuccess(selected: string): Promise<SuccessDiagnost
         const fullControl = paths.every(p => contents.has(p)) ? evaluate(definitions, contents) : undefined;
         for (const artifact of row.artifacts) {
           if (!contents.has(artifact.path)) continue;
-          artifact.control = evaluate(definitions, contents).filter(c => definitions[c.index].path === artifact.path);
+          artifact.control = evaluate(definitions, contents).filter(c => { const a = definitions[c.index]; return isFileAssertion(a) && a.path === artifact.path; });
           if (artifact.control.some(c => c.status !== 'pass') || fullControl?.some(c => c.status !== 'pass')) {
             artifact.state = 'inconclusive'; artifact.reason = 'Unmodified retained-material control did not pass; no mutation conclusions'; continue;
           }
@@ -124,7 +125,7 @@ export async function diagnoseSuccess(selected: string): Promise<SuccessDiagnost
             if (trials >= DIAGNOSTIC_LIMITS.mutations || Date.now() >= deadline) { artifact.state = 'inconclusive'; artifact.reason = 'Diagnostic mutation/time budget reached; remaining perturbations not evaluated'; break; }
             trials++;
             const modified = new Map(contents); modified.set(artifact.path, mutation.content);
-            const all = evaluate(definitions, modified), checks = all.filter(c => definitions[c.index].path === artifact.path);
+            const all = evaluate(definitions, modified), checks = all.filter(c => { const a = definitions[c.index]; return isFileAssertion(a) && a.path === artifact.path; });
             artifact.mutations.push({ kind: mutation.kind, description: mutation.description, intended: mutation.intended, checks,
               artifact_checks_reject: checks.some(c => c.status !== 'pass'), all_artifact_assertions_reject: all.some(c => c.status !== 'pass') });
           }

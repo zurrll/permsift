@@ -9,6 +9,7 @@ import { observationPreload } from '../src/observation-runtime.js';
 import { observationFixture } from './support/observation-fixture.js';
 import { compareUsage, loadUsage, usageMarkdown, type UsageReport } from '../src/observe-command.js';
 import { hash } from '../src/filesystem.js';
+import { parseUsage } from '../src/usage-report.js';
 
 test('npm inventory counts nested instances and scopes separately from lock records', async t => {
   const f = await observationFixture(t);
@@ -31,6 +32,15 @@ test('links, unreadable metadata and enumeration limits produce explicit partial
   assert.equal(bounded.packages.length, 1); assert.equal(bounded.complete, false);
   const controller = new AbortController(); controller.abort();
   await assert.rejects(dependencyInventory(f.roots.workspace, 2048, controller.signal), /interrupted/);
+  const setup = await prepareObservation(f.roots);
+  await fs.writeFile(path.join(setup.directory, '42-0.jsonl'), [
+    { kind: 'start', pid: 42, thread: 0, node: 'v24', hooks: true, entry: '' },
+    { kind: 'load', url: new URL('node_modules/broken/index.js', 'file://' + f.roots.workspace + '/').href },
+    { kind: 'end', count: 1, truncated: false, io_error: false },
+  ].map(v => JSON.stringify(v)).join('\n') + '\n');
+  const observed = await collectObservation(setup, f.roots);
+  assert.equal(observed.module_capture_status, 'captured'); assert.equal(observed.capture_status, 'incomplete');
+  assert.ok(observed.attribution_issues!.length); assert.equal(observed.inventory.complete, false);
 });
 test('builtin preload observes CJS, ESM and inherited Node children with stable normalized edges', async t => {
   const f = await observationFixture(t);
@@ -57,6 +67,7 @@ test('a trace with no footer, malformed data or an unsupported Node never report
   await fs.writeFile(file, JSON.stringify(start) + '\n');
   let observation = await collectObservation(setup, f.roots);
   assert.equal(observation.capture_status, 'incomplete'); assert.match(observation.issues.join(' '), /unsupported|did not finish/);
+  assert.deepEqual(observation.trace_diagnostics![0].reasons, ['missing_footer']);
   await fs.writeFile(file, 'invalid\n'); observation = await collectObservation(setup, f.roots);
   assert.equal(observation.capture_status, 'unavailable');
   await fs.writeFile(file, JSON.stringify({ ...start, hooks: true }) + '\n' + JSON.stringify({ kind: 'load', url: new URL('node_modules/alpha/index.js', 'file://' + f.roots.workspace + '/').href }) + '\n{"kind":');
@@ -73,6 +84,29 @@ test('bounded preload preserves task execution and reports truncation rather tha
   assert.equal(execution.status, 0, execution.stderr);
   const observation = await collectObservation(setup, f.roots);
   assert.equal(observation.capture_status, 'incomplete'); assert.match(observation.issues.join(' '), /bounded/);
+  assert.ok(observation.trace_diagnostics!.some(d => d.reasons.includes('event_limit')));
+});
+test('byte limits and footer inconsistencies are diagnosed without turning partial captures into complete ones', async t => {
+  const f = await observationFixture(t), setup = await prepareObservation(f.roots);
+  const source = observationPreload(setup.directory, 10_000, 9000);
+  await fs.chmod(setup.bootstrap, 0o600); await fs.writeFile(setup.bootstrap, source); setup.bootstrap_hash = hash(source);
+  const execution = spawnSync(process.execPath, ['task.cjs'], { cwd: f.roots.workspace, env: { ...process.env, NODE_OPTIONS: `--require ${JSON.stringify(setup.bootstrap)}` }, encoding: 'utf8' });
+  assert.equal(execution.status, 0, execution.stderr);
+  let observed = await collectObservation(setup, f.roots);
+  assert.ok(observed.trace_diagnostics!.some(d => d.reasons.includes('byte_limit'))); assert.equal(observed.module_capture_status, 'incomplete');
+  for (const file of await fs.readdir(setup.directory)) await fs.rm(path.join(setup.directory, file));
+  const start = { kind: 'start', pid: 42, thread: 0, node: 'v24', hooks: true, entry: '' };
+  for (const footer of [{ kind: 'end', count: 1, truncated: false, io_error: false }, { kind: 'end', count: 0, truncated: true, io_error: false }, { kind: 'end', count: 0, truncated: false, io_error: true }, { kind: 'end', count: 0, truncated: false, io_error: false, reasons: ['text_limit'] }]) {
+    await fs.writeFile(path.join(setup.directory, '42-0.jsonl'), JSON.stringify(start) + '\n' + JSON.stringify(footer) + '\n');
+    observed = await collectObservation(setup, f.roots); assert.equal(observed.capture_status, 'incomplete');
+    assert.ok(observed.trace_diagnostics![0].reasons.includes(footer.count ? 'count_mismatch' : footer.truncated ? 'truncation_reason_not_saved' : footer.io_error ? 'io_error' : 'text_limit'));
+  }
+  const raw = { schema_version: 1, kind: 'dependency_usage', observer_version: observed.observer_version, status: 'incomplete', environment: {},
+    inputs: { config_hash: hash('config'), limits_hash: hash('limits') }, tasks: [{ ...observed, task: 'type', task_definition_hash: hash('task'), verdict: 'pass' }] };
+  assert.doesNotThrow(() => parseUsage(raw));
+  assert.throws(() => parseUsage({ ...raw, tasks: [{ ...raw.tasks[0], module_capture_status: 'captured' }] }), /contradicts trace/);
+  const broken = structuredClone(raw); broken.tasks[0].trace_diagnostics![0].reported_events = 1;
+  assert.throws(() => parseUsage(broken), /count diagnostics/);
 });
 test('default worker inheritance is observed and non-file URL contents are not stored', async t => {
   const f = await observationFixture(t), setup = await prepareObservation(f.roots);

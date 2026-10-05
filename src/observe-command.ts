@@ -27,13 +27,15 @@ export function usageMarkdown(report: UsageReport) {
       const compilation = task.compilation;
       const bundling = task.bundling;
       const facts = [...new Map([...task.loaded_packages, ...compilation?.packages ?? [], ...bundling?.packages ?? []].map(p => [p.path, p])).values()].sort((a, b) => a.path.localeCompare(b.path));
-      return [`## ${escape(task.task)}`, '', `Task: **${task.verdict}**; module-hook capture: **${task.capture_status}**; ${task.processes.length} instrumented processes/threads; ${task.events} events.`,
+      return [`## ${escape(task.task)}`, '', `Task: **${task.verdict}**; module-hook capture: **${task.module_capture_status ?? task.capture_status}**; ${task.processes.length} instrumented processes/threads; ${task.events} events.`,
         `Installed: **${task.inventory.packages.length} instances**, ${uniqueNames} names, ${uniqueVersions} name/version pairs. Observed module loads: **${task.loaded_packages.length} package instances**.`,
         compilation ? `TypeScript compilation inputs: **${compilation.files.length} files**, **${compilation.packages.length} package instances**; compiler capture: **${compilation.capture_status}**.` : 'TypeScript compilation inputs: **not collected**.',
         bundling ? `esbuild metadata: **${bundling.inputs.length} input files**, **${bundling.outputs.length} outputs**, **${bundling.packages.length} input package instances**; build capture: **${bundling.capture_status}**.` : 'esbuild metadata: **not collected**.',
         '**Module hooks do not cover declaration files, arbitrary resource reads or native tool internals. Packages without a module-load record may still participate in this task; the counts do not measure unused dependencies.**',
         `Inventory complete within limits: ${task.inventory.complete}; lock records: ${task.inventory.locked_instances ?? 'unavailable'}; locked locations not installed: ${task.inventory.locked_not_installed?.length ?? 'unavailable'}.`, '',
         ...task.issues.map(s => '- Capture issue: ' + escape(s)), '',
+        ...task.inventory.ignored_entries?.map(s => '- Ordinary auxiliary directory excluded from package inventory: ' + escape(s)) ?? [],
+        ...task.trace_diagnostics?.map(d => `- Trace ${escape(d.file)}: ${d.bytes}/${d.limits.bytes} bytes; ${d.reported_events ?? 'footer unavailable'}/${d.limits.events} events; footer ${d.footer}; ${d.reasons.join(', ') || 'no recorded issue'}`) ?? [],
         ...task.coverage_gaps.map(s => '- Coverage gap: ' + escape(s)), '',
         '### Package evidence by source', '', 'The same package can appear in several columns. Missing records do not classify a package as tool-only or unused; counts cannot be added as used-package totals.', '',
         '| Package | Version | Installed location | Node module-load records | TypeScript input files | esbuild input files | Per-output byte contribution |', '| --- | --- | --- | --- | --- | --- | --- |',

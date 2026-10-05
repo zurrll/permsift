@@ -1,0 +1,11 @@
+schema_version: 1
+project: .
+exclude: [.git, .permsift, .permsift-baselines, dist, reports]
+scenarios:
+  - id: test
+    command: [npm, test]
+    timeout_seconds: 30
+    initial_write_grants: ['@workspace', '@cache']
+    assertions:
+      - type: exit_code
+        value: 0

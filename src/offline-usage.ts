@@ -14,7 +14,7 @@ export async function compareSavedUsage(beforeFile: string, afterFile: string): 
   const before = await loadUsage(beforeFile), after = await loadUsage(afterFile);
   const comparison = compareUsage(before, after, path.resolve(beforeFile));
   const input = (r: Comparable, file: string): Input => ({ file: path.resolve(file), status: r.status, version: r.version,
-    tasks: r.tasks.map(t => ({ task: t.task, ...t.capture_status !== 'not_run' ? { verdict: t.verdict } : {}, module_capture: t.capture_status,
+    tasks: r.tasks.map(t => ({ task: t.task, ...t.capture_status !== 'not_run' ? { verdict: t.verdict } : {}, module_capture: t.capture_status === 'not_run' ? 'not_run' : t.module_capture_status ?? t.capture_status,
       compiler_capture: t.capture_status === 'not_run' ? 'not_run' : t.compilation?.capture_status ?? 'not_collected',
       build_capture: t.capture_status === 'not_run' ? 'not_run' : t.bundling?.capture_status ?? 'not_collected' })) });
   const a = input(before, beforeFile), b = input(after, afterFile);

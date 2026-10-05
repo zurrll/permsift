@@ -3,7 +3,7 @@ import type { ResultRecord, ExecutionView, SavedComparison } from './result-read
 import type { ResultSummary, Claim, TaskSummary } from './result-explanation.js';
 import type { Saved, PolicyPlan } from './model/types.js';
 import type { ConfigurationExplanation } from './configuration-explanation.js';
-import type { PackageInspection } from './usage-inspection.js';
+import { packageContextLines, type PackageInspection } from './usage-inspection.js';
 import type { SuccessDiagnostic } from './success-diagnostics.js';
 
 /** Presentation only. Never used to evaluate, adopt or validate a policy. */
@@ -122,6 +122,8 @@ export function terminalView(record: ResultRecord, summary: ResultSummary): Term
       const observation = record.usage?.tasks.find(r => r.task === t.task) ?? values.flatMap(v => { const r = saved(v.facts.observations.records); return r ? [r] : []; })[0];
       const historical = kind === 'adopt' ? '历史验证 ' : '';
       lines.push(`${t.task}  ${historical}${state(task?.status ?? (observation?.capture_status !== 'not_run' ? observation?.verdict : undefined))}${values.length ? ` · ${values.length} 次记录` : ''}`);
+      const definition = record.model?.tasks.find(d => d.key === t.task)?.definition;
+      if (definition?.state === 'recorded' && definition.value.success_conditions.some(a => a.type === 'exit_code')) lines.push(`  验收：${definition.value.success_conditions.every(a => a.type === 'exit_code') ? '仅退出码 0，依靠命令自身检查' : '退出码 0 与声明的文件检查共同通过'}`);
       if (boundary) lines.push(`  固定边界检查${state(boundary.status)}${protection ? '；保护目标' + state(protection.status) : '；未声明额外保护目标'}`);
       const policy = t.policy ?? values[0]?.policy;
       if (policy && kind !== 'doctor') lines.push(...policyLines(policy).map(s => '  可变授权 · ' + s));
@@ -129,7 +131,7 @@ export function terminalView(record: ResultRecord, summary: ResultSummary): Term
         if (observation.capture_status === 'not_run') notices.push(t.task + '：观察未执行；' + observation.reason);
         else {
           lines.push(`  安装清单：${observation.inventory ? `${observation.inventory.packages.length} 个包实例${observation.inventory.complete ? '' : '（不完整）'}` : '未保存'}`,
-            `  Node 加载：${observation.loaded_packages.length} 个包实例（${state(observation.capture_status)}）`);
+            `  Node 加载：${observation.loaded_packages.length} 个包实例（${state(observation.module_capture_status ?? observation.capture_status)}）`);
           if (observation.compilation) lines.push(`  TypeScript 输入：${observation.compilation.files.length} 个文件、${observation.compilation.packages.length} 个包实例（${state(observation.compilation.capture_status)}）`);
           if (observation.bundling) {
             const b = observation.bundling;
@@ -195,7 +197,8 @@ export function configurationText(r: ConfigurationExplanation, details?: string)
       `  写 ${names(t.task.write.grants)}；读 ${t.task.read.mode === 'legacy' ? '项目副本整体（默认）' : t.task.read.grants.length ? names(t.task.read.grants) : '未授权项目文件读取（固定运行时读取保留）'}；任务断网`,
       ...t.installation ? [`  安装：npm ci，禁用脚本，${t.installation.offline ? '离线缓存' : '冷缓存'}；域名 ${names(t.installation.network.grants)}`] : [],
       ...t.observation.active ? [`  采集：${names(['Node 加载', ...t.observation.typescript ? ['TypeScript 输入'] : [], ...t.observation.esbuild ? ['esbuild 产物输入'] : []])}`] : [],
-      `  成功检查：${t.artifacts.reduce((n, a) => n + a.checks.length, 0)} 项；固定保护：${t.task.protection_goals?.length ?? 0} 项`,
+      `  成功检查：${t.artifacts.reduce((n, a) => n + a.checks.length, 0) + t.process_checks.length} 项；固定保护：${t.task.protection_goals?.length ?? 0} 项`,
+      ...t.process_checks.length ? ['  退出码验收：任务正常完成且退出码 0；检查强度由命令自身的检查决定。'] : [],
       ...t.artifacts.map(a => `  ${a.path}：${a.checks.map(c => c.assertion.type === 'test_results' ? `预期 ${c.assertion.expected_tests.length} 项名称，报告全部测试须通过` : c.assertion.type === 'junit' ? `预期 ${c.assertion.expected_tests.length} 项名称，全部测试须通过且统计一致` : c.assertion.type === 'json_equals' ? `JSON ${c.assertion.pointer || '(根值)'} 等于 ${JSON.stringify(c.assertion.value)}` : c.assertion.type === 'file_contains' ? `包含 ${JSON.stringify(c.assertion.text)}` : '普通文件存在（不检查内容）').join('；')}`),
       ...t.assertion_outputs_removed.length ? [`  副本预先清理 ${t.assertion_outputs_removed.length} 份待验收产物。`] : [],
       ...t.observation_output_root_removed ? [`  隔离副本中会清空产物目录：${t.observation_output_root_removed}`] : []]),
@@ -211,7 +214,7 @@ export function packageText(r: PackageInspection, details = false): string {
     ...r.tasks.flatMap(t => [`${t.task}：记录的任务 ${state(t.verdict)}`, ...t.instances.flatMap(p => [
       `  ${p.name}@${p.version} · ${p.path}`, `  Node 加载：${cell(p.node)}；TypeScript 输入：${cell(p.typescript)}`,
       `  esbuild 输入：${cell(p.esbuild)}`,
-      ...p.esbuild.contributions.map(c => `  ${c.output}：${c.bytes_in_output} 字节贡献`)]),
+      ...p.esbuild.contributions.map(c => `  ${c.output}：${c.bytes_in_output} 字节贡献`), ...packageContextLines(p, details).map(s => '  ' + s)]),
       ...!t.instances.length ? [t.inventory === 'complete' ? '  完整安装清单中没有此包实例。' : '  没有此包记录，安装清单不完整或未保存。'] : [],
       ...t.issues.length ? [`  覆盖/采集提示：${t.issues.length} 项${details ? '' : '，加 --details 查看'}`, ...details ? t.issues.map(s => '  ' + s) : []] : []]),
     '未采集、无记录和零字节贡献不同；这些记录不能直接判定依赖可删除。',

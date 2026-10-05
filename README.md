@@ -15,6 +15,8 @@ Permsift 在隔离副本里执行你指定的安装、测试或构建任务，�
 
 依赖观察每个任务执行一次，不需要先进行权限搜索。缺少加载记录不表示包无用，也不生成删除建议。
 
+原有 lint、类型检查或测试命令可以明确使用 `assertions: [{type: exit_code, value: 0}]`，无需制造结果文件；检查强度取决于命令自身。新观察记录的 `inspect --package` 还解释谁声明了每个安装版本、入口和文件结构，并与本次加载记录区分。见 [成功条件配置](docs/configuration.md)、[按包查看](docs/offline-usage.md)及 [execa 实测](docs/real-task-results.md)。
+
 首次交给别人试用，见 [试用说明与反馈模板](docs/trial.md)：干净源码包、两条入门、固定外部项目维护流程及明确执行预算。`npm run trial:verify` 从新目录和新 npm 缓存重走接入；外部项目的缓存准备和四次沙箱安装需明确选择 `--with-maintenance`。
 
 希望自己逐步体验，按 [手工试用](docs/manual-trial.md) 从全新克隆开始：安装与 doctor → 权限建立/采用/变更复验 → 独立观察与比较 → 带一个自己的真实问题接入。每段都有成本和反馈提示。

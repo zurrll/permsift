@@ -39,7 +39,9 @@ limits.repetitions 对 run/tighten/check 保持原义；observe 固定每个任�
 
 主计数是安装目录实例：`@workspace/node_modules/a` 与 `@workspace/node_modules/b/node_modules/a` 分别计数，哪怕同名同版本。另列包名去重数和包名/版本去重数。加载文件归属最长匹配的已识别安装根，避免把嵌套依赖归给外层包。
 
-支持 npm 常规提升、作用域目录及嵌套 node_modules；不遍历包内部全部文件。`.bin` 与 `.package-lock.json` 不作为包。包集合来自任务启动前实际 package.json；根 declarations 说明根项目声明了这个名字，不说明每个嵌套实例都是直接依赖。
+支持 npm 常规提升、作用域目录及嵌套 node_modules；包识别不额外遍历包内部全部文件。`.bin` 与 `.package-lock.json` 不作为包；普通 `.cache` 目录作为辅助目录忽略并记录 ignored_entries，符号链接或其他未知条目仍是缺口。包集合来自任务启动前实际 package.json；根 declarations 说明根项目声明了这个名字，不说明每个嵌套实例都是直接依赖。
+
+新记录保存各安装实例的声明关系、入口及文件结构摘要。它复用已有任务前文件清单，不增加完整依赖树扫描；与实际解析/加载边分别展示。结构描述已准备输入，不描述任务之后写出的文件。按包查询、上限和历史兼容见 [离线查看](offline-usage.md)。
 
 v2/v3 锁文件记录数单独列出。可选/平台条目未实际安装是正常情况，locked_not_installed 不自动表示安装错误。目录链接、pnpm 链接布局、损坏元数据或清单上限标记 partial；不把忽略的结构算成完整。
 
@@ -60,6 +62,8 @@ v0.10 明确开启后采集直接 tsc 的 explainFiles；详见 [编译输入](t
 这是额外的工具内部写能力，不是“完全没有增加权限”。脚本获得日志目录的写能力，报告仅适用于可信、受审阅任务；不能抵抗任务伪造或绕过记录，不能作为安全审计监控器。任务前后 tmp 文件变化包含内部观察文件。
 
 每进程/线程最多 10,000 个去重事件、2 MB 日志；读回最多 64 个日志、32 MB 总字节；安装清单最多 2048 个包。超过上限、损坏记录、缺结束标记或不支持的 Node 都显式保留问题。URL 查询/片段与非文件 URL 内容被去除，child_process 不记录完整命令参数；包路径、模块请求、package.json 名称仍可能包含项目内部信息，分享报告前应审阅。
+
+node-module-load-v3 记录 event_limit、byte_limit、text_limit、io_error；读回另识别 count_mismatch 和 missing_footer。trace_diagnostics 保存每份进程/线程日志的计数、字节、footer 状态和上限。旧 footer 只说 truncated 而没有具体原因时显示 truncation_reason_not_saved，不猜测触发哪个上限。原始模块采集 module_capture_status 与安装清单/归属问题分开；capture_status 仍保留综合缺口，整体退出码没有放宽。任务通过与采集不完整可以同时成立，见 [本轮实测](real-task-results.md)。
 
 记录开销随模块数和进程数变化。上限限制单个生产者和报告读回，不给恶意派生进程提供宿主磁盘配额；普通子进程仍由执行器的时间/进程组清理约束。预加载及 child_process 包装可能影响行为和时序，需与相同输入的普通 run 对照。
 

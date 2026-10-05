@@ -5,6 +5,31 @@ import os from 'node:os';
 import path from 'node:path';
 import { checkAssertions, safeRead } from '../src/assertions.js';
 import { classifyTrial } from '../src/engine.js';
+import { configSchema } from '../src/config.js';
+
+test('explicit exit-code checks reject nonzero, absent and interrupted processes without filesystem targets', async () => {
+  const assertions = [{ type: 'exit_code' as const, value: 0 as const }], roots = { workspace: '/does-not-exist', cache: '/does-not-exist', tmp: '/does-not-exist' };
+  const boundary = [{ name: 'boundary', status: 'pass' as const, detail: '' }];
+  for (const [process, expected] of [[{ status: 'completed', exit_code: 0 }, 'pass'], [{ status: 'completed', exit_code: 8 }, 'fail'],
+    [{ status: 'timed_out', exit_code: 0 }, 'unknown'], [{ status: 'aborted', exit_code: null }, 'unknown'], [undefined, 'unknown']] as const) {
+    const checks = await checkAssertions(assertions, roots, process);
+    assert.equal(checks[0].name, 'exit_code:0'); assert.equal(checks[0].status, expected);
+    assert.equal(classifyTrial(process?.status ?? 'error', process?.exit_code ?? null, checks, boundary), expected);
+  }
+  const scenario = { id: 'lint', command: ['npm', 'run', 'lint'], initial_write_grants: [], assertions };
+  assert.doesNotThrow(() => configSchema.parse({ schema_version: 1, scenarios: [scenario] }));
+  for (const invalid of [[], [{ type: 'exit_code', value: 1 }], [{ type: 'exit_code', value: 0, path: '@workspace/fake' }]])
+    assert.throws(() => configSchema.parse({ schema_version: 1, scenarios: [{ ...scenario, assertions: invalid }] }));
+});
+
+test('exit-code checks do not weaken file checks or boundary requirements', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'permsift-exit-')); t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const checks = await checkAssertions([{ type: 'exit_code', value: 0 }, { type: 'file_contains', path: '@workspace/out', text: 'fresh' }],
+    { workspace: root, cache: root, tmp: root }, { status: 'completed', exit_code: 0 });
+  assert.deepEqual(checks.map(c => c.status), ['pass', 'fail']);
+  assert.equal(classifyTrial('completed', 0, checks, [{ name: 'boundary', status: 'pass', detail: '' }]), 'fail');
+  assert.equal(classifyTrial('completed', 0, [checks[0]], [{ name: 'boundary', status: 'fail', detail: '' }]), 'fail');
+});
 
 test('semantic assertions reject skipped, missing, failed and duplicate test cases', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'permsift-assert-')); t.after(() => fs.rm(root, { recursive: true, force: true }));

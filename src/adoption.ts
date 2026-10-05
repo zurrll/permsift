@@ -3,7 +3,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { assertBundledEvidence } from './bundled-dependencies.js';
-import { configSchema, limitsSchema, loadConfiguration, validatePolicy, isStaged, type Config } from './config.js';
+import { configSchema, limitsSchema, loadConfiguration, validatePolicy, isStaged, assertionName, type Config } from './config.js';
 import { readLegacyJson } from './model/io.js';
 import { objectId, semanticHash, canonical } from './model/identity.js';
 import type { AdoptedBaseline } from './model/types.js';
@@ -87,7 +87,7 @@ async function collectSource(file: string) {
     if (!actualScenario || compareTerms(scenario, actualScenario, { ignorePreparation: true }).changed)
       throw new Error('Current/verified task definitions disagree: ' + scenario.id);
     if (proofs.length !== recordedInputs.limits.repetitions || !proofs.every(passed)) throw new Error('Baseline requires all passing repeated task/boundary/protection evidence: ' + scenario.id);
-    const expectedChecks = actualScenario.assertions.map(a => `${a.type}:${a.path}`).sort();
+    const expectedChecks = actualScenario.assertions.map(assertionName).sort();
     if (proofs.some(v => canonical(known(v.facts.assertions, 'success checks').map(c => c.name).sort()) !== canonical(expectedChecks)))
       throw new Error('Retained success checks do not cover the configured assertions: ' + scenario.id);
     const currentId = result.model.workflow.current_policies.find(p => p.task_key === scenario.id)?.policy_id;

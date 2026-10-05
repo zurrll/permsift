@@ -47,6 +47,25 @@ node dist/cli.js inspect usage.json --package @scope/name --json
 
 inspect 不接受执行选项或 --output；需要保存时可重定向 stdout。没有同名实例也会列出各任务的状态，避免空输出掩盖采集缺口。
 
+### 谁引入这个版本，它包含什么？
+
+新观察记录还保存任务执行前的安装关系和包结构，按实例在同一查询中展示：
+
+```sh
+node dist/cli.js inspect RESULT/usage.json --package type-fest --details
+node dist/cli.js inspect RESULT/usage.json --package eslint-visitor-keys --json
+```
+
+安装关系来自 package.json 声明及受支持的 npm 目录布局：显示直接父依赖、声明种类/版本范围和最多三条根项目引入路径。按祖先目录查找实际安装实例，不把所有同名版本连在一起；不验证 semver 满足关系，也不执行 Node 条件 exports 选择。根项目的开发依赖纳入关系，安装包自身的开发依赖不纳入；缺少可选/peer 实例保留 unresolved。这不是本次实际加载链。
+
+结构摘要复用已有执行前文件清单：保留 types/typings、main/module/bin/exports 声明及对应文件证据，分别统计声明文件、JS（含 mjs/cjs）、非声明 TS、原生模块、Wasm、其他文件和符号链接。无扩展名入口归入其他内容；目录、通配符或条件入口不能凭字符串判定已经解析。链接内容不跟随，缺清单或达到上限显示 partial；其他包自己的入口截断不让当前实例变成缺资料。已识别的安装辅助目录/文件和合成读探针不计为包内容。结构中的文件存在不表示本次读取了它。
+
+本次成功解析边单独显示来源文件、请求和目标，与静态安装关系分开。模块、编译和构建来源仍各自显示健康度；普通 npm 脚本没有明确开启直接 tsc 采集时，编译来源为 not collected。未见加载记录与只有声明文件的结构相容，但不能据此断言“纯类型”“没用”或可删除。
+
+材料含版本、prepared_task_inputs 阶段和文件清单摘要，离线读取校验实例引用、数量与完整性一致性。旧材料没有这些事实时显示 not_saved，不读取现在的项目补历史。默认每类最多展示六项，--details 最多 64 项；--json 保留全部已保存的有界事实。保存上限为 20,000 条声明关系、每实例 64 项入口、100,000 项已有清单；引入路径查询限制 512 步、24 层、三条路径，截断会提示。这些边界不是全依赖路径枚举。
+
+真实 execa 七个 type-fest 和三个 eslint-visitor-keys 的核对见 [本轮实测](real-task-results.md)。查询不执行项目命令或 npm ls，也不需要原项目仍在磁盘上。
+
 ## 退出码和 CI
 
 | 入口 | 0 | 1 | 2 |

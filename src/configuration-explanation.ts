@@ -18,6 +18,7 @@ type TaskPreview = {
     registry: string; scripts: 'disabled'; write: Grant; read: string[]; network: Grant; offline: boolean };
   initial_preparation: string[]; assertion_outputs_removed: string[]; observation_output_root_removed?: string;
   artifacts: { path: string; checks: { index: number; assertion: Assertion; meaning: string }[] }[];
+  process_checks: { index: number; assertion: Assertion; meaning: string }[];
   search: { active: boolean; task_write_auto: boolean; task_write_candidates: Scenario['narrower_candidates'];
     task_read_active: boolean; task_read_auto: boolean; task_read_candidates: Scenario['narrower_read_candidates'];
     install_write_active: boolean; install_write_auto: boolean; install_write_candidates: Scenario['narrower_candidates']; network_active: boolean };
@@ -42,6 +43,7 @@ function defaults(normalized: unknown, raw: unknown, file: string, prefix = ''):
 
 function assertionMeaning(a: Assertion): string {
   switch (a.type) {
+    case 'exit_code': return '仅检查任务正常完成且退出码为 0；依靠命令自身的检查，不独立验证产物或业务正确性。';
     case 'file_exists': return '检查普通文件存在且不超过 1 MiB；不检查内容是否正确，空文件也可通过。';
     case 'file_contains': return '检查文件包含指定文本；不检查其余内容或产物行为。';
     case 'json_equals': return '解析 JSON 后按指定指针比较值及类型；不检查其他字段。';
@@ -56,6 +58,7 @@ function preview(s: Scenario, index: number, file: string, mode: ExplanationMode
   const origin = (field: string, kind: Origin['kind'] = 'declared'): Origin => ({ file, path: `${base}.${field}`, kind });
   const artifacts: TaskPreview['artifacts'] = [];
   for (const [index, assertion] of s.assertions.entries()) {
+    if (assertion.type === 'exit_code') continue;
     let artifact = artifacts.find(a => a.path === assertion.path);
     if (!artifact) { artifact = { path: assertion.path, checks: [] }; artifacts.push(artifact); }
     artifact.checks.push({ index, assertion, meaning: assertionMeaning(assertion) });
@@ -76,7 +79,7 @@ function preview(s: Scenario, index: number, file: string, mode: ExplanationMode
     } : null,
     initial_preparation: initialPreparation(s), assertion_outputs_removed: artifacts.map(a => a.path),
     ...observe && s.observation?.esbuild ? { observation_output_root_removed: s.observation.esbuild.output_root } : {},
-    artifacts,
+    artifacts, process_checks: s.assertions.flatMap((assertion, index) => assertion.type === 'exit_code' ? [{ index, assertion, meaning: assertionMeaning(assertion) }] : []),
     search: { active: search, task_write_auto: search && s.auto_discover, task_write_candidates: s.narrower_candidates,
       task_read_active: search && s.initial_read_grants !== undefined, task_read_auto: search && s.initial_read_grants !== undefined && s.auto_read_discover,
       task_read_candidates: s.narrower_read_candidates, install_write_active: search && staged,
@@ -173,6 +176,7 @@ export function configurationExplanationText(r: ConfigurationExplanation): strin
       `  权限搜索：${t.search.active ? `开启；任务写自动发现 ${t.search.task_write_auto}；任务读收缩 ${t.search.task_read_active}；安装写收缩 ${t.search.install_write_active}；安装网络撤销 ${t.search.network_active}` : '未开启；候选和自动发现设置不执行搜索'}`,
       `  观察：${t.observation.active ? `Node 模块；TypeScript ${t.observation.typescript}；esbuild ${t.observation.esbuild}` : '未开启；采集设置不执行采集'}`,
       ...t.task.protection_goals?.map(g => `  固定保护 ${json(g.key)}：禁止 ${g.operation} ${json(g.target)}（${g.target_kind}，任务阶段）`) ?? []);
+    for (const check of t.process_checks) lines.push(`  进程检查 #${check.index} ${json(check.assertion)} — ${check.meaning}`);
     for (const a of t.artifacts) {
       lines.push(`  产物 ${json(a.path)}：全部检查须通过`);
       for (const check of a.checks) lines.push(`    #${check.index} ${check.assertion.type} ${json(check.assertion)} — ${check.meaning}`);

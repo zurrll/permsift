@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { z } from 'zod';
 import { noSymlinks, resolveAlias, saveJson, type Roots } from './filesystem.js';
-import type { Assertion } from './config.js';
+import { isFileAssertion, type Assertion } from './config.js';
 
 export const MATERIAL_LIMITS = Object.freeze({ files: 16, file_bytes: 1_048_576, total_bytes: 2_097_152, milliseconds: 2000 });
 export const bytesHash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
@@ -54,7 +54,7 @@ export async function captureSuccessMaterials(options: { output: string; roots: 
     const directory = path.join(options.output, 'artifacts', source.trial);
     await fs.mkdir(directory, { recursive: true, mode: 0o700 });
     const files: Materials['files'] = []; let total = 0, saved = 0;
-    for (const alias of [...new Set(options.assertions.map(a => a.path))]) {
+    for (const alias of [...new Set(options.assertions.filter(isFileAssertion).map(a => a.path))]) {
       try {
         if (saved >= limits.files) throw new Error('Material file count limit reached');
         const data = await readMaterial(options.roots.workspace, resolveAlias(alias, options.roots), Math.min(limits.file_bytes, limits.total_bytes - total), started + limits.milliseconds, options.signal);

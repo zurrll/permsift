@@ -2,12 +2,13 @@ import { constants } from 'node:fs';
 import { open } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
-import type { Assertion } from './config.js';
+import { assertionName, type Assertion } from './config.js';
+import type { ProcessResult } from './process.js';
 import { noSymlinks, resolveAlias, type Roots } from './filesystem.js';
 import { checkJunit } from './junit.js';
 
 export type Check = { name: string; status: 'pass' | 'fail' | 'unknown'; detail: string };
-export type AssertionEvaluation = Check & { cause: 'satisfied' | 'content_mismatch' | 'invalid_format' | 'missing_file' | 'unreadable_file' };
+export type AssertionEvaluation = Check & { cause: 'satisfied' | 'content_mismatch' | 'invalid_format' | 'missing_file' | 'unreadable_file' | 'process_incomplete' | 'exit_code_mismatch' };
 export async function safeRead(file: string, root: string) {
   await noSymlinks(root, file);
   const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
@@ -21,7 +22,8 @@ export const testResultsSchema = z.object({ tests: z.array(z.object({ name: z.st
 
 /** The same semantic evaluator serves task acceptance and offline diagnostics. No project code. */
 export function evaluateAssertion(assertion: Assertion, content: string | undefined): AssertionEvaluation {
-  const name = `${assertion.type}:${assertion.path}`;
+  const name = assertionName(assertion);
+  if (assertion.type === 'exit_code') return { name, status: 'unknown', cause: 'process_incomplete', detail: 'Exit-code checks require completed process evidence; artifact bytes cannot evaluate them' };
   if (content === undefined) return { name, status: 'fail', cause: 'missing_file', detail: 'Assertion file is missing' };
   try {
     let passed = true;
@@ -46,15 +48,23 @@ export function evaluateAssertion(assertion: Assertion, content: string | undefi
     return { name, status: passed ? 'pass' : 'fail', cause: passed ? 'satisfied' : 'content_mismatch', detail: detail ?? (passed ? 'Assertion satisfied' : 'Expected content or test outcomes not satisfied') };
   } catch (e) { return { name, status: 'fail', cause: 'invalid_format', detail: String(e) }; }
 }
-export async function checkAssertionsDetailed(assertions: Assertion[], roots: Roots): Promise<AssertionEvaluation[]> {
+export async function checkAssertionsDetailed(assertions: Assertion[], roots: Roots, process?: Pick<ProcessResult, 'status' | 'exit_code'>): Promise<AssertionEvaluation[]> {
   const result: AssertionEvaluation[] = [];
   for (const assertion of assertions) {
+    if (assertion.type === 'exit_code') {
+      const completed = process?.status === 'completed' && process.exit_code !== null;
+      const passed = completed && process.exit_code === assertion.value;
+      result.push({ name: assertionName(assertion), status: !completed ? 'unknown' : passed ? 'pass' : 'fail',
+        cause: !completed ? 'process_incomplete' : passed ? 'satisfied' : 'exit_code_mismatch',
+        detail: !completed ? 'Completed task process evidence is unavailable' : `Task exit code ${process.exit_code}; expected ${assertion.value}. This checks the command outcome, not independent artifact or business correctness.` });
+      continue;
+    }
     try { result.push(evaluateAssertion(assertion, await safeRead(resolveAlias(assertion.path, roots), roots.workspace))); }
     catch (e) { result.push({ name: `${assertion.type}:${assertion.path}`, status: 'fail', cause: (e as NodeJS.ErrnoException).code === 'ENOENT' ? 'missing_file' : 'unreadable_file', detail: String(e) }); }
   }
   return result;
 }
-export async function checkAssertions(assertions: Assertion[], roots: Roots): Promise<Check[]> {
+export async function checkAssertions(assertions: Assertion[], roots: Roots, process?: Pick<ProcessResult, 'status' | 'exit_code'>): Promise<Check[]> {
   // Preserve the saved Check contract, native identities and historical verdict semantics.
-  return (await checkAssertionsDetailed(assertions, roots)).map(({ cause, ...check }) => check);
+  return (await checkAssertionsDetailed(assertions, roots, process)).map(({ cause, ...check }) => check);
 }

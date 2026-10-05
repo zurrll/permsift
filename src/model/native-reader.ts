@@ -75,7 +75,7 @@ export function parseNativeExecution(raw: unknown): NativeExecution {
       inputs: { config_hash: '0'.repeat(64), limits_hash: '0'.repeat(64) }, tasks: [e.observations.records.value] }).tasks[0];
     if (facts.task !== task.key) throw new Error('Native observation references a different task');
     const statuses = facts.capture_status === 'not_run' ? { inventory: 'not_run', modules: 'not_run', compiler: 'not_run', build: 'not_run' } : {
-      inventory: facts.inventory ? facts.inventory.complete ? 'captured' : 'incomplete' : 'not_saved', modules: facts.capture_status,
+      inventory: facts.inventory ? facts.inventory.complete ? 'captured' : 'incomplete' : 'not_saved', modules: facts.module_capture_status ?? facts.capture_status,
       compiler: facts.compilation?.capture_status ?? 'not_collected', build: facts.bundling?.capture_status ?? 'not_collected' };
     for (const source of ['inventory', 'modules', 'compiler', 'build'] as const) if (e.observations[source].status !== statuses[source]) throw new Error('Native observation capture mismatch: ' + source);
   }

@@ -1,0 +1,33 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import { configSchema } from '../../src/config.js';
+import { runExperiment } from '../../src/engine.js';
+import { runRegression } from '../../src/regression.js';
+import { adopt, defaultStore } from '../../src/adoption.js';
+import { diagnoseSuccess } from '../../src/success-diagnostics.js';
+import { readResult } from '../../src/result-reader.js';
+
+test('exit-only tasks search, retain, adopt and replay without fake artifacts; added file requirements need review', { skip: process.platform !== 'darwin' }, async t => {
+  const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'permsift-exit-story-'))); t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const project = path.join(root, 'project'); await fs.mkdir(project);
+  await fs.writeFile(path.join(project, 'task.cjs'), "const fs=require('node:fs');fs.mkdirSync('dist',{recursive:true});fs.writeFileSync('dist/out','fresh');");
+  const config = configSchema.parse({ schema_version: 1, project, scenarios: [{ id: 'lint', command: [process.execPath, 'task.cjs'], initial_write_grants: ['@workspace/dist'], auto_discover: false, assertions: [{ type: 'exit_code', value: 0 }] }] });
+  const configPath = path.join(root, 'config.json'), limitsPath = path.join(root, 'limits.json');
+  await fs.writeFile(configPath, JSON.stringify(config)); await fs.writeFile(limitsPath, JSON.stringify({ schema_version: 1, allowed_write_roots: ['@workspace'], repetitions: 1, max_candidates: 0, budget_seconds: 120 }));
+  const initial = await runExperiment({ mode: 'tighten', configPath, limitsPath, output: path.join(root, 'initial'), saveArtifacts: true });
+  assert.equal(initial.status, 'verified', initial.error); assert.equal(initial.trials.length, 2);
+  assert.equal((await readResult(initial.output)).executions[0].facts.outcomes.task.status, 'pass');
+  const diagnostic = await diagnoseSuccess(initial.output); assert.equal(diagnostic.status, 'diagnosed'); assert.match(diagnostic.tasks[0].reason!, /Exit-code checks only/);
+  await adopt({ source: initial.output, configPath, limitsPath });
+  const pointer = await fs.readFile(path.join(defaultStore(configPath), 'current.json'), 'utf8');
+  assert.equal((await runRegression({ configPath, limitsPath, output: path.join(root, 'compatible') })).status, 'compatible');
+  config.scenarios[0].assertions.push({ type: 'file_contains', path: '@workspace/dist/out', text: 'fresh' }); await fs.writeFile(configPath, JSON.stringify(config));
+  const changed = await runRegression({ configPath, limitsPath, output: path.join(root, 'changed') });
+  assert.equal(changed.status, 'review_required'); assert.ok(changed.tasks[0].terms?.changes.some(c => c.dimension === 'success_conditions'));
+  assert.equal(await fs.readFile(path.join(defaultStore(configPath), 'current.json'), 'utf8'), pointer);
+  await fs.writeFile(path.join(project, 'task.cjs'), 'process.exit(7);');
+  assert.equal((await runExperiment({ mode: 'run', configPath, limitsPath, output: path.join(root, 'failed') })).status, 'failed');
+});

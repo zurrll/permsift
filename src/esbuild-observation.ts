@@ -44,7 +44,7 @@ export async function prepareBundling(scenario: Pick<Scenario, 'observation' | '
   await fs.rm(directory, { recursive: true, force: true });
   await fs.mkdir(directory, { recursive: true });
   for (const alias of scenario.prepare_directories.filter(p => contains(config.output_root, p))) await fs.mkdir(resolveAlias(alias, roots), { recursive: true });
-  for (const assertion of scenario.assertions.filter(a => contains(config.output_root, a.path))) await fs.mkdir(path.dirname(resolveAlias(assertion.path, roots)), { recursive: true });
+  for (const assertion of scenario.assertions) if ('path' in assertion && contains(config.output_root, assertion.path)) await fs.mkdir(path.dirname(resolveAlias(assertion.path, roots)), { recursive: true });
 }
 
 // Keep a bounded output's sum of <=4096 contributions inside safe integers.

@@ -25,6 +25,7 @@ const installSchema = z.object({
   }, 'Registry must be an HTTPS origin (HTTP loopback is allowed for local fixtures)'),
 }).strict();
 const assertionSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('exit_code'), value: z.literal(0) }).strict(),
   z.object({ type: z.literal('file_exists'), path: workspaceFile }).strict(),
   z.object({ type: z.literal('file_contains'), path: workspaceFile, text: z.string().min(1) }).strict(),
   z.object({ type: z.literal('json_equals'), path: workspaceFile, pointer: z.string().regex(/^(\/[^/]*)*$/), value: z.unknown().refine(v => v !== undefined, 'value is required') }).strict(),
@@ -82,6 +83,9 @@ export const limitsSchema = z.object({
 export type Config = z.infer<typeof configSchema>;
 export type Scenario = z.infer<typeof scenarioSchema>;
 export type Assertion = z.infer<typeof assertionSchema>;
+export type FileAssertion = Exclude<Assertion, { type: 'exit_code' }>;
+export const isFileAssertion = (a: Assertion): a is FileAssertion => a.type !== 'exit_code';
+export const assertionName = (a: Assertion): string => a.type === 'exit_code' ? `exit_code:${a.value}` : `${a.type}:${a.path}`;
 export type Limits = z.infer<typeof limitsSchema>;
 export const contains = (parent: string, child: string) => child === parent || child.startsWith(parent + '/');
 

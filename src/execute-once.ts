@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { contains } from './config.js';
+import { contains, isFileAssertion } from './config.js';
 import { executeSandbox, type BackendContext } from './backend.js';
 import { forkSnapshot, hash, noSymlinks, resolveAlias, manifest, diffFiles, type Roots } from './filesystem.js';
 import { checkAssertionsDetailed, type Check, type AssertionEvaluation } from './assertions.js';
@@ -95,7 +95,7 @@ export async function executeOnce(request: ExecutionRequest, onStage?: (stage: '
     } });
     await prepareDirectories();
     const refreshOutputs = async () => timings.measure('preparation', async () => {
-      for (const assertion of scenario.assertions) {
+      for (const assertion of scenario.assertions.filter(isFileAssertion)) {
         const target = resolveAlias(assertion.path, roots!);
         await noSymlinks(roots!.workspace, target); await fs.rm(target, { force: true }); await fs.mkdir(path.dirname(target), { recursive: true });
       }
@@ -200,7 +200,7 @@ export async function executeOnce(request: ExecutionRequest, onStage?: (stage: '
         } else {
           if (sources.dependencies) {
             await timings.measure('preparation', () => prepareBundling(scenario, roots!));
-            observer = await timings.measure('discovery', () => prepareObservation(roots!, request.budget.signal));
+            observer = await timings.measure('discovery', () => prepareObservation(roots!, request.budget.signal, (evidence.task_input_changes_base ?? before)?.workspace));
             evidence.observer = { source: 'node_module_hooks', bootstrap: observer.bootstrap, collector: observer.directory, bootstrap_hash: observer.bootstrap_hash,
               internal_write_exception: '@tmp/.permsift-observer/logs', instrumentation_applies_to: 'offline task only; not install or boundary probes',
               ...(scenario.observation?.typescript ? { compilation: { source: 'typescript_explain_files', output: 'same execution stdout', executed_command: compilationCommand(scenario) } } : {}),
@@ -214,7 +214,7 @@ export async function executeOnce(request: ExecutionRequest, onStage?: (stage: '
           await checkGoals('after');
         }
       } else evidence.task_skipped = 'Install did not pass; offline command was not executed';
-      evidence.assertion_evaluations = await timings.measure('assertions', () => checkAssertionsDetailed(scenario.assertions, roots!));
+      evidence.assertion_evaluations = await timings.measure('assertions', () => checkAssertionsDetailed(scenario.assertions, roots!, trial.execution_stage === 'task' && !evidence.task_skipped ? task?.process : undefined));
       assertions = evidence.assertion_evaluations.map(({ cause, ...check }) => check); evidence.assertions = assertions;
       const post = await timings.measure('probes', () => boundaryChecks(trialFixtures, { ...(scenario.install && installVerdict !== 'pass' ? installContext : offlineContext), invocationId: trialId + '-after', timeoutMs: Math.max(1, Math.min(context.timeoutMs, deadline - Date.now())) }));
       evidence.after = post; boundaries = [...boundaries, ...post.checks];
