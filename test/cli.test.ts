@@ -1,11 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 function cli(...args: string[]) { return spawnSync(process.execPath, ['dist/cli.js', ...args], { encoding: 'utf8' }); }
 test('CLI help and version are available without sandbox execution', () => {
   const help = cli('--help'); assert.equal(help.status, 0); assert.match(help.stdout, /tighten/);
-  const version = cli('--version'); assert.equal(version.status, 0); assert.match(version.stdout, /^0\.12\.0/);
+  const metadata = JSON.parse(readFileSync('package.json', 'utf8'));
+  const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
+  const version = cli('--version'); assert.equal(version.status, 0); assert.equal(version.stdout, metadata.version + '\n');
+  assert.equal(lock.version, metadata.version); assert.equal(lock.packages[''].version, metadata.version);
+  assert.ok(help.stdout.includes('Permsift ' + metadata.version));
 });
 test('observe is explicit, requires trusted limits and only accepts usage baselines', () => {
   assert.match(cli('--help').stdout, /observe --config FILE --limits TRUSTED_FILE/);

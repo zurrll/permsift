@@ -4,6 +4,12 @@
 
 `src/terminal.ts` 负责按命令展示已验证事实，`src/progress.ts` 负责结构化进度。工作流结束后保存非权威的 terminal.json 展示缓存；离线 inspect 忽略缓存，重新解释原材料。原报告/summary JSON、模型身份与退出码不变。`test/terminal.test.ts` 用已有材料与明确标注的合成反例检查成功、边界失败、缺文件、预算停止、安装失败/未知复用、来源状态差异、缓存篡改、只读 JSON 兼容、大列表和进度控制字符；无需真实任务。完整规则见 [终端展示](terminal-output.md)。
 
+0.13.0 增加 8 个离线展示反例，核对任务通过与解析截断并存、缺线程结束记录、未知/旧来源问题、任务失败、复验缺证据、约定变化、长列表中的必要限定以及损坏配套材料。原始事实和 JSON 语义不变；默认行动提示仅针对当前需要处理的问题。已有 `.permsift/toolchain-budget-v6` 可以直接 inspect 回放，无需新增 XO、安装或权限搜索。
+
+2026-10-05 本地验收：300 个单元/组件用例通过，0 失败/跳过；其中终端用例 23 个。类型检查通过。results、offline、onboarding 的公共 CLI 离线回放通过，分别保存于 `.permsift/result-replay-588rag/verification.json`、`.permsift/offline-usage-J0tvBo/summary.json`、`.permsift/onboarding-validation-hOnxbV/verification.json`。这组只读脚本没有执行项目任务、安装或搜索；常规单元/集成回归中的受控夹具执行另计，不能将“只读回放零执行”推广成整轮开发零成本。
+
+既有 v6 XO 材料的默认、--details 与 --json 三种 inspect 均保留退出码 2；独立任务/固定边界通过与加载/解析缺口并列，详细原因可查。12 份源文件哈希前后相同，收据在 `.permsift/terminal-013-replay-EP37hK/verification.json`；0 新 XO 任务、0 安装、0 权限搜索。
+
 改变进度钩子时可定向运行既有本地注册表用例（构建后）：`node --test --test-concurrency=1 --test-name-pattern='fixed warm cache' dist/test/integration/install.test.js`。它复用冷安装及暖缓存回放的实际任务，并断言阶段顺序；共 5 次安装/任务，无搜索或公开注册表下载。呈现文字本身用离线材料检验。
 
 ## 试用包与真实维护流程
@@ -36,7 +42,7 @@ npm run build
 npm run check
 ```
 
-依赖精确固定在 package.json 和 package-lock.json。TypeScript 输出位于 dist/；源码是 CLI 入口 cli.ts 及 src/ 下的模块。工具尚未发布，直接通过 node dist/cli.js 使用。
+依赖精确固定在 package.json 和 package-lock.json。TypeScript 输出位于 dist/；源码是 CLI 入口 cli.ts 及 src/ 下的模块。工具尚未发布 npm 包，直接通过 node dist/cli.js 使用。
 
 ## 依赖观察验证
 
