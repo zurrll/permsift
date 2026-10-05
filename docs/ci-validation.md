@@ -6,16 +6,21 @@
 
 ## 默认回归
 
-[ci.yml](../.github/workflows/ci.yml) 的每次 push / pull_request 保留以下检查，没有根据改动路径省略测试：
+[ci.yml](../.github/workflows/ci.yml) 的每次 push / pull_request 保留 Linux 检查。仅明确的纯文档变更省去两组 macOS；代码、配置、测试、未知文件和无法确定比较范围时，仍跑完整真实回归：
 
 | 作业 | 范围 |
 | --- | --- |
+| changes | 读取整个 push 的 before → after diff，或 PR 的 merge-base → head diff；仅 README.md、CHANGELOG.md、LICENSE / LICENSE.md 和 docs 下 Markdown 白名单省去 macOS |
 | unit (22)、unit (24) | 完整单元/组件、类型检查、offline/model/results 回放、离线环境检查和静态 onboarding |
 | sandbox-core | macOS 完整单元；除下面两文件外的全部集成；doctor；本地注册表的 bundled 公共 CLI 流程 |
 | sandbox-install | install.test.js、staged-install.test.js 的全部集成，含真实冷/暖安装、网络拒绝、恢复、快照隔离与最终新安装 |
-| sandbox | 聚合两组 macOS 结果；任一失败、取消或跳过都失败，保留原有检查名称 |
+| sandbox | 保留原检查名称；需要沙箱时两组均须通过。只有分类成功且明确为纯文档、两组均按预期 skipped 才接受文档路径，并明确输出未执行沙箱 |
 
 分组来自 [ci-suites.mjs](../scripts/ci-suites.mjs)。所有编译后的集成文件恰好分到一组，新文件默认进入 core；缺少指定安装文件或清单异常会失败。没有改 repetitions、任务断言、探针、恢复或清理。两组运行在不同机器，组内仍串行，避免在同一主机上引入沙箱/注册表并行干扰。
+
+改动识别由 [ci-changes.mjs](../scripts/ci-changes.mjs) 完成，checkout 保留可比较的完整历史。禁用 rename 合并，两侧路径均纳入判断；多个提交中的早期代码变更也不能被最后一次文档变更盖掉。首次 push、空/超大清单、未知事件、缺比较提交或读取异常回退到完整回归。分类作业失败时汇总失败，不能当作纯文档。有限反例使用真实临时 Git 分支/diff，并执行工作流中的实际汇总脚本检查失败、取消和缺执行。
+
+同一工作流与分支/PR 使用 concurrency 组，新提交取消尚未完成的旧默认运行。手动场景使用独立工作流，不被默认 push 取代。当前没有实现 push/PR 去重、复杂用例选择器或存储调度；用户明确只做简单 CI 调整。Linux 单元/类型/离线检查仍在文档路径运行。
 
 Node 矩阵关闭 fail-fast，一组失败时另一组仍有机会给出自己的结果。行为依据见 [GitHub 工作流语法](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstrategyfail-fast)。作业取消与成功保持区别。
 

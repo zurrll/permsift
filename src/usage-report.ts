@@ -6,7 +6,7 @@ import { bundlingSchema, validateBundling } from './esbuild-observation.js';
 import { contextSchema, validateContext } from './package-context.js';
 import { traceDiagnosticSchema } from './observation.js';
 import { workerLifecycleSchema, workerEnd, workerMissingReasons, WORKER_MISSING_REASONS, validateWorkerStates } from './worker-lifecycle.js';
-import { validateChannels, DETAIL_REASONS, WORKER_REASONS } from './trace-budget.js';
+import { validateChannels, DETAIL_REASONS, LOAD_REASONS, WORKER_REASONS, traceSourceIncomplete } from './trace-budget.js';
 
 const text = z.string().max(4096), digest = z.string().regex(/^[a-f0-9]{64}$/);
 const location = text.refine(s => s.startsWith('@workspace/') && !/[\u0000-\u001f\u007f]/.test(s) && !s.split('/').some(p => p === '.' || p === '..' || !p), 'Expected a normalized workspace location');
@@ -20,6 +20,8 @@ const taskSchema = z.union([
     verdict: z.enum(['pass', 'fail', 'unknown']), loaded_packages: z.array(pkg.extend({ modules: z.array(text).max(640000).optional() })).max(2048),
     inventory: inventory.optional(), issues: strings.optional(), coverage_gaps: z.array(text).max(640000).optional(),
     module_capture_status: z.enum(['captured', 'incomplete', 'unavailable']).optional(), attribution_issues: strings.optional(),
+    load_capture_status: z.enum(['captured', 'incomplete', 'unavailable']).optional(), resolution_capture_status: z.enum(['captured', 'incomplete', 'unavailable']).optional(),
+    load_issues: strings.optional(), resolution_issues: strings.optional(),
     trace_diagnostics: z.array(traceDiagnosticSchema).max(64).optional(),
     worker_lifecycle: z.array(workerLifecycleSchema).max(640000).optional(),
     edges: z.array(z.object({ parent: text, target: text, request: text, package: location.optional() })).max(640000).optional(),
@@ -57,6 +59,10 @@ export function parseUsage(value: unknown): Comparable {
   if (new Set(parsed.tasks.map(t => t.task)).size !== parsed.tasks.length) throw new Error('Duplicate task IDs in usage baseline');
   for (const task of parsed.tasks) if (task.capture_status !== 'not_run' && new Set(task.loaded_packages.map(p => p.path)).size !== task.loaded_packages.length) throw new Error('Duplicate package instances in usage baseline');
   for (const task of parsed.tasks) if (task.capture_status !== 'not_run') {
+    if ((task.load_capture_status !== undefined) !== (task.resolution_capture_status !== undefined)) throw new Error('Split capture statuses must be retained together');
+    if (task.load_capture_status && (task.module_capture_status === 'captured' || task.capture_status === 'captured') &&
+      (task.load_capture_status !== 'captured' || task.resolution_capture_status !== 'captured')) throw new Error('Complete aggregate capture contradicts trace source statuses');
+    if (task.load_issues?.length && task.load_capture_status === 'captured' || task.resolution_issues?.length && task.resolution_capture_status === 'captured') throw new Error('Complete capture contradicts source issues');
     const packages = new Map<string, { name: string; version: string }>();
     if (task.inventory && new Set(task.inventory.packages.map(p => p.path)).size !== task.inventory.packages.length) throw new Error('Duplicate installed package instances');
     if (task.inventory?.context) validateContext(task.inventory.context, task.inventory.packages);
@@ -76,15 +82,17 @@ export function parseUsage(value: unknown): Comparable {
         if (d.footer === 'present' && (d.reported_events !== d.records - 2) !== d.reasons.includes('count_mismatch')) throw new Error('Trace count diagnostics are inconsistent');
         if (d.footer === 'missing' && !d.reasons.includes('missing_footer')) throw new Error('Missing trace footer cause was not retained');
         if (task.module_capture_status === 'captured' && (d.footer === 'missing' || d.reasons.length)) throw new Error('Complete module capture contradicts trace diagnostics');
+        if (task.load_capture_status === 'captured' && traceSourceIncomplete(d, 'loads') || task.resolution_capture_status === 'captured' && traceSourceIncomplete(d, 'resolutions')) throw new Error('Complete split capture contradicts trace diagnostics');
+        if (d.budget?.loads && (!task.load_capture_status || !task.resolution_capture_status)) throw new Error('Split trace budget requires split capture statuses');
         if ((d.encoding !== undefined) !== (d.dictionary_entries !== undefined)) throw new Error('Trace encoding metadata is incomplete');
         if (d.budget) {
-          if (d.budget.details.events + d.budget.workers.events !== d.limits.events || d.budget.details.bytes + d.budget.workers.bytes + d.budget.footer_bytes !== d.limits.bytes || d.bytes > d.limits.bytes) throw new Error('Trace budget differs from total ceilings');
+          if ((d.budget.loads?.events ?? 0) + d.budget.details.events + d.budget.workers.events !== d.limits.events || (d.budget.loads?.bytes ?? 0) + d.budget.details.bytes + d.budget.workers.bytes + d.budget.footer_bytes !== d.limits.bytes || d.bytes > d.limits.bytes) throw new Error('Trace budget differs from total ceilings');
           if (d.footer === 'present') {
             if (!d.channels || !d.worker_states) throw new Error('Trace channel facts not retained with a new footer');
             validateChannels(d.budget, d.channels, d.reported_events!, d.reasons.includes('io_error'));
-            if (d.channels.details.bytes + d.channels.workers.bytes > d.bytes) throw new Error('Channel bytes exceed retained trace size');
-            const causes = [...d.channels.details.reasons, ...d.channels.workers.reasons];
-            if (causes.some(r => !d.reasons.includes(r)) || d.reasons.some(r => ([...DETAIL_REASONS, ...WORKER_REASONS] as readonly string[]).includes(r) && !causes.includes(r as typeof causes[number]))) throw new Error('Trace channel reasons disagree');
+            if ((d.channels.loads?.bytes ?? 0) + d.channels.details.bytes + d.channels.workers.bytes > d.bytes) throw new Error('Channel bytes exceed retained trace size');
+            const causes = [...d.channels.loads?.reasons ?? [], ...d.channels.details.reasons, ...d.channels.workers.reasons];
+            if (causes.some(r => !d.reasons.includes(r)) || d.reasons.some(r => ([...LOAD_REASONS, ...DETAIL_REASONS, ...WORKER_REASONS] as readonly string[]).includes(r) && !causes.includes(r as typeof causes[number]))) throw new Error('Trace channel reasons disagree');
             validateWorkerStates(task.worker_lifecycle ?? [], d.file, d.worker_states, d.budget.workers.max_workers,
               !d.reasons.includes('io_error') && !d.channels.workers.reasons.some(r => r === 'worker_history_event_limit' || r === 'worker_history_byte_limit'));
             const [pid, parent] = d.file.replace('.jsonl', '').split('-').map(Number);

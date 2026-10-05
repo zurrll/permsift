@@ -67,7 +67,9 @@ v0.10 明确开启后采集直接 tsc 的 explainFiles；详见 [编译输入](t
 
 node-module-load-v3 记录 event_limit、byte_limit、text_limit、io_error；读回另识别 count_mismatch 和 missing_footer。trace_diagnostics 保存每份进程/线程日志的计数、字节、footer 状态和上限。旧 footer 只说 truncated 而没有具体原因时显示 truncation_reason_not_saved，不猜测触发哪个上限。原始模块采集 module_capture_status 与安装清单/归属问题分开；capture_status 仍保留综合缺口，整体退出码没有放宽。任务通过与采集不完整可以同时成立，见 [本轮实测](real-task-results.md)。
 
-node-module-load-v5 延续 v4 的 interned-v1：重复的模块位置和请求复用字符串编号，读回仍保留完整路径、加载文件和解析关系。定义随首次事件一起写入，没有独立字典记录；日志中断后仍可还原有效前缀。每份日志最多 30,000 个字符串定义，上述事件、字节和文本上限没有提高。旧的完整字符串日志仍可读；未知编号、损坏定义或中途截断保留缺口，不补出未记录事件。
+node-module-load-v5/v6 延续 v4 的 interned-v1：重复的模块位置和请求复用字符串编号，读回仍保留完整路径、加载文件和解析关系。定义随首次事件一起写入，没有独立字典记录；日志中断后仍可还原有效前缀。每份日志最多 30,000 个字符串定义，上述事件、字节和文本上限没有提高。旧的完整字符串日志仍可读；未知编号、损坏定义或中途截断保留缺口，不补出未记录事件。
+
+node-module-load-v6 在现有总上限内分别分配模块加载与解析/启动明细额度。解析明细触顶后加载可以继续；新增 load_capture_status / resolution_capture_status、各自 issues 和 loads 通道计数，综合状态和退出码继续保留缺口。包查询和模型的 Node 加载来源使用明确保存的加载状态，解析明细另列状态；旧材料不补造独立健康度。[设计、取舍与实际 XO 验证](load-and-resolution-budgets.md)。
 
 新 worker_lifecycle 记录被包装的 Node Worker 构造、ref/unref、terminate 请求、父侧 exit 回调和父进程同步退出阶段的状态。trace_diagnostics.worker_end 将这些事实连回创建线程和声明入口；缺 worker footer 时可区分终止请求、父退出时 unref、父侧看见退出但未见 footer，或父退出时未见 worker exit。它描述父侧看见的事实，不断言未记录的结束原因，不能替代 worker 自己的 footer；整体仍为 incomplete。任务自己的同步 exit 回调继续加载模块或改变 worker 状态时，最终 footer 和父侧状态也会更新。没有可读日志的已创建 worker 另列覆盖缺口。
 

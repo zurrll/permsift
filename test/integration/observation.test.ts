@@ -56,6 +56,27 @@ test('a failed observed task keeps its records and does not suppress other confi
   assert.ok(broken.loaded_packages.some(p => p.name === 'alpha'));
 });
 
+test('real sandbox preserves late load facts after resolution pressure in online, native and offline results', macOnly, async t => {
+  const f = await observationFixture(t);
+  await fs.writeFile(path.join(f.roots.workspace, 'common.cjs'), 'module.exports=1;');
+  await fs.writeFile(path.join(f.roots.workspace, 'task.cjs'), `const {createRequire}=require('node:module'),p=require('node:path'),fs=require('node:fs');
+for(let i=0;i<12000;i++)createRequire(p.join(__dirname,'virtual-'+i+'.cjs')).resolve('./common.cjs');
+if(require('unused')!==1)throw Error('late package');fs.mkdirSync('dist',{recursive:true});fs.writeFileSync('dist/result','fresh');`);
+  const report = await runObservation({ ...f, output: path.join(f.root, 'observed') });
+  assert.equal(report.status, 'incomplete'); const task = report.tasks[0]; if (task.capture_status === 'not_run') throw new Error();
+  assert.equal(task.verdict, 'pass'); assert.equal(task.load_capture_status, 'captured'); assert.equal(task.resolution_capture_status, 'incomplete');
+  assert.ok(task.loaded_packages.some(p => p.name === 'unused')); assert.ok(task.trace_diagnostics!.some(d => d.channels?.details.reasons.includes('event_limit')));
+  const execution = JSON.parse(await fs.readFile(path.join(report.output, 'report.json'), 'utf8'));
+  assert.equal(execution.trials.length, 1); const facts = (await assertNativeEvidence(execution))[0];
+  assert.equal(facts.execution.outcomes.task.status, 'pass'); assert.equal(facts.execution.outcomes.boundaries.status, 'pass');
+  assert.equal(facts.execution.observations.modules.status, 'captured');
+  const records = facts.execution.observations.records; assert.equal(records.state, 'recorded');
+  if (records.state === 'recorded' && records.value.capture_status !== 'not_run') assert.equal(records.value.resolution_capture_status, 'incomplete');
+  const overview = await assertSummary(report.output, 'usage');
+  assert.equal(overview.tasks[0].claims.find(c => c.dimension === 'modules')!.status, 'captured');
+  assert.equal(overview.tasks[0].claims.find(c => c.dimension === 'resolutions')!.status, 'incomplete');
+});
+
 test('real usage comparison explains a newly loaded instance and a changed observed version', macOnly, async t => {
   const f = await observationFixture(t);
   const before = await runObservation({ ...f, output: path.join(f.root, 'before') }); assert.equal(before.status, 'observed');

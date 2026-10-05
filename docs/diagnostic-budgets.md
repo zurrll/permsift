@@ -1,6 +1,6 @@
 # 模块与 worker 诊断预算
 
-2026-10-05。node-module-load-v5 修复了 v4 的一个诊断盲区：模块事件先耗尽共享额度时，后来创建、unref 或终止的 worker 可能完全没有父侧线索。前次真实 lint 的事实仍见 [原观察可靠性记录](observation-reliability.md)；本轮没有重跑 execa，也没有执行它的安装或权限搜索。
+2026-10-05。node-module-load-v5 修复了 v4 的一个诊断盲区：模块事件先耗尽共享额度时，后来创建、unref 或终止的 worker 可能完全没有父侧线索。前次真实 lint 的事实仍见 [原观察可靠性记录](observation-reliability.md)；该轮没有重跑 execa，也没有执行它的安装或权限搜索。本文记录 v5 的分配；当前 v6 保留 worker 分配，并进一步[分离加载与解析额度](load-and-resolution-budgets.md)。
 
 ## 在原上限内分配
 

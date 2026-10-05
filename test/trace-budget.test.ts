@@ -6,9 +6,13 @@ import { spawnSync } from 'node:child_process';
 import { observationFixture } from './support/observation-fixture.js';
 import { prepareObservation, collectObservation } from '../src/observation.js';
 import { observationPreload } from '../src/observation-runtime.js';
-import { traceBudget } from '../src/trace-budget.js';
+import { traceBudget, validateChannels } from '../src/trace-budget.js';
 import { hash } from '../src/filesystem.js';
 import { parseUsage } from '../src/usage-report.js';
+import { inspectPackage, inspectionMarkdown } from '../src/usage-inspection.js';
+import { packageText, terminalView } from '../src/terminal.js';
+import { explainResult } from '../src/result-explanation.js';
+import { readResult } from '../src/result-reader.js';
 
 const longWorker = `require('node:worker_threads').parentPort.postMessage('ready');setInterval(()=>{},10000)`;
 const usage = (observed: Awaited<ReturnType<typeof collectObservation>>) => ({ schema_version: 1, kind: 'dependency_usage',
@@ -115,4 +119,68 @@ test('corrupt counters and final worker states cannot be promoted by raw or save
     const report = structuredClone(usage(f.observed)); edit(report.tasks[0].trace_diagnostics!.find(d => d.file === f.parent.file));
     assert.throws(() => parseUsage(report));
   }
+});
+
+test('late package loads survive resolution event and byte pressure with a valid shared dictionary', async t => {
+  const code = `const {createRequire}=require('node:module'),p=require('node:path');
+for(let i=0;i<12000;i++)createRequire(p.join(__dirname,'virtual-'+i+'.cjs')).resolve('./common.cjs');
+if(require('unused')!==1)throw Error('late package');require('unused');`;
+  for (const [bytes, reason] of [[2_000_000, 'event_limit'], [100_000, 'byte_limit']] as const) {
+    const { observed, parent, root } = await run(t, code, 10_000, bytes, { 'common.cjs': 'module.exports=1;' });
+    assert.equal(observed.load_capture_status, 'captured', observed.load_issues?.join('\n'));
+    assert.equal(observed.resolution_capture_status, 'incomplete');
+    assert.equal(observed.module_capture_status, 'incomplete'); assert.equal(observed.capture_status, 'incomplete');
+    assert.ok(parent.channels!.details.reasons.includes(reason), JSON.stringify(parent.channels));
+    assert.deepEqual(parent.channels!.loads!.reasons, []); assert.ok(observed.loaded_packages.some(p => p.name === 'unused'));
+    assert.equal(parent.footer, 'present'); assert.ok(!parent.reasons.includes('missing_footer'));
+    assert.equal(parent.reported_events, parent.channels!.loads!.events + parent.channels!.details.events + parent.channels!.workers.events);
+    assert.equal(observed.load_issues!.length, 0); assert.ok(observed.resolution_issues!.length);
+    const report = usage(observed), parsed = parseUsage(report), query = inspectPackage(parsed, 'unused', 'usage.json');
+    assert.equal(query.tasks[0].instances[0].node.capture_status, 'captured'); assert.equal(query.tasks[0].resolution_capture, 'incomplete');
+    assert.match(inspectionMarkdown(query), /resolution details incomplete/); assert.match(packageText(query), /解析记录.*采集有缺口/);
+    // Independent model facts and terminal presentation use the load status,
+    // while the incomplete resolution source remains explicitly visible.
+    const file = path.join(root, 'usage.json'); await fs.writeFile(file, JSON.stringify(report));
+    const record = await readResult(file);
+    assert.equal(record.model!.executions[0].observations.modules.status, 'captured');
+    const summary = explainResult(record), view = terminalView(record, summary);
+    assert.match(view.lines.join('\n'), /Node 加载.*采集完成/);
+    assert.match(view.lines.join('\n'), /解析明细.*不完整/);
+    for (const change of [
+      (task: any) => task.resolution_capture_status = 'captured',
+      (task: any) => task.trace_diagnostics[0].channels.loads.events++,
+      (task: any) => delete task.trace_diagnostics[0].channels.loads,
+    ]) {
+      const broken = structuredClone(report); change(broken.tasks[0]); assert.throws(() => parseUsage(broken));
+    }
+  }
+});
+
+test('load allocation exhaustion is explicit and cannot be promoted by a saved report', async t => {
+  const files = Object.fromEntries(Array.from({ length: 80 }, (_, i) => [`many/${i}.cjs`, 'module.exports=1;']));
+  const { observed, parent } = await run(t, `for(let i=0;i<80;i++)require('./many/'+i+'.cjs');require('unused');`, 64, 2_000_000, files);
+  assert.equal(observed.load_capture_status, 'incomplete'); assert.ok(parent.channels!.loads!.reasons.includes('load_event_limit'));
+  assert.ok(!observed.loaded_packages.some(p => p.name === 'unused'));
+  const broken = structuredClone(usage(observed)); broken.tasks[0].load_capture_status = 'captured'; broken.tasks[0].load_issues = [];
+  assert.throws(() => parseUsage(broken), /contradicts trace/);
+  const budget = traceBudget(10_000, 2_000_000);
+  assert.equal(budget.loads!.events + budget.details.events + budget.workers.events, 10_000);
+  assert.equal(budget.loads!.bytes + budget.details.bytes + budget.workers.bytes + budget.footer_bytes, 2_000_000);
+  assert.throws(() => validateChannels(budget, { ...parent.channels!, loads: { ...parent.channels!.loads!, reasons: ['load_event_limit', 'load_event_limit'] } }, parent.reported_events!), /inconsistent/);
+});
+
+test('v5 shared-channel traces and saved reports remain readable without invented split health', async t => {
+  const f = await observationFixture(t), setup = await prepareObservation(f.roots), file = path.join(setup.directory, '42-0.jsonl');
+  const budget = { details: { events: 9872, bytes: 1927808 }, workers: { events: 128, bytes: 64000, history_events: 112, history_bytes: 16000, max_workers: 16 }, footer_bytes: 8192 };
+  const rows = [JSON.stringify({ kind: 'start', pid: 42, thread: 0, node: 'v24', hooks: true, entry: '', budget }),
+    JSON.stringify({ kind: 'load', url: new URL('node_modules/alpha/index.js', 'file://' + f.roots.workspace + '/').href })];
+  const channels = { details: { events: 1, bytes: Buffer.byteLength(rows[1] + '\n'), reasons: ['event_limit'] },
+    workers: { events: 0, bytes: 0, history_events: 0, history_bytes: 0, omitted_workers: 0, reasons: [] } };
+  rows.push(JSON.stringify({ kind: 'end', count: 1, truncated: true, io_error: false, reasons: ['event_limit'], channels, worker_states: [], bytes_before_footer: Buffer.byteLength(rows.join('\n') + '\n') }));
+  await fs.writeFile(file, rows.join('\n') + '\n');
+  const observed = await collectObservation(setup, f.roots); assert.equal(observed.load_capture_status, 'incomplete'); assert.ok(observed.loaded_packages.some(p => p.name === 'alpha'));
+  const old: any = usage(observed); old.observer_version = 'node-module-load-v5';
+  for (const field of ['load_capture_status', 'resolution_capture_status', 'load_issues', 'resolution_issues']) delete old.tasks[0][field];
+  const parsed = parseUsage(old); assert.equal(parsed.tasks[0].capture_status, 'incomplete');
+  assert.equal('load_capture_status' in parsed.tasks[0], false); assert.equal('resolution_capture_status' in parsed.tasks[0], false);
 });

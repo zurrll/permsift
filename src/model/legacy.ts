@@ -130,7 +130,7 @@ function observation(task?: Comparable['tasks'][number], missingStatus: 'not_sav
         missingStatus === 'not_collected' ? missing('not_declared', 'Producer workflow did not select dependency observation') : absent('Observation records') };
   }
   return { inventory: task.inventory ? capture(task.inventory.complete ? 'captured' : 'incomplete', 'Installed package instances', task.inventory.issues) : capture('not_saved', 'Installed package instances'),
-    modules: capture(task.module_capture_status ?? task.capture_status, 'Producer Node module hook coverage only', [...task.issues ?? [], ...task.coverage_gaps ?? []]),
+    modules: capture(task.load_capture_status ?? task.module_capture_status ?? task.capture_status, 'Producer Node module-load coverage only', [...task.load_issues ?? task.issues ?? [], ...task.coverage_gaps ?? []]),
     compiler: task.compilation ? capture(task.compilation.capture_status, 'TypeScript inputs', task.compilation.issues) : capture(scenario?.observation?.typescript ? 'not_saved' : 'not_collected', 'TypeScript inputs'),
     build: task.bundling ? capture(task.bundling.capture_status, 'esbuild metadata', task.bundling.issues) : capture(scenario?.observation?.esbuild ? 'not_saved' : 'not_collected', 'esbuild metadata'), records: recorded(task) };
 }

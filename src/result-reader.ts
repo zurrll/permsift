@@ -29,7 +29,7 @@ const comparisonSchema = z.object({ baseline: text, conditions: z.object({ input
   })).max(32) });
 export type SavedComparison = z.infer<typeof comparisonSchema>;
 const comparisonInput = z.object({ file: text, status: z.enum(['observed', 'failed', 'incomplete']), tasks: z.array(z.object({ task: text, verdict: z.enum(['pass', 'fail', 'unknown']).optional(),
-  module_capture: text, compiler_capture: text, build_capture: text })).max(16) });
+  module_capture: text, resolution_capture: text.optional(), compiler_capture: text, build_capture: text })).max(16) });
 const offlineComparisonSchema = z.object({ schema_version: z.literal(1), kind: z.literal('dependency_usage_comparison'), status: z.enum(['compared', 'partial']),
   before: comparisonInput, after: comparisonInput, comparison: comparisonSchema });
 export type ExecutionView = { task: string; reference: string; facts: ExecutionEvidence; native: boolean; policy?: PolicyPlan; agreement?: ProtectionAgreement };

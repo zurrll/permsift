@@ -85,7 +85,9 @@ test('compiler comparison keeps source-specific package/file/reason changes and 
   const f = await compilationFixture(t), { config } = await loadConfiguration(f.configPath, f.limitsPath), setup = await prepareObservation(f.roots);
   const capture = await collectObservation(setup, f.roots), scenario = config.scenarios[0];
   const compilation = collectCompilation(scenario, setup.inventory, f.roots, processResult("node_modules/type-a/index.d.ts\n  Imported via 'type-a' from file 'src/index.ts'\n"))!;
-  const task = { ...capture, capture_status: 'captured' as const, task: 'compile', trial: 'abc', task_definition_hash: hash(scenario), command: scenario.command, verdict: 'pass' as const, compilation };
+  const task = { ...capture, capture_status: 'captured' as const, module_capture_status: 'captured' as const, issues: [], task: 'compile', trial: 'abc', task_definition_hash: hash(scenario), command: scenario.command, verdict: 'pass' as const, compilation };
+  // Synthetic older-format comparison input, without v6 split health fields.
+  delete task.load_capture_status; delete task.resolution_capture_status; delete task.load_issues; delete task.resolution_issues;
   const report: UsageReport = { schema_version: 1, kind: 'dependency_usage', version: '0.10.0', observer_version: capture.observer_version, status: 'observed', output: '', execution_report: 'report.json', started_at: '', environment: {},
     inputs: { snapshot_hash: hash('input'), config_hash: hash('config'), limits_hash: hash('limits') }, limits: { max_events_per_process: 10000, max_bytes_per_process: 2000000, max_process_logs: 64, max_total_bytes: 32000000, max_packages: 2048 }, tasks: [task], limitations: [] };
   const baseline = path.join(f.root, 'usage.json'); await fs.writeFile(baseline, JSON.stringify(report)); const old = await loadUsage(baseline);

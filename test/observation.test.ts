@@ -249,7 +249,9 @@ test('usage comparison separates additions, version changes and incomplete obser
   const f = await observationFixture(t), setup = await prepareObservation(f.roots);
   const capture = await collectObservation(setup, f.roots);
   const task = { ...capture, task: 'build', trial: 'abc', task_definition_hash: hash('task'), command: ['node'], verdict: 'pass' as const,
-    capture_status: 'captured' as const, loaded_packages: [{ path: '@workspace/node_modules/alpha', name: 'alpha', version: '1.0.0', declarations: [], modules: [] }] };
+    capture_status: 'captured' as const, module_capture_status: 'captured' as const, issues: [], loaded_packages: [{ path: '@workspace/node_modules/alpha', name: 'alpha', version: '1.0.0', declarations: [], modules: [] }] };
+  // Synthetic legacy comparison facts; no execution or v6 split health is claimed.
+  delete task.load_capture_status; delete task.resolution_capture_status; delete task.load_issues; delete task.resolution_issues;
   const report: UsageReport = { schema_version: 1, kind: 'dependency_usage', version: '0.9.0', observer_version: capture.observer_version, status: 'observed', output: '', execution_report: 'report.json', started_at: '',
     environment: { node: 'v24', permsift: '0.9.0' }, inputs: { snapshot_hash: hash('input'), config_hash: hash('config'), limits_hash: hash('limits') }, limits: { max_events_per_process: 10000, max_bytes_per_process: 2000000, max_process_logs: 64, max_total_bytes: 32000000, max_packages: 2048 }, tasks: [task], limitations: [] };
   const baselinePath = path.join(f.root, 'usage.json'); await fs.writeFile(baselinePath, JSON.stringify(report));

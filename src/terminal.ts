@@ -27,7 +27,7 @@ export function displayPath(file: string, cwd = process.cwd()): string {
 }
 const dimension = (s: string) => ({ task: '任务', boundaries: '固定边界检查', protections: '保护目标', policy: '权限', terms: '任务约定',
   cost: '成本', agreement: '保护声明', workflow: '工作流', comparison: '复验', suggestion: '修复建议', inventory: '安装清单',
-  modules: 'Node 加载记录', compiler: 'TypeScript 输入', build: '产物输入', search: '搜索', verification: '验证依据' }[s] ?? s);
+  modules: 'Node 加载记录', resolutions: '解析明细', compiler: 'TypeScript 输入', build: '产物输入', search: '搜索', verification: '验证依据' }[s] ?? s);
 const get = (t: TaskSummary, d: string) => t.claims.find(c => c.dimension === d);
 function detailLines(summary: ResultSummary): string[] {
   const show = (c: Claim) => [`${dimension(c.dimension)} · ${state(c.status)}：${c.statement}`,
@@ -131,7 +131,8 @@ export function terminalView(record: ResultRecord, summary: ResultSummary): Term
         if (observation.capture_status === 'not_run') notices.push(t.task + '：观察未执行；' + observation.reason);
         else {
           lines.push(`  安装清单：${observation.inventory ? `${observation.inventory.packages.length} 个包实例${observation.inventory.complete ? '' : '（不完整）'}` : '未保存'}`,
-            `  Node 加载：${observation.loaded_packages.length} 个包实例（${state(observation.module_capture_status ?? observation.capture_status)}）`);
+            `  Node 加载：${observation.loaded_packages.length} 个包实例（${state(observation.load_capture_status ?? observation.module_capture_status ?? observation.capture_status)}）`);
+          if (observation.resolution_capture_status) lines.push(`  解析明细：${observation.edges?.length ?? 0} 条关系（${state(observation.resolution_capture_status)}）`);
           if (observation.compilation) lines.push(`  TypeScript 输入：${observation.compilation.files.length} 个文件、${observation.compilation.packages.length} 个包实例（${state(observation.compilation.capture_status)}）`);
           if (observation.bundling) {
             const b = observation.bundling;

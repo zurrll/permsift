@@ -22,7 +22,7 @@ export function nativeExecution(request: ExecutionRequest, result: ExecutionResu
       environment: request.conditions.environment, inputs: { snapshot_hash: request.conditions.input.hash, config_hash: request.conditions.configHash, limits_hash: request.conditions.limitsHash }, tasks: [result.observation] }).tasks[0];
     const task = result.observation;
     observations = { inventory: capture(task.inventory.complete ? 'captured' : 'incomplete', 'Installed package instances', task.inventory.issues),
-      modules: capture(task.module_capture_status ?? task.capture_status, 'Node module hook coverage', [...task.issues, ...task.coverage_gaps]),
+      modules: capture(task.load_capture_status ?? task.module_capture_status ?? task.capture_status, 'Node module-load coverage', [...task.load_issues ?? task.issues, ...task.coverage_gaps]),
       compiler: task.compilation ? capture(task.compilation.capture_status, 'TypeScript inputs', task.compilation.issues) : capture(request.task.observation?.typescript ? 'not_run' : 'not_collected', 'TypeScript inputs'),
       build: task.bundling ? capture(task.bundling.capture_status, 'esbuild metadata', task.bundling.issues) : capture(request.task.observation?.esbuild ? 'not_run' : 'not_collected', 'esbuild metadata'), records: recorded(facts) };
   } else {

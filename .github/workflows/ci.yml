@@ -2,7 +2,23 @@ name: tests
 on: [push, pull_request]
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      sandbox: ${{ steps.classify.outputs.sandbox }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - id: classify
+        run: node scripts/ci-changes.mjs
   unit:
     runs-on: ubuntu-latest
     strategy:
@@ -30,6 +46,8 @@ jobs:
           path: .permsift/
           include-hidden-files: true
   sandbox-core:
+    needs: changes
+    if: needs.changes.outputs.sandbox == 'true'
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
@@ -50,6 +68,8 @@ jobs:
           path: .permsift/
           include-hidden-files: true
   sandbox-install:
+    needs: changes
+    if: needs.changes.outputs.sandbox == 'true'
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
@@ -66,18 +86,26 @@ jobs:
           name: sandbox-install-evidence
           path: .permsift/
           include-hidden-files: true
-  # Keep the existing required-check name. Both partitions must actually succeed.
+  # Keep the required-check name; explicitly distinguish docs from sandbox runs.
   sandbox:
-    needs: [sandbox-core, sandbox-install]
+    needs: [changes, sandbox-core, sandbox-install]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Require both macOS integration partitions
         env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          RUN_SANDBOX: ${{ needs.changes.outputs.sandbox }}
           CORE_RESULT: ${{ needs['sandbox-core'].result }}
           INSTALL_RESULT: ${{ needs['sandbox-install'].result }}
         run: |
-          if [[ "$CORE_RESULT" != "success" || "$INSTALL_RESULT" != "success" ]]; then
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change classification did not complete: $CHANGES_RESULT"
+            exit 1
+          fi
+          if [[ "$RUN_SANDBOX" == "false" && "$CORE_RESULT" == "skipped" && "$INSTALL_RESULT" == "skipped" ]]; then
+            echo "Documentation-only change: real sandbox tests were not run."
+          elif [[ "$RUN_SANDBOX" != "true" || "$CORE_RESULT" != "success" || "$INSTALL_RESULT" != "success" ]]; then
             echo "macOS verification incomplete: core=$CORE_RESULT install=$INSTALL_RESULT"
             exit 1
           fi

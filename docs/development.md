@@ -40,6 +40,8 @@ npm run check
 
 ## 依赖观察验证
 
+当前 Node 观察器为 v6，加载事实与解析/启动明细分别设限，worker 诊断继续保留。trace-budget.test.ts 的小型 Node 任务检验解析触顶后的后续加载、字典与状态完整性以及旧材料兼容；新增真实沙箱压力用例只执行一次任务，不搜索或安装。CI 改动识别的反例使用临时 Git 仓库和实际工作流汇总脚本。设计和一次原 XO 单文件实测见 [加载与解析预算](load-and-resolution-budgets.md)。
+
 ```sh
 # 已 examples:prepare 后：普通一次、观察两次；不运行权限搜索
 npm run observe:verify

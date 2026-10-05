@@ -9,7 +9,7 @@ import type { CompilationObservation } from './typescript-observation.js';
 import type { BundlingObservation } from './esbuild-observation.js';
 import { traceDecoder, TRACE_ENCODING } from './observation-codec.js';
 import { workerEventBase, workerEventSchema, workerLifecycleSchema, workerEnd, workerEndSchema, workerMissingReasons, workerStateSchema, validateWorkerStates, type WorkerLifecycle } from './worker-lifecycle.js';
-import { traceBudgetSchema, traceChannelsSchema, TRACE_REASONS, validateChannels } from './trace-budget.js';
+import { traceBudgetSchema, traceChannelsSchema, TRACE_REASONS, DETAIL_REASONS, LOAD_REASONS, validateChannels } from './trace-budget.js';
 
 export const OBSERVATION_LIMITS = { max_events_per_process: 10_000, max_bytes_per_process: 2_000_000, max_process_logs: 64, max_total_bytes: 32_000_000, max_packages: 2048 };
 export type ObserverContext = { bootstrap: string; directory: string };
@@ -20,6 +20,8 @@ export type TaskObservation = {
   task: string; trial: string; task_definition_hash: string; command: string[]; verdict: 'pass' | 'fail' | 'unknown';
   capture_status: 'captured' | 'incomplete' | 'unavailable'; source: 'node_module_hooks'; observer_version: string;
   module_capture_status?: 'captured' | 'incomplete' | 'unavailable';
+  load_capture_status?: 'captured' | 'incomplete' | 'unavailable'; resolution_capture_status?: 'captured' | 'incomplete' | 'unavailable';
+  load_issues?: string[]; resolution_issues?: string[];
   attribution_issues?: string[];
   inventory: DependencyInventory; loaded_packages: LoadedPackage[]; not_observed: PackageInstance[];
   loaded_modules: string[]; edges: LoadEdge[]; events: number;
@@ -61,7 +63,7 @@ const string = z.string().max(4096);
 const eventSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('start'), pid: z.number().int().positive(), thread: z.number().int().nonnegative(), node: string, hooks: z.boolean(), entry: string, encoding: z.literal(TRACE_ENCODING).optional(), budget: traceBudgetSchema.optional() }).strict(),
   z.object({ kind: z.literal('end'), count: z.number().int().nonnegative().max(10_000), truncated: z.boolean(), io_error: z.boolean(),
-    reasons: z.array(z.enum(TRACE_REASONS)).max(9).optional(), bytes_before_footer: z.number().int().nonnegative().max(2_000_000).optional(),
+    reasons: z.array(z.enum(TRACE_REASONS)).max(12).optional(), bytes_before_footer: z.number().int().nonnegative().max(2_000_000).optional(),
     channels: traceChannelsSchema.optional(), worker_states: z.array(workerStateSchema).max(16).optional() }).strict(),
   z.object({ kind: z.literal('resolve'), url: string, parent: string, request: string }).strict(),
   z.object({ kind: z.literal('load'), url: string }).strict(),
@@ -88,9 +90,14 @@ export async function collectObservation(setup: ObservationSetup, roots: Roots):
   const events: Event[] = [], processes: TaskObservation['processes'] = [];
   const trace_diagnostics: TraceDiagnostic[] = [];
   const worker_lifecycle: WorkerLifecycle[] = [];
-  let totalBytes = 0, bad = false;
+  let totalBytes = 0, bad = false, loadsBad = false, resolutionsBad = false;
+  const load_issues: string[] = [], resolution_issues: string[] = [];
   const attribution_issues: string[] = [];
-  const issue = (s: string) => { bad = true; if (issues.length < 128) issues.push(s); };
+  const issue = (s: string, source: 'all' | 'loads' | 'resolutions' = 'all') => {
+    bad = true; if (issues.length < 128) issues.push(s);
+    if (source !== 'resolutions') { loadsBad = true; if (load_issues.length < 128) load_issues.push(s); }
+    if (source !== 'loads') { resolutionsBad = true; if (resolution_issues.length < 128) resolution_issues.push(s); }
+  };
   if (hash(await fs.readFile(setup.bootstrap, 'utf8').catch(() => '')) !== setup.bootstrap_hash) issue('Observer preload changed or disappeared');
   const entries = (await fs.readdir(setup.directory).catch(() => [])).sort();
   if (entries.length > OBSERVATION_LIMITS.max_process_logs) issue('Process-log limit reached; additional logs were not read');
@@ -107,7 +114,7 @@ export async function collectObservation(setup: ObservationSetup, roots: Roots):
       if (lines.length > OBSERVATION_LIMITS.max_events_per_process + 2 || lines.some(l => l.length > 20_000)) throw new Error('Trace event limit reached');
       const records: Event[] = [];
       let decoder = traceDecoder();
-      const measured = { details: { events: 0, bytes: 0 }, workers: { events: 0, bytes: 0, history_events: 0, history_bytes: 0 } };
+      const measured = { loads: { events: 0, bytes: 0 }, details: { events: 0, bytes: 0 }, workers: { events: 0, bytes: 0, history_events: 0, history_bytes: 0 } };
       let payloadBytes = 0;
       for (const line of lines) {
         try {
@@ -119,12 +126,13 @@ export async function collectObservation(setup: ObservationSetup, roots: Roots):
             if (start?.kind === 'start' && start.budget) {
               if (!record.channels || !record.worker_states) throw new Error('Channel footer metadata missing');
               validateChannels(start.budget, record.channels, record.count, record.io_error);
-              if (Buffer.byteLength(line + '\n') > start.budget.footer_bytes || Buffer.byteLength(text) > start.budget.details.bytes + start.budget.workers.bytes + start.budget.footer_bytes) throw new Error('Trace exceeds its declared byte allocations');
+              if (Buffer.byteLength(line + '\n') > start.budget.footer_bytes || Buffer.byteLength(text) > (start.budget.loads?.bytes ?? 0) + start.budget.details.bytes + start.budget.workers.bytes + start.budget.footer_bytes) throw new Error('Trace exceeds its declared byte allocations');
               if (record.bytes_before_footer !== payloadBytes || record.count !== records.length - 1 ||
+                Object.entries(measured.loads).some(([k, v]) => (record.channels!.loads?.[k as 'events' | 'bytes'] ?? 0) !== v) ||
                 Object.entries(measured.details).some(([k, v]) => record.channels!.details[k as 'events' | 'bytes'] !== v) ||
                 Object.entries(measured.workers).some(([k, v]) => record.channels!.workers[k as keyof typeof measured.workers] !== v)) throw new Error('Channel metrics disagree with the trace');
-              const causes = [...record.channels.details.reasons, ...record.channels.workers.reasons, ...record.io_error ? ['io_error'] : []];
-              if (JSON.stringify(causes) !== JSON.stringify(record.reasons) || record.truncated !== !!(record.channels.details.reasons.length || record.channels.workers.reasons.length)) throw new Error('Channel causes disagree with the footer');
+              const causes = [...record.channels.loads?.reasons ?? [], ...record.channels.details.reasons, ...record.channels.workers.reasons, ...record.io_error ? ['io_error'] : []];
+              if (JSON.stringify(causes) !== JSON.stringify(record.reasons) || record.truncated !== !!(record.channels.loads?.reasons.length || record.channels.details.reasons.length || record.channels.workers.reasons.length)) throw new Error('Channel causes disagree with the footer');
               const rows = records.flatMap(e => e.kind === 'worker' ? [{ ...e, pid: start.pid, parent_thread: start.thread }] : []);
               validateWorkerStates(rows, name, record.worker_states, start.budget.workers.max_workers,
                 !record.io_error && !record.channels.workers.reasons.some(r => r === 'worker_history_event_limit' || r === 'worker_history_byte_limit'));
@@ -132,7 +140,7 @@ export async function collectObservation(setup: ObservationSetup, roots: Roots):
           } else {
             const size = Buffer.byteLength(line + '\n'); payloadBytes += size;
             if (record.kind !== 'start') {
-              const channel = record.kind === 'worker' ? measured.workers : measured.details; channel.events++; channel.bytes += size;
+              const channel = record.kind === 'worker' ? measured.workers : record.kind === 'load' && start?.kind === 'start' && start.budget?.loads ? measured.loads : measured.details; channel.events++; channel.bytes += size;
               if (record.kind === 'worker' && record.action !== 'created') { measured.workers.history_events++; measured.workers.history_bytes += size; }
             }
           }
@@ -148,11 +156,15 @@ export async function collectObservation(setup: ObservationSetup, roots: Roots):
       trace_diagnostics.push({ file: name, bytes: Buffer.byteLength(text), records: records.length, reported_events: finished ? end.count : null,
         footer: finished ? 'present' : 'missing', reasons, ...start.encoding ? { encoding: start.encoding, dictionary_entries: decoder.size } : {},
         ...start.budget ? { budget: start.budget } : {}, ...finished && end.channels ? { channels: end.channels, worker_states: end.worker_states } : {},
-        limits: start.budget ? { events: start.budget.details.events + start.budget.workers.events, bytes: start.budget.details.bytes + start.budget.workers.bytes + start.budget.footer_bytes } : { events: OBSERVATION_LIMITS.max_events_per_process, bytes: OBSERVATION_LIMITS.max_bytes_per_process } });
+        limits: start.budget ? { events: (start.budget.loads?.events ?? 0) + start.budget.details.events + start.budget.workers.events, bytes: (start.budget.loads?.bytes ?? 0) + start.budget.details.bytes + start.budget.workers.bytes + start.budget.footer_bytes } : { events: OBSERVATION_LIMITS.max_events_per_process, bytes: OBSERVATION_LIMITS.max_bytes_per_process } });
       processes.push({ pid: start.pid, thread: start.thread, node: start.node, entry: normalize(start.entry, roots, false), finished });
       if (!start.hooks) issue(`Module hooks unsupported in ${start.node}`);
       if (!finished) issue(`A Node process/thread did not finish its trace (${name})`);
-      else if (reasons.length) issue(`Trace incomplete or bounded (${name}): ${reasons.join(', ')}; ${records.length - 2}/${OBSERVATION_LIMITS.max_events_per_process} events, ${Buffer.byteLength(text)}/${OBSERVATION_LIMITS.max_bytes_per_process} bytes`);
+      else if (reasons.length) {
+        const scope = start.budget?.loads && reasons.every(r => (DETAIL_REASONS as readonly string[]).includes(r)) ? 'resolutions' :
+          start.budget?.loads && reasons.every(r => (LOAD_REASONS as readonly string[]).includes(r)) ? 'loads' : 'all';
+        issue(`Trace incomplete or bounded (${name}): ${reasons.join(', ')}; ${records.length - 2}/${OBSERVATION_LIMITS.max_events_per_process} events, ${Buffer.byteLength(text)}/${OBSERVATION_LIMITS.max_bytes_per_process} bytes`, scope);
+      }
       if (records.slice(1, finished ? -1 : undefined).some(e => e.kind === 'start' || e.kind === 'end')) throw new Error('Unexpected control record inside trace');
       for (const row of records) if (row.kind === 'worker') {
         const { kind, ...fact } = row;
@@ -193,6 +205,8 @@ export async function collectObservation(setup: ObservationSetup, roots: Roots):
     coverage_gaps.push(`Constructed worker ${worker.pid}-${worker.thread} has no readable instrumented trace; it may have ended before preload or changed its execution environment. Declared entry: ${worker.entry}`);
   return { capture_status: !processes.length ? 'unavailable' : bad || !setup.inventory.complete || attribution_issues.length ? 'incomplete' : 'captured',
     module_capture_status: !processes.length ? 'unavailable' : bad ? 'incomplete' : 'captured', attribution_issues, source: 'node_module_hooks', observer_version: OBSERVER_VERSION,
+    load_capture_status: !processes.length ? 'unavailable' : loadsBad ? 'incomplete' : 'captured',
+    resolution_capture_status: !processes.length ? 'unavailable' : resolutionsBad ? 'incomplete' : 'captured', load_issues, resolution_issues,
     inventory: setup.inventory, loaded_packages: [...packages.values()].sort((a, b) => a.path.localeCompare(b.path)),
     not_observed: setup.inventory.packages.filter(p => !packages.has(p.path)), loaded_modules: modules, edges, events: events.length, processes,
     child_launches: launches, coverage_gaps, issues, trace_diagnostics, worker_lifecycle,

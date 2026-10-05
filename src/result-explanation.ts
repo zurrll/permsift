@@ -324,12 +324,17 @@ export function explainResult(result: ResultRecord): ResultSummary {
         else { task.claims.push(claim('task', 'reported_only', `Usage report records composite task verdict ${record.verdict}; independent assertion/boundary evidence is not supplied.`, [r], 'Inspect the matching execution report for process, assertions and boundary checks.')); gap(task.task + ': independent execution evidence not supplied'); }
       }
       for (const source of ['inventory', 'modules', 'compiler', 'build'] as const) {
-        const status = source === 'inventory' ? record.inventory ? record.inventory.complete ? 'captured' : 'incomplete' : 'not_saved' : source === 'modules' ? record.module_capture_status ?? record.capture_status : source === 'compiler' ? record.compilation?.capture_status ?? 'not_collected' : record.bundling?.capture_status ?? 'not_collected';
+        const status = source === 'inventory' ? record.inventory ? record.inventory.complete ? 'captured' : 'incomplete' : 'not_saved' : source === 'modules' ? record.load_capture_status ?? record.module_capture_status ?? record.capture_status : source === 'compiler' ? record.compilation?.capture_status ?? 'not_collected' : record.bundling?.capture_status ?? 'not_collected';
         const count = source === 'inventory' ? record.inventory?.packages.length : source === 'modules' ? record.loaded_packages.length : source === 'compiler' ? record.compilation?.packages.length : record.bundling?.packages.length;
-        const issues = source === 'inventory' ? record.inventory?.issues ?? [] : source === 'modules' ? [...record.issues ?? [], ...record.coverage_gaps ?? []] : source === 'compiler' ? record.compilation?.issues ?? [] : record.bundling?.issues ?? [];
+        const issues = source === 'inventory' ? record.inventory?.issues ?? [] : source === 'modules' ? [...record.load_issues ?? record.issues ?? [], ...record.coverage_gaps ?? []] : source === 'compiler' ? record.compilation?.issues ?? [] : record.bundling?.issues ?? [];
         task.claims.push(claim(source, status, `${source}: ${status}; ${count === undefined ? 'no package count available' : count + ' package instance record(s)'}.${issues.length ? ' ' + issues.join(' ') : ''}`, [r],
           status === 'not_collected' ? 'Select this source only if it answers a task question; its absence is not a zero-use result.' : status === 'captured' ? 'Inspect the same package across tasks and sources; these counts have different scopes and cannot be added as a used-package total.' : 'Inspect collector issues and source coverage. Positive records remain useful; missing records cannot establish absence.'));
         if (!['captured', 'not_collected'].includes(status)) gap(task.task + ': ' + source + ' ' + status);
+      }
+      if (record.resolution_capture_status) {
+        task.claims.push(claim('resolutions', record.resolution_capture_status, `Resolution detail: ${record.edges?.length ?? 0} retained edge(s); ${record.resolution_capture_status}.`, [r],
+          record.resolution_capture_status === 'captured' ? 'Inspect these resolution relationships to follow recorded imports.' : 'Use retained resolution relationships as positive facts; missing edges do not establish absence.'));
+        if (record.resolution_capture_status !== 'captured') gap(task.task + ': resolution details ' + record.resolution_capture_status);
       }
       const zeros = record.bundling?.packages.flatMap(p => p.contributions.filter(c => c.bytes_in_output === 0).map(c => ({ name: p.name, path: p.path, output: c.output }))) ?? [];
       if (zeros.length) task.claims.push(claim('build_contribution', record.bundling!.capture_status, `${zeros.length} recorded zero-byte contribution(s): ${zeros.slice(0, 5).map(p => p.name + ' at ' + p.path + ' → ' + p.output).join('; ')}. Zero bytes is a recorded value for that output, not a missing source or a package deletion verdict.`, [r],
