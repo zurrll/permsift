@@ -5,6 +5,7 @@ import { compilationSchema } from './typescript-observation.js';
 import { bundlingSchema, validateBundling } from './esbuild-observation.js';
 import { contextSchema, validateContext } from './package-context.js';
 import { traceDiagnosticSchema } from './observation.js';
+import { workerLifecycleSchema, workerEnd, workerMissingReasons } from './worker-lifecycle.js';
 
 const text = z.string().max(4096), digest = z.string().regex(/^[a-f0-9]{64}$/);
 const location = text.refine(s => s.startsWith('@workspace/') && !/[\u0000-\u001f\u007f]/.test(s) && !s.split('/').some(p => p === '.' || p === '..' || !p), 'Expected a normalized workspace location');
@@ -19,6 +20,7 @@ const taskSchema = z.union([
     inventory: inventory.optional(), issues: strings.optional(), coverage_gaps: z.array(text).max(640000).optional(),
     module_capture_status: z.enum(['captured', 'incomplete', 'unavailable']).optional(), attribution_issues: strings.optional(),
     trace_diagnostics: z.array(traceDiagnosticSchema).max(64).optional(),
+    worker_lifecycle: z.array(workerLifecycleSchema).max(640000).optional(),
     edges: z.array(z.object({ parent: text, target: text, request: text, package: location.optional() })).max(640000).optional(),
     compilation: compilationSchema.optional(), bundling: bundlingSchema.optional() }),
 ]);
@@ -57,6 +59,15 @@ export function parseUsage(value: unknown): Comparable {
     const packages = new Map<string, { name: string; version: string }>();
     if (task.inventory && new Set(task.inventory.packages.map(p => p.path)).size !== task.inventory.packages.length) throw new Error('Duplicate installed package instances');
     if (task.inventory?.context) validateContext(task.inventory.context, task.inventory.packages);
+    if (task.worker_lifecycle) {
+      const created = new Map<string, number>();
+      for (const e of task.worker_lifecycle) {
+        const key = `${e.pid}-${e.thread}`;
+        if (e.action === 'created') { if (created.has(key)) throw new Error('Duplicate worker lifecycle identity'); created.set(key, e.parent_thread); }
+        else if (created.get(key) !== e.parent_thread) throw new Error('Worker lifecycle has no consistent creation evidence');
+        if (task.trace_diagnostics && !task.trace_diagnostics.some(d => d.file === `${e.pid}-${e.parent_thread}.jsonl`)) throw new Error('Worker lifecycle references an absent parent trace');
+      }
+    }
     if (task.trace_diagnostics) {
       if (new Set(task.trace_diagnostics.map(d => d.file)).size !== task.trace_diagnostics.length) throw new Error('Duplicate trace diagnostics');
       for (const d of task.trace_diagnostics) {
@@ -64,6 +75,14 @@ export function parseUsage(value: unknown): Comparable {
         if (d.footer === 'present' && (d.reported_events !== d.records - 2) !== d.reasons.includes('count_mismatch')) throw new Error('Trace count diagnostics are inconsistent');
         if (d.footer === 'missing' && !d.reasons.includes('missing_footer')) throw new Error('Missing trace footer cause was not retained');
         if (task.module_capture_status === 'captured' && (d.footer === 'missing' || d.reasons.length)) throw new Error('Complete module capture contradicts trace diagnostics');
+        if ((d.encoding !== undefined) !== (d.dictionary_entries !== undefined)) throw new Error('Trace encoding metadata is incomplete');
+        if (d.worker_end) {
+          const expected = workerEnd(task.worker_lifecycle ?? [], d.file);
+          if (!expected || JSON.stringify(expected) !== JSON.stringify(d.worker_end)) throw new Error('Worker footer explanation contradicts parent lifecycle facts');
+          const reasons = d.footer === 'missing' ? workerMissingReasons(expected) : [];
+          if (reasons.some(r => !d.reasons.includes(r)) || d.reasons.some(r => r.startsWith('worker_') && !reasons.includes(r))) throw new Error('Worker missing-footer reason disagrees with parent evidence');
+        }
+        else if (d.reasons.some(r => r.startsWith('worker_'))) throw new Error('Worker missing-footer reason lacks parent evidence');
       }
     }
     for (const p of [...task.inventory?.packages ?? [], ...task.loaded_packages, ...task.compilation?.packages ?? [], ...task.bundling?.packages ?? []]) {

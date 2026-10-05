@@ -259,6 +259,7 @@ npm run check
 
 ## 文档
 
+- [观察可靠性与定向 lint 实测](docs/observation-reliability.md)：重复日志压缩、worker 缺口解释和实际成本。
 - [整体重构计划](docs/refactoring-plan.md)：共同实验底座、两条独立使用路径、多轮交付与迁移验收。
 - [第一轮内部模型](docs/model.md)：五对象、身份与缺失含义、旧数据适配及结论判断表。
 - [共同执行底座](docs/execution-foundation.md)：第二轮接口、流程与报告分工、原生执行事实、保存和安装复用时序。

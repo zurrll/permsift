@@ -112,3 +112,27 @@ test('timed out observation preserves partial records and cannot become an obser
   assert.equal(task.verdict, 'unknown'); assert.equal(task.capture_status, 'incomplete'); assert.ok(task.loaded_packages.some(p => p.name === 'alpha'));
   assert.match(task.issues.join(' '), /did not finish/);
 });
+
+test('a real sandbox task passes while an unref worker keeps its missing-footer gap and parent explanation', macOnly, async t => {
+  const f = await observationFixture(t);
+  await fs.writeFile(path.join(f.roots.workspace, 'task.cjs'), `
+const {Worker}=require('node:worker_threads'),fs=require('node:fs');
+const worker=new Worker("require('unused');require('node:worker_threads').parentPort.postMessage('ready');setInterval(()=>{},10000)",{eval:true});
+worker.once('message',()=>{fs.mkdirSync('dist',{recursive:true});fs.writeFileSync('dist/result','fresh');worker.unref();});
+`);
+  const report = await runObservation({ ...f, output: path.join(f.root, 'observed') });
+  assert.equal(report.status, 'incomplete');
+  const task = report.tasks[0]; if (task.capture_status === 'not_run') throw new Error();
+  assert.equal(task.verdict, 'pass'); assert.equal(task.module_capture_status, 'incomplete');
+  assert.ok(task.loaded_packages.some(p => p.name === 'unused'));
+  const worker = task.trace_diagnostics!.find(d => d.worker_end)!;
+  assert.equal(worker.footer, 'missing'); assert.ok(worker.reasons.includes('worker_unref_at_parent_exit'));
+  assert.equal(worker.worker_end!.referenced_at_parent_exit, false);
+  const execution = JSON.parse(await fs.readFile(path.join(report.output, 'report.json'), 'utf8'));
+  const [facts] = await assertNativeEvidence(execution);
+  assert.equal(facts.execution.outcomes.task.status, 'pass'); assert.equal(facts.execution.outcomes.boundaries.status, 'pass');
+  const records = facts.execution.observations.records;
+  if (records.state !== 'recorded' || records.value.capture_status === 'not_run') throw new Error('Observation records not retained');
+  assert.deepEqual(records.value.trace_diagnostics, task.trace_diagnostics);
+  const overview = await assertSummary(report.output, 'usage'); assert.equal(overview.tasks[0].claims.find(c => c.dimension === 'modules')!.status, 'incomplete');
+});

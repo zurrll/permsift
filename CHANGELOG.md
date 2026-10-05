@@ -7,6 +7,7 @@
 - 扩展离线 inspect --package，保存并校验各安装实例的声明关系、有限根路径、入口及文件分类摘要，复用已有执行前清单；旧材料明确 not_saved，不补读当前项目，不输出无用包或删包结论。
 - 用 execa 原 npm run lint / npm run type 接入，无假产物、无新安装/搜索；普通与观察各一次，实际结果、缺口和成本见 docs/real-task-results.md。
 - 修正 macOS CLI 回归集成的过期英文进度断言，仍核对 JSON 阶段身份与回归退出码，匹配当前中文终端进度。
+- node-module-load-v4 用有界字符串编号减少重复 trace 字节，完整路径和解析边仍可还原；新增父侧 worker 生命周期事实解释缺 footer，保持不完整状态。任务同步 exit 回调的模块事件和 worker 状态保留在最终 footer 前；旧日志和离线材料继续可读。实测与成本见 docs/observation-reliability.md。
 
 - 新增离线 explain 配置解释，按 run/tighten/observe/check 显示初始授权、可信上限、来源/默认、安装继承、预建/清理范围与逐产物检查；静态通过与实际验证分开，不执行任务或安装。
 - 复用现有 parser/schema、策略检查、安装阶段与初始目录准备，保留配置格式、默认行为与五对象身份；check 不猜历史方案，执行次数注明条件、额外成本与无法确定的部分。

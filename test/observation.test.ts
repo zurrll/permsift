@@ -10,6 +10,7 @@ import { observationFixture } from './support/observation-fixture.js';
 import { compareUsage, loadUsage, usageMarkdown, type UsageReport } from '../src/observe-command.js';
 import { hash } from '../src/filesystem.js';
 import { parseUsage } from '../src/usage-report.js';
+import { traceDecoder } from '../src/observation-codec.js';
 
 test('npm inventory counts nested instances and scopes separately from lock records', async t => {
   const f = await observationFixture(t);
@@ -121,7 +122,115 @@ import('data:text/javascript,export default "fake-observation-secret"');
   const observation = await collectObservation(setup, f.roots);
   assert.equal(observation.capture_status, 'captured', observation.issues.join(' '));
   assert.equal(observation.processes.length, 2); assert.ok(observation.loaded_packages.some(p => p.name === 'unused'));
+  const child = observation.trace_diagnostics!.find(d => d.worker_end)!;
+  assert.equal(child.footer, 'present'); assert.equal(child.worker_end!.exit_code, 0);
   for (const file of await fs.readdir(setup.directory)) assert.ok(!(await fs.readFile(path.join(setup.directory, file), 'utf8')).includes('fake-observation-secret'));
+});
+test('compact traces losslessly preserve a repeated-path workload and legacy full-string traces remain readable', async t => {
+  const f = await observationFixture(t), directory = 'long_' + 'segment_'.repeat(20), base = path.join(f.roots.workspace, directory);
+  await fs.mkdir(base); await fs.writeFile(path.join(base, 'common.cjs'), 'module.exports=1;');
+  for (let i = 0; i < 180; i++) await fs.writeFile(path.join(base, `unit-${i}.cjs`), "module.exports=require('./common.cjs');");
+  await fs.writeFile(path.join(f.roots.workspace, 'many.cjs'), `for(let i=0;i<180;i++)if(require('./${directory}/unit-'+i+'.cjs')!==1)throw Error('fixture');`);
+  const setup = await prepareObservation(f.roots);
+  const run = spawnSync(process.execPath, ['many.cjs'], { cwd: f.roots.workspace, env: { ...process.env, NODE_OPTIONS: '--require ' + JSON.stringify(setup.bootstrap) }, encoding: 'utf8' });
+  assert.equal(run.status, 0, run.stderr);
+  const captured = await collectObservation(setup, f.roots); assert.equal(captured.module_capture_status, 'captured');
+  let compactBytes = 0, expandedBytes = 0;
+  for (const file of await fs.readdir(setup.directory)) {
+    const input = await fs.readFile(path.join(setup.directory, file), 'utf8'), rows = input.trimEnd().split('\n').map(line => JSON.parse(line));
+    const decoder = traceDecoder(rows[0].encoding);
+    const expanded = rows.map(row => decoder.decode(row)) as Record<string, unknown>[];
+    delete expanded[0].encoding;
+    const text = expanded.map(row => JSON.stringify(row)).join('\n') + '\n';
+    compactBytes += Buffer.byteLength(input); expandedBytes += Buffer.byteLength(text);
+    await fs.writeFile(path.join(setup.directory, file), text);
+  }
+  assert.ok(compactBytes < expandedBytes * 0.55, `${compactBytes}/${expandedBytes}`);
+  const legacy = await collectObservation(setup, f.roots);
+  for (const field of ['loaded_modules', 'edges', 'loaded_packages', 'processes', 'events', 'capture_status'] as const) assert.deepEqual(legacy[field], captured[field]);
+  assert.ok(legacy.trace_diagnostics!.every(d => d.encoding === undefined));
+  t.diagnostic(JSON.stringify({ compact_bytes: compactBytes, equivalent_full_string_bytes: expandedBytes, events: captured.events }));
+});
+test('interrupted or corrupt compact dictionaries retain a prefix without inventing complete capture', async t => {
+  const f = await observationFixture(t), setup = await prepareObservation(f.roots), file = path.join(setup.directory, '42-0.jsonl');
+  const start = { kind: 'start', pid: 42, thread: 0, node: 'v24', hooks: true, entry: '', encoding: 'interned-v1' };
+  const url = new URL('node_modules/alpha/index.js', 'file://' + f.roots.workspace + '/').href;
+  for (const bad of [[1, 99], [1, [url]], [0, 0, [''], -1], [0, 0, [''], ['x'], 'extra']]) {
+    await fs.writeFile(file, [start, [1, [url]], bad, { kind: 'end', count: 2, truncated: false, io_error: false }].map(row => JSON.stringify(row)).join('\n') + '\n');
+    const observed = await collectObservation(setup, f.roots);
+    assert.equal(observed.module_capture_status, 'incomplete'); assert.equal(observed.loaded_packages[0].name, 'alpha');
+    assert.match(observed.issues.join(' '), /valid prefix/);
+  }
+  await fs.writeFile(file, JSON.stringify(start) + '\n' + JSON.stringify([1, [url]]) + '\n[0,');
+  assert.equal((await collectObservation(setup, f.roots)).module_capture_status, 'incomplete');
+  delete (start as Partial<typeof start>).encoding;
+  await fs.writeFile(file, JSON.stringify(start) + '\n' + JSON.stringify([1, [url]]) + '\n');
+  assert.equal((await collectObservation(setup, f.roots)).module_capture_status, 'incomplete');
+  assert.throws(() => traceDecoder('interned-v1').decode([1, 30000]));
+});
+test('worker termination, unref and late exit callbacks explain gaps without replacing missing footers', async t => {
+  const f = await observationFixture(t);
+  for (const mode of ['terminate', 'unref', 'ref-cycle', 'late-terminate', 'late-ref']) {
+    const setup = await prepareObservation(f.roots);
+    const action = mode === 'terminate' ? 'w.terminate();' : mode === 'ref-cycle' ? 'w.unref();w.ref();w.unref();w.ref();w.terminate();' :
+      "w.unref();" + (mode === 'late-terminate' ? "process.once('exit',()=>w.terminate());" : mode === 'late-ref' ? "process.once('exit',()=>w.ref());" : '');
+    await fs.writeFile(path.join(f.roots.workspace, 'lifecycle.cjs'), `const {Worker}=require('node:worker_threads');class SubWorker extends Worker{};const w=new SubWorker("require('unused');require('node:worker_threads').parentPort.postMessage('ready');setInterval(()=>{},10000)",{eval:true});if(!(w instanceof SubWorker)||!(w instanceof Worker))throw Error('constructor changed');w.once('message',()=>{${action}});`);
+    const run = spawnSync(process.execPath, ['lifecycle.cjs'], { cwd: f.roots.workspace, env: { ...process.env, NODE_OPTIONS: '--require ' + JSON.stringify(setup.bootstrap) }, encoding: 'utf8', timeout: 5000 });
+    assert.equal(run.status, 0, mode + ': ' + run.stderr);
+    const observed = await collectObservation(setup, f.roots), worker = observed.trace_diagnostics!.find(d => d.file.endsWith('-1.jsonl'))!;
+    assert.equal(observed.module_capture_status, 'incomplete'); assert.equal(worker.footer, 'missing');
+    const reason = mode === 'unref' ? 'worker_unref_at_parent_exit' : mode === 'late-ref' ? 'worker_exit_not_observed_at_parent_exit' : 'worker_termination_requested';
+    assert.ok(worker.reasons.includes(reason), JSON.stringify(worker));
+    if (mode === 'late-ref') assert.equal(worker.worker_end!.referenced_at_parent_exit, true);
+    assert.ok(observed.loaded_packages.some(p => p.name === 'unused'));
+    if (mode === 'ref-cycle') assert.deepEqual(observed.worker_lifecycle!.filter(e => ['ref', 'unref'].includes(e.action)).map(e => e.action).slice(0, 4), ['unref', 'ref', 'unref', 'ref']);
+    const raw = { schema_version: 1, kind: 'dependency_usage', observer_version: observed.observer_version, status: 'incomplete', environment: {},
+      inputs: { config_hash: hash('c'), limits_hash: hash('l') }, tasks: [{ ...observed, task: 'test', task_definition_hash: hash('t'), verdict: 'pass' }] };
+    assert.doesNotThrow(() => parseUsage(raw));
+    const edited = structuredClone(raw); edited.tasks[0].worker_lifecycle = [];
+    assert.throws(() => parseUsage(edited), /contradicts parent/);
+    assert.ok(observed.trace_diagnostics!.filter(d => d.footer === 'present').every(d => !d.reasons.length));
+    await fs.rm(path.dirname(setup.bootstrap), { recursive: true, force: true });
+  }
+});
+test('worker instrumentation preserves unhandled errors and discloses workers without inherited traces', async t => {
+  const f = await observationFixture(t);
+  for (const mode of ['unhandled', 'handled', 'no-preload']) {
+    const setup = await prepareObservation(f.roots);
+    const script = mode === 'no-preload' ? `new Worker("require('node:worker_threads').parentPort.postMessage('ready')",{eval:true,execArgv:[],env:{...process.env,NODE_OPTIONS:''}}).once('message',()=>{});` :
+      `const w=new Worker("throw Error('fixture-worker-error')",{eval:true});${mode === 'handled' ? "w.once('error',()=>{});" : ''}`;
+    await fs.writeFile(path.join(f.roots.workspace, 'error.mjs'), "import {Worker} from 'node:worker_threads';" + script);
+    const run = spawnSync(process.execPath, ['error.mjs'], { cwd: f.roots.workspace, env: { ...process.env, NODE_OPTIONS: '--require ' + JSON.stringify(setup.bootstrap) }, encoding: 'utf8', timeout: 5000 });
+    assert.equal(run.status, mode === 'unhandled' ? 1 : 0, run.stderr);
+    const observed = await collectObservation(setup, f.roots);
+    if (mode === 'no-preload') { assert.equal(observed.processes.length, 1); assert.match(observed.coverage_gaps.join(' '), /Constructed worker.*no readable/); }
+    else if (mode === 'handled') assert.ok(observed.worker_lifecycle!.some(e => e.action === 'exit' && e.exit_code === 1));
+    await fs.rm(path.dirname(setup.bootstrap), { recursive: true, force: true });
+  }
+});
+test('an exhausted parent event budget cannot explain a later missing worker footer', async t => {
+  const f = await observationFixture(t), setup = await prepareObservation(f.roots);
+  await fs.chmod(setup.bootstrap, 0o600);
+  await fs.writeFile(setup.bootstrap, observationPreload(setup.directory, 2, 2_000_000));
+  await fs.chmod(setup.bootstrap, 0o400);
+  await fs.writeFile(path.join(f.roots.workspace, 'bounded-worker.cjs'), `const {Worker}=require('node:worker_threads');const w=new Worker("require('node:worker_threads').parentPort.postMessage('ready');setInterval(()=>{},10000)",{eval:true});w.once('message',()=>w.unref());`);
+  const run = spawnSync(process.execPath, ['bounded-worker.cjs'], { cwd: f.roots.workspace, env: { ...process.env, NODE_OPTIONS: '--require ' + JSON.stringify(setup.bootstrap) }, encoding: 'utf8', timeout: 5000 });
+  assert.equal(run.status, 0, run.stderr);
+  const observed = await collectObservation(setup, f.roots);
+  assert.equal(observed.module_capture_status, 'incomplete'); assert.deepEqual(observed.worker_lifecycle, []);
+  assert.ok(observed.trace_diagnostics!.some(d => d.file.endsWith('-0.jsonl') && d.reasons.includes('event_limit')));
+  const worker = observed.trace_diagnostics!.find(d => d.file.endsWith('-1.jsonl'))!;
+  assert.equal(worker.footer, 'missing'); assert.equal(worker.worker_end, undefined);
+  assert.deepEqual(worker.reasons, ['missing_footer'], 'A real unref cannot be inferred without retained parent facts');
+});
+test('synchronous module loads in task exit callbacks remain before the final footer', async t => {
+  const f = await observationFixture(t), setup = await prepareObservation(f.roots);
+  await fs.writeFile(path.join(f.roots.workspace, 'exit.cjs'), "process.once('exit',()=>{require('unused');require('alpha');});");
+  const run = spawnSync(process.execPath, ['exit.cjs'], { cwd: f.roots.workspace, env: { ...process.env, NODE_OPTIONS: '--require ' + JSON.stringify(setup.bootstrap) }, encoding: 'utf8' });
+  assert.equal(run.status, 0, run.stderr);
+  const observed = await collectObservation(setup, f.roots);
+  assert.equal(observed.module_capture_status, 'captured', observed.issues.join(' ')); assert.ok(observed.loaded_packages.some(p => p.name === 'unused'));
+  assert.ok(observed.trace_diagnostics!.every(d => d.footer === 'present' && !d.reasons.length));
 });
 test('reader refuses linked/oversized logs and reports its process-file ceiling', async t => {
   const f = await observationFixture(t), setup = await prepareObservation(f.roots);
