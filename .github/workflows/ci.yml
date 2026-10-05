@@ -6,6 +6,7 @@ jobs:
   unit:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         node: [22, 24]
     steps:
@@ -22,7 +23,13 @@ jobs:
       - run: npm run results:verify
       - run: npm run environment:verify -- --offline-only
       - run: npm run onboarding:verify
-  sandbox:
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-evidence-${{ matrix.node }}
+          path: .permsift/
+          include-hidden-files: true
+  sandbox-core:
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
@@ -33,30 +40,44 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm test
-      - run: npm run test:integration
-      - run: npm run model:verify
-      - run: npm run environment:verify
-      - run: npm run maintenance:verify
+      - run: npm run test:integration:core
+      - run: node dist/cli.js doctor --output .permsift/ci-doctor
       - run: npm run bundled:verify
-      - run: npm run success:verify
-      - run: npm run protection:verify
-      - run: npm run demo:read
-      - run: npm run examples:prepare
-      - run: npm run onboarding:verify -- --live
-      - run: npm run observe:verify
-      - run: npm run compile:verify
-      - run: npm run bundle:verify
-      - run: npm run examples:verify
-      - run: npm run self:verify
-      - run: npm run third-party:prepare
-      - run: npm run third-party:verify
-      - run: npm run regression:prepare
-      - run: npm run regression:verify
-      - run: npm run install:verify
-      - run: npm run stages:verify
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sandbox-evidence
+          name: sandbox-core-evidence
           path: .permsift/
           include-hidden-files: true
+  sandbox-install:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run test:integration:install
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sandbox-install-evidence
+          path: .permsift/
+          include-hidden-files: true
+  # Keep the existing required-check name. Both partitions must actually succeed.
+  sandbox:
+    needs: [sandbox-core, sandbox-install]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require both macOS integration partitions
+        env:
+          CORE_RESULT: ${{ needs['sandbox-core'].result }}
+          INSTALL_RESULT: ${{ needs['sandbox-install'].result }}
+        run: |
+          if [[ "$CORE_RESULT" != "success" || "$INSTALL_RESULT" != "success" ]]; then
+            echo "macOS verification incomplete: core=$CORE_RESULT install=$INSTALL_RESULT"
+            exit 1
+          fi

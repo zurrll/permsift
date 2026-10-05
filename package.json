@@ -14,7 +14,9 @@
   "scripts": {
     "build": "tsc",
     "test": "npm run build && node --test --test-concurrency=1 dist/test/*.test.js test/*.test.mjs",
-    "test:integration": "npm run build && node --test --test-concurrency=1 dist/test/integration/*.test.js",
+    "test:integration": "npm run build && node scripts/run-integration.mjs all",
+    "test:integration:core": "npm run build && node scripts/run-integration.mjs core",
+    "test:integration:install": "npm run build && node scripts/run-integration.mjs install",
     "check": "tsc --noEmit",
     "demo": "npm run build && node dist/cli.js tighten --config examples/demo/permsift.yaml --limits examples/limits.json",
     "examples:prepare": "node scripts/prepare-examples.mjs",

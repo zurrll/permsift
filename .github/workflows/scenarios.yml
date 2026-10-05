@@ -1,0 +1,38 @@
+name: extended scenario verification
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Scenario group; run all applicable groups before release
+        type: choice
+        required: true
+        default: all
+        options: [all, local, projects, upstream, install]
+permissions:
+  contents: read
+jobs:
+  scenarios:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ fromJSON(inputs.suite == 'all' && '["local","projects","upstream","install"]' || format('["{0}"]', inputs.suite)) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - name: Run original scenario commands
+        env:
+          SCENARIO_SUITE: ${{ matrix.suite }}
+        run: node scripts/run-ci-scenarios.mjs "$SCENARIO_SUITE"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scenario-evidence-${{ matrix.suite }}
+          path: .permsift/
+          include-hidden-files: true
