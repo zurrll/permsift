@@ -81,6 +81,14 @@ runner 自身收到 SIGINT/SIGTERM 时另存 interruption_requested；即使子�
 
 ## 简单路由与 v6 的远端收据
 
+### 0.13.0 默认展示与交付整理
+
+2026-10-05，代码提交 4b11e47 的 [完整 CI](https://github.com/zurrll/permsift/actions/runs/37316285582) 全部通过。Linux Node 22/24 和 macOS 各完成 300 个单元/组件用例；core 的 70 个集成与 install 的 13 个集成全部通过，0 失败、0 跳过。类型检查、既有离线回放、doctor 与 bundled 公共 CLI 流程均通过。新增 8 个展示反例未增加集成场景，权限候选、恢复与最终验证策略不变。
+
+API 作业时间：changes 8 秒、unit (22) 48 秒、unit (24) 52 秒、sandbox-install 483 秒、sandbox-core 505 秒、sandbox 汇总 2 秒。合计是作业时间，不是用户等待时间或账单；本次不据此声称性能提升。此前 ddb3ddf 的 [运行](https://github.com/zurrll/permsift/actions/runs/37315950784) 被补充观察流程完成条件的提交取代并取消，不算完整通过。收据补写只改变文档，后续文档提交的路由结果以其 Actions 为准。
+
+### v6 预算与简单 CI 路由
+
 2026-10-05，代码提交 213f8b0 的 [完整代码路径 CI](https://github.com/zurrll/permsift/actions/runs/37305934821) 全部通过。Linux Node 22/24 各完成 292 项单元/组件、类型及既有离线检查；macOS core 完成 292 项单元、70 项集成、doctor 和 bundled 公共 CLI；install 完成 13 项集成。集成合计 83，0 失败、0 跳过；原 82 保留，新增一项加载/解析压力验证。changes 选择完整沙箱，sandbox 汇总成功。
 
 | 作业 | 实际秒数 | 结果 |

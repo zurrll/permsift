@@ -10,6 +10,8 @@
 
 既有 v6 XO 材料的默认、--details 与 --json 三种 inspect 均保留退出码 2；独立任务/固定边界通过与加载/解析缺口并列，详细原因可查。12 份源文件哈希前后相同，收据在 `.permsift/terminal-013-replay-EP37hK/verification.json`；0 新 XO 任务、0 安装、0 权限搜索。
 
+代码提交 4b11e47 的 [远端 CI](https://github.com/zurrll/permsift/actions/runs/37316285582) 全部通过：Linux Node 22/24 与 macOS 各 300 个单元/组件，70 core + 13 install 共 83 个集成，全部 0 失败/跳过；doctor、bundled 公共 CLI 和既有离线检查也通过。具体范围与作业时间见 [CI 收据](ci-validation.md)。仅元数据与展示调整，没有重新安排权限验证或安装策略。
+
 改变进度钩子时可定向运行既有本地注册表用例（构建后）：`node --test --test-concurrency=1 --test-name-pattern='fixed warm cache' dist/test/integration/install.test.js`。它复用冷安装及暖缓存回放的实际任务，并断言阶段顺序；共 5 次安装/任务，无搜索或公开注册表下载。呈现文字本身用离线材料检验。
 
 ## 试用包与真实维护流程
