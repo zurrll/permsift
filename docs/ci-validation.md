@@ -78,3 +78,22 @@ runner 自身收到 SIGINT/SIGTERM 时另存 interruption_requested；即使子�
 各作业始终尝试上传独立命名的 `.permsift/` 材料，CI 控制台保留测试日志。分组校验、准备顺序和失败/信号传播有固定反例；YAML 与所引用 npm 脚本另作静态核对。
 
 并行主要缩短等待，通常不减少集成本身的执行总量，另有第二个 macOS 作业的启动/安装成本。扩展场景独立触发会降低每次日常提交执行的范围；需要完整验收时成本仍存在。新旧速度不能仅从上述单次计时推算，实际远端结果需另行核对。
+
+## 简单路由与 v6 的远端收据
+
+2026-10-05，代码提交 213f8b0 的 [完整代码路径 CI](https://github.com/zurrll/permsift/actions/runs/37305934821) 全部通过。Linux Node 22/24 各完成 292 项单元/组件、类型及既有离线检查；macOS core 完成 292 项单元、70 项集成、doctor 和 bundled 公共 CLI；install 完成 13 项集成。集成合计 83，0 失败、0 跳过；原 82 保留，新增一项加载/解析压力验证。changes 选择完整沙箱，sandbox 汇总成功。
+
+| 作业 | 实际秒数 | 结果 |
+| --- | ---: | --- |
+| unit (24) | 46 | 通过 |
+| unit (22) | 49 | 通过 |
+| changes | 6 | 通过，选择完整沙箱 |
+| sandbox-install | 374 | 13 项集成通过 |
+| sandbox-core | 517 | 70 项集成及公共 CLI 通过 |
+| sandbox | 2 | 两组成功汇总 |
+
+从 created_at 至 updated_at 为 546 秒（9 分 6 秒）；各 job started_at 至 completed_at 相加为 994 秒（16 分 34 秒）。这包含安装、上传等流程耗时，不是付费分钟或同条件性能比较。
+
+首轮 115566a 的 [运行](https://github.com/zurrll/permsift/actions/runs/37305064681) 在 Node 22 暴露新增压力夹具未产生预期事件的问题；Node 24 单元和安装分组已通过。夹具改用两个版本均能记录的真实 require 请求，目标和资源上限不变。本机 Node 22/24 的 7 项预算用例及修正后的沙箱压力用例通过，随后由上述完整 CI 验证。213f8b0 的 push 自动取消了旧运行尚未完成的部分，实际确认 concurrency 生效；旧取消部分不算通过。
+
+本收据与兼容说明的纯文档提交用于验证文档路径：预期继续运行 Linux Node 22/24，两个 macOS 作业按分类 skipped，sandbox 明确说明未执行真实沙箱后接受文档路径。它只记录已有结果，不改变执行代码；实际运行状态可从该提交的 Actions 检查读取。
