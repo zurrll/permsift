@@ -8,7 +8,8 @@ import { hash, within, type Roots } from './filesystem.js';
 import type { CompilationObservation } from './typescript-observation.js';
 import type { BundlingObservation } from './esbuild-observation.js';
 import { traceDecoder, TRACE_ENCODING } from './observation-codec.js';
-import { workerEventBase, workerEventSchema, workerLifecycleSchema, workerEnd, workerEndSchema, workerMissingReasons, type WorkerLifecycle } from './worker-lifecycle.js';
+import { workerEventBase, workerEventSchema, workerLifecycleSchema, workerEnd, workerEndSchema, workerMissingReasons, workerStateSchema, validateWorkerStates, type WorkerLifecycle } from './worker-lifecycle.js';
+import { traceBudgetSchema, traceChannelsSchema, TRACE_REASONS, validateChannels } from './trace-budget.js';
 
 export const OBSERVATION_LIMITS = { max_events_per_process: 10_000, max_bytes_per_process: 2_000_000, max_process_logs: 64, max_total_bytes: 32_000_000, max_packages: 2048 };
 export type ObserverContext = { bootstrap: string; directory: string };
@@ -35,6 +36,7 @@ export const traceDiagnosticSchema = z.object({ file: z.string().regex(/^\d+-\d+
   records: z.number().int().nonnegative().max(10_002), reported_events: z.number().int().nonnegative().max(10_000).nullable(),
   footer: z.enum(['present', 'missing']), reasons: z.array(z.string().max(128)).max(16),
   encoding: z.literal(TRACE_ENCODING).optional(), dictionary_entries: z.number().int().nonnegative().max(30_000).optional(), worker_end: workerEndSchema.optional(),
+  budget: traceBudgetSchema.optional(), channels: traceChannelsSchema.optional(), worker_states: z.array(workerStateSchema).max(16).optional(),
   limits: z.object({ events: z.number().int().positive().max(10_000), bytes: z.number().int().positive().max(2_000_000) }).strict() }).strict();
 export type TraceDiagnostic = z.infer<typeof traceDiagnosticSchema>;
 export const OBSERVATION_SCOPE = [
@@ -57,9 +59,10 @@ export async function prepareObservation(roots: Roots, signal?: AbortSignal, man
 
 const string = z.string().max(4096);
 const eventSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('start'), pid: z.number().int().positive(), thread: z.number().int().nonnegative(), node: string, hooks: z.boolean(), entry: string, encoding: z.literal(TRACE_ENCODING).optional() }).strict(),
+  z.object({ kind: z.literal('start'), pid: z.number().int().positive(), thread: z.number().int().nonnegative(), node: string, hooks: z.boolean(), entry: string, encoding: z.literal(TRACE_ENCODING).optional(), budget: traceBudgetSchema.optional() }).strict(),
   z.object({ kind: z.literal('end'), count: z.number().int().nonnegative().max(10_000), truncated: z.boolean(), io_error: z.boolean(),
-    reasons: z.array(z.enum(['event_limit', 'byte_limit', 'text_limit', 'io_error'])).max(4).optional(), bytes_before_footer: z.number().int().nonnegative().max(2_000_000).optional() }).strict(),
+    reasons: z.array(z.enum(TRACE_REASONS)).max(9).optional(), bytes_before_footer: z.number().int().nonnegative().max(2_000_000).optional(),
+    channels: traceChannelsSchema.optional(), worker_states: z.array(workerStateSchema).max(16).optional() }).strict(),
   z.object({ kind: z.literal('resolve'), url: string, parent: string, request: string }).strict(),
   z.object({ kind: z.literal('load'), url: string }).strict(),
   z.object({ kind: z.literal('child'), method: string, executable: string, preload_inherited: z.boolean() }).strict(),
@@ -104,11 +107,35 @@ export async function collectObservation(setup: ObservationSetup, roots: Roots):
       if (lines.length > OBSERVATION_LIMITS.max_events_per_process + 2 || lines.some(l => l.length > 20_000)) throw new Error('Trace event limit reached');
       const records: Event[] = [];
       let decoder = traceDecoder();
+      const measured = { details: { events: 0, bytes: 0 }, workers: { events: 0, bytes: 0, history_events: 0, history_bytes: 0 } };
+      let payloadBytes = 0;
       for (const line of lines) {
         try {
           const record = eventSchema.parse(decoder.decode(JSON.parse(line)));
           if (record.kind === 'worker') workerEventSchema.parse(record);
           if (!records.length && record.kind === 'start') decoder = traceDecoder(record.encoding);
+          const start = records[0];
+          if (record.kind === 'end') {
+            if (start?.kind === 'start' && start.budget) {
+              if (!record.channels || !record.worker_states) throw new Error('Channel footer metadata missing');
+              validateChannels(start.budget, record.channels, record.count, record.io_error);
+              if (Buffer.byteLength(line + '\n') > start.budget.footer_bytes || Buffer.byteLength(text) > start.budget.details.bytes + start.budget.workers.bytes + start.budget.footer_bytes) throw new Error('Trace exceeds its declared byte allocations');
+              if (record.bytes_before_footer !== payloadBytes || record.count !== records.length - 1 ||
+                Object.entries(measured.details).some(([k, v]) => record.channels!.details[k as 'events' | 'bytes'] !== v) ||
+                Object.entries(measured.workers).some(([k, v]) => record.channels!.workers[k as keyof typeof measured.workers] !== v)) throw new Error('Channel metrics disagree with the trace');
+              const causes = [...record.channels.details.reasons, ...record.channels.workers.reasons, ...record.io_error ? ['io_error'] : []];
+              if (JSON.stringify(causes) !== JSON.stringify(record.reasons) || record.truncated !== !!(record.channels.details.reasons.length || record.channels.workers.reasons.length)) throw new Error('Channel causes disagree with the footer');
+              const rows = records.flatMap(e => e.kind === 'worker' ? [{ ...e, pid: start.pid, parent_thread: start.thread }] : []);
+              validateWorkerStates(rows, name, record.worker_states, start.budget.workers.max_workers,
+                !record.io_error && !record.channels.workers.reasons.some(r => r === 'worker_history_event_limit' || r === 'worker_history_byte_limit'));
+            } else if (record.channels || record.worker_states) throw new Error('Channel footer has no declared budget');
+          } else {
+            const size = Buffer.byteLength(line + '\n'); payloadBytes += size;
+            if (record.kind !== 'start') {
+              const channel = record.kind === 'worker' ? measured.workers : measured.details; channel.events++; channel.bytes += size;
+              if (record.kind === 'worker' && record.action !== 'created') { measured.workers.history_events++; measured.workers.history_bytes += size; }
+            }
+          }
           records.push(record);
         }
         catch { issue(`Malformed trace record (${name}); retaining the valid prefix only`); break; }
@@ -120,7 +147,8 @@ export async function collectObservation(setup: ObservationSetup, roots: Roots):
         ...end.count !== records.length - 2 ? ['count_mismatch'] : [], ...end.truncated && !end.reasons?.length ? ['truncation_reason_not_saved'] : []] : ['missing_footer'];
       trace_diagnostics.push({ file: name, bytes: Buffer.byteLength(text), records: records.length, reported_events: finished ? end.count : null,
         footer: finished ? 'present' : 'missing', reasons, ...start.encoding ? { encoding: start.encoding, dictionary_entries: decoder.size } : {},
-        limits: { events: OBSERVATION_LIMITS.max_events_per_process, bytes: OBSERVATION_LIMITS.max_bytes_per_process } });
+        ...start.budget ? { budget: start.budget } : {}, ...finished && end.channels ? { channels: end.channels, worker_states: end.worker_states } : {},
+        limits: start.budget ? { events: start.budget.details.events + start.budget.workers.events, bytes: start.budget.details.bytes + start.budget.workers.bytes + start.budget.footer_bytes } : { events: OBSERVATION_LIMITS.max_events_per_process, bytes: OBSERVATION_LIMITS.max_bytes_per_process } });
       processes.push({ pid: start.pid, thread: start.thread, node: start.node, entry: normalize(start.entry, roots, false), finished });
       if (!start.hooks) issue(`Module hooks unsupported in ${start.node}`);
       if (!finished) issue(`A Node process/thread did not finish its trace (${name})`);
@@ -134,7 +162,7 @@ export async function collectObservation(setup: ObservationSetup, roots: Roots):
     } catch (e) { issue(`Cannot consume trace ${name}: ${String(e).slice(0, 300)}`); }
   }
   for (const trace of trace_diagnostics) {
-    const end = workerEnd(worker_lifecycle, trace.file);
+    const end = workerEnd(worker_lifecycle, trace.file, trace_diagnostics);
     if (!end) continue;
     trace.worker_end = end;
     if (trace.footer === 'missing') {
@@ -168,5 +196,5 @@ export async function collectObservation(setup: ObservationSetup, roots: Roots):
     inventory: setup.inventory, loaded_packages: [...packages.values()].sort((a, b) => a.path.localeCompare(b.path)),
     not_observed: setup.inventory.packages.filter(p => !packages.has(p.path)), loaded_modules: modules, edges, events: events.length, processes,
     child_launches: launches, coverage_gaps, issues, trace_diagnostics, worker_lifecycle,
-    limitations: [...OBSERVATION_SCOPE, 'Worker lifecycle facts describe wrapped Node Worker APIs and parent callbacks within the same trace budget. They do not replace a missing worker footer or prove that all worker events were captured.', 'The package denominator counts installed npm directory instances; unique names and name/version pairs are reported separately. Lock entries are not assumed installed.'] };
+    limitations: [...OBSERVATION_SCOPE, 'Worker facts describe wrapped Node Worker APIs and parent callbacks. A bounded parent-footer snapshot preserves final API state after history truncation; it does not replace a worker footer or prove that all workers were tracked. Reference state follows the constructor default and observed public ref/unref calls, not every internal MessagePort change.', 'The package denominator counts installed npm directory instances; unique names and name/version pairs are reported separately. Lock entries are not assumed installed.'] };
 }

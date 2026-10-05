@@ -61,15 +61,15 @@ v0.10 明确开启后采集直接 tsc 的 explainFiles；详见 [编译输入](t
 
 这是额外的工具内部写能力，不是“完全没有增加权限”。脚本获得日志目录的写能力，报告仅适用于可信、受审阅任务；不能抵抗任务伪造或绕过记录，不能作为安全审计监控器。任务前后 tmp 文件变化包含内部观察文件。
 
-每进程/线程最多 10,000 个事件、2 MB 日志；模块和子进程启动事件去重，worker 生命周期动作按发生顺序记录并共享同一预算。读回最多 64 个日志、32 MB 总字节；安装清单最多 2048 个包。超过上限、损坏记录、缺结束标记或不支持的 Node 都显式保留问题。URL 查询/片段与非文件 URL 内容被去除，child_process 不记录完整命令参数；包路径、模块请求、package.json 名称仍可能包含项目内部信息，分享报告前应审阅。
+每进程/线程最多 10,000 个事件、2 MB 日志；模块和子进程启动事件去重。v5 在原上限内为 worker 创建/历史预留 128 事件、64 KB，明细最多 9,872 事件；最终 footer 预留 8,192 字节。两类明细各自停止，已跟踪的最多 16 个 worker 最终状态仍可在父 footer 保存。读回最多 64 个日志、32 MB 总字节；安装清单最多 2048 个包。超过上限、损坏记录、缺结束标记或不支持的 Node 都显式保留问题。URL 查询/片段与非文件 URL 内容被去除，child_process 不记录完整命令参数；包路径、模块请求、package.json 名称仍可能包含项目内部信息，分享报告前应审阅。
 
 node-module-load-v3 记录 event_limit、byte_limit、text_limit、io_error；读回另识别 count_mismatch 和 missing_footer。trace_diagnostics 保存每份进程/线程日志的计数、字节、footer 状态和上限。旧 footer 只说 truncated 而没有具体原因时显示 truncation_reason_not_saved，不猜测触发哪个上限。原始模块采集 module_capture_status 与安装清单/归属问题分开；capture_status 仍保留综合缺口，整体退出码没有放宽。任务通过与采集不完整可以同时成立，见 [本轮实测](real-task-results.md)。
 
-node-module-load-v4 使用 interned-v1：重复的模块位置和请求复用字符串编号，读回仍保留完整路径、加载文件和解析关系。定义随首次事件一起写入，没有独立字典记录；日志中断后仍可还原有效前缀。每份日志最多 30,000 个字符串定义，上述事件、字节和文本上限没有提高。旧的完整字符串日志仍可读；未知编号、损坏定义或中途截断保留缺口，不补出未记录事件。
+node-module-load-v5 延续 v4 的 interned-v1：重复的模块位置和请求复用字符串编号，读回仍保留完整路径、加载文件和解析关系。定义随首次事件一起写入，没有独立字典记录；日志中断后仍可还原有效前缀。每份日志最多 30,000 个字符串定义，上述事件、字节和文本上限没有提高。旧的完整字符串日志仍可读；未知编号、损坏定义或中途截断保留缺口，不补出未记录事件。
 
 新 worker_lifecycle 记录被包装的 Node Worker 构造、ref/unref、terminate 请求、父侧 exit 回调和父进程同步退出阶段的状态。trace_diagnostics.worker_end 将这些事实连回创建线程和声明入口；缺 worker footer 时可区分终止请求、父退出时 unref、父侧看见退出但未见 footer，或父退出时未见 worker exit。它描述父侧看见的事实，不断言未记录的结束原因，不能替代 worker 自己的 footer；整体仍为 incomplete。任务自己的同步 exit 回调继续加载模块或改变 worker 状态时，最终 footer 和父侧状态也会更新。没有可读日志的已创建 worker 另列覆盖缺口。
 
-这会包装 Worker 构造及三个方法，并增加 exit 监听；不添加 error 监听，不吞掉任务本来的未处理异常，不保存 eval 源码、workerData 或完整参数。任务可清除 preload、绕过/覆盖包装或移除监听，仍属协作式观察；不能据此保证零行为影响或所有 worker 都被发现。实现、固定反例与一次定向 lint 成本见 [观察可靠性记录](observation-reliability.md)。
+这会包装 Worker 构造及三个方法，并增加 exit 监听；不添加 error 监听，不吞掉任务本来的未处理异常，不保存 eval 源码、workerData 或完整参数。任务可清除 preload、绕过/覆盖包装或移除监听，仍属协作式观察；不能据此保证零行为影响或所有 worker 都被发现。v5 的实际分配、遗漏计数、最终 API 状态范围与反例见 [诊断预算](diagnostic-budgets.md)；前次定向 lint 成本见 [观察可靠性记录](observation-reliability.md)。
 
 记录开销随模块数和进程数变化。上限限制单个生产者和报告读回，不给恶意派生进程提供宿主磁盘配额；普通子进程仍由执行器的时间/进程组清理约束。预加载及 child_process 包装可能影响行为和时序，需与相同输入的普通 run 对照。
 

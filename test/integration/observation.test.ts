@@ -128,6 +128,10 @@ worker.once('message',()=>{fs.mkdirSync('dist',{recursive:true});fs.writeFileSyn
   const worker = task.trace_diagnostics!.find(d => d.worker_end)!;
   assert.equal(worker.footer, 'missing'); assert.ok(worker.reasons.includes('worker_unref_at_parent_exit'));
   assert.equal(worker.worker_end!.referenced_at_parent_exit, false);
+  assert.equal(worker.worker_end!.state_source, 'parent_footer');
+  const parent = task.trace_diagnostics!.find(d => d.file === worker.worker_end!.parent_trace)!;
+  assert.equal(parent.footer, 'present'); assert.equal(parent.worker_states![0].referenced, false);
+  assert.equal(parent.channels!.workers.omitted_workers, 0);
   const execution = JSON.parse(await fs.readFile(path.join(report.output, 'report.json'), 'utf8'));
   const [facts] = await assertNativeEvidence(execution);
   assert.equal(facts.execution.outcomes.task.status, 'pass'); assert.equal(facts.execution.outcomes.boundaries.status, 'pass');

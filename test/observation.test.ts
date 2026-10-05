@@ -140,7 +140,9 @@ test('compact traces losslessly preserve a repeated-path workload and legacy ful
     const input = await fs.readFile(path.join(setup.directory, file), 'utf8'), rows = input.trimEnd().split('\n').map(line => JSON.parse(line));
     const decoder = traceDecoder(rows[0].encoding);
     const expanded = rows.map(row => decoder.decode(row)) as Record<string, unknown>[];
-    delete expanded[0].encoding;
+    delete expanded[0].encoding; delete expanded[0].budget;
+    delete expanded.at(-1)!.channels; delete expanded.at(-1)!.worker_states;
+    expanded.at(-1)!.bytes_before_footer = Buffer.byteLength(expanded.slice(0, -1).map(row => JSON.stringify(row)).join('\n') + '\n');
     const text = expanded.map(row => JSON.stringify(row)).join('\n') + '\n';
     compactBytes += Buffer.byteLength(input); expandedBytes += Buffer.byteLength(text);
     await fs.writeFile(path.join(setup.directory, file), text);
@@ -189,7 +191,7 @@ test('worker termination, unref and late exit callbacks explain gaps without rep
       inputs: { config_hash: hash('c'), limits_hash: hash('l') }, tasks: [{ ...observed, task: 'test', task_definition_hash: hash('t'), verdict: 'pass' }] };
     assert.doesNotThrow(() => parseUsage(raw));
     const edited = structuredClone(raw); edited.tasks[0].worker_lifecycle = [];
-    assert.throws(() => parseUsage(edited), /contradicts parent/);
+    assert.throws(() => parseUsage(edited), /contradicts parent|matching creation facts/);
     assert.ok(observed.trace_diagnostics!.filter(d => d.footer === 'present').every(d => !d.reasons.length));
     await fs.rm(path.dirname(setup.bootstrap), { recursive: true, force: true });
   }
@@ -209,10 +211,11 @@ test('worker instrumentation preserves unhandled errors and discloses workers wi
     await fs.rm(path.dirname(setup.bootstrap), { recursive: true, force: true });
   }
 });
-test('an exhausted parent event budget cannot explain a later missing worker footer', async t => {
+test('zero worker allocation cannot explain a later missing worker footer', async t => {
   const f = await observationFixture(t), setup = await prepareObservation(f.roots);
   await fs.chmod(setup.bootstrap, 0o600);
   await fs.writeFile(setup.bootstrap, observationPreload(setup.directory, 2, 2_000_000));
+  setup.bootstrap_hash = hash(await fs.readFile(setup.bootstrap, 'utf8'));
   await fs.chmod(setup.bootstrap, 0o400);
   await fs.writeFile(path.join(f.roots.workspace, 'bounded-worker.cjs'), `const {Worker}=require('node:worker_threads');const w=new Worker("require('node:worker_threads').parentPort.postMessage('ready');setInterval(()=>{},10000)",{eval:true});w.once('message',()=>w.unref());`);
   const run = spawnSync(process.execPath, ['bounded-worker.cjs'], { cwd: f.roots.workspace, env: { ...process.env, NODE_OPTIONS: '--require ' + JSON.stringify(setup.bootstrap) }, encoding: 'utf8', timeout: 5000 });

@@ -5,7 +5,8 @@ import { compilationSchema } from './typescript-observation.js';
 import { bundlingSchema, validateBundling } from './esbuild-observation.js';
 import { contextSchema, validateContext } from './package-context.js';
 import { traceDiagnosticSchema } from './observation.js';
-import { workerLifecycleSchema, workerEnd, workerMissingReasons } from './worker-lifecycle.js';
+import { workerLifecycleSchema, workerEnd, workerMissingReasons, WORKER_MISSING_REASONS, validateWorkerStates } from './worker-lifecycle.js';
+import { validateChannels, DETAIL_REASONS, WORKER_REASONS } from './trace-budget.js';
 
 const text = z.string().max(4096), digest = z.string().regex(/^[a-f0-9]{64}$/);
 const location = text.refine(s => s.startsWith('@workspace/') && !/[\u0000-\u001f\u007f]/.test(s) && !s.split('/').some(p => p === '.' || p === '..' || !p), 'Expected a normalized workspace location');
@@ -76,13 +77,28 @@ export function parseUsage(value: unknown): Comparable {
         if (d.footer === 'missing' && !d.reasons.includes('missing_footer')) throw new Error('Missing trace footer cause was not retained');
         if (task.module_capture_status === 'captured' && (d.footer === 'missing' || d.reasons.length)) throw new Error('Complete module capture contradicts trace diagnostics');
         if ((d.encoding !== undefined) !== (d.dictionary_entries !== undefined)) throw new Error('Trace encoding metadata is incomplete');
+        if (d.budget) {
+          if (d.budget.details.events + d.budget.workers.events !== d.limits.events || d.budget.details.bytes + d.budget.workers.bytes + d.budget.footer_bytes !== d.limits.bytes || d.bytes > d.limits.bytes) throw new Error('Trace budget differs from total ceilings');
+          if (d.footer === 'present') {
+            if (!d.channels || !d.worker_states) throw new Error('Trace channel facts not retained with a new footer');
+            validateChannels(d.budget, d.channels, d.reported_events!, d.reasons.includes('io_error'));
+            if (d.channels.details.bytes + d.channels.workers.bytes > d.bytes) throw new Error('Channel bytes exceed retained trace size');
+            const causes = [...d.channels.details.reasons, ...d.channels.workers.reasons];
+            if (causes.some(r => !d.reasons.includes(r)) || d.reasons.some(r => ([...DETAIL_REASONS, ...WORKER_REASONS] as readonly string[]).includes(r) && !causes.includes(r as typeof causes[number]))) throw new Error('Trace channel reasons disagree');
+            validateWorkerStates(task.worker_lifecycle ?? [], d.file, d.worker_states, d.budget.workers.max_workers,
+              !d.reasons.includes('io_error') && !d.channels.workers.reasons.some(r => r === 'worker_history_event_limit' || r === 'worker_history_byte_limit'));
+            const [pid, parent] = d.file.replace('.jsonl', '').split('-').map(Number);
+            const rows = (task.worker_lifecycle ?? []).filter(e => e.pid === pid && e.parent_thread === parent);
+            if (rows.length !== d.channels.workers.events || rows.filter(e => e.action !== 'created').length !== d.channels.workers.history_events) throw new Error('Worker history counts disagree');
+          } else if (d.channels || d.worker_states) throw new Error('Missing footer cannot supply final channel/state facts');
+        } else if (d.channels || d.worker_states) throw new Error('Channel facts lack a declared budget');
         if (d.worker_end) {
-          const expected = workerEnd(task.worker_lifecycle ?? [], d.file);
+          const expected = workerEnd(task.worker_lifecycle ?? [], d.file, task.trace_diagnostics);
           if (!expected || JSON.stringify(expected) !== JSON.stringify(d.worker_end)) throw new Error('Worker footer explanation contradicts parent lifecycle facts');
           const reasons = d.footer === 'missing' ? workerMissingReasons(expected) : [];
-          if (reasons.some(r => !d.reasons.includes(r)) || d.reasons.some(r => r.startsWith('worker_') && !reasons.includes(r))) throw new Error('Worker missing-footer reason disagrees with parent evidence');
+          if (reasons.some(r => !d.reasons.includes(r)) || d.reasons.some(r => (WORKER_MISSING_REASONS as readonly string[]).includes(r) && !reasons.includes(r))) throw new Error('Worker missing-footer reason disagrees with parent evidence');
         }
-        else if (d.reasons.some(r => r.startsWith('worker_'))) throw new Error('Worker missing-footer reason lacks parent evidence');
+        else if (d.reasons.some(r => (WORKER_MISSING_REASONS as readonly string[]).includes(r))) throw new Error('Worker missing-footer reason lacks parent evidence');
       }
     }
     for (const p of [...task.inventory?.packages ?? [], ...task.loaded_packages, ...task.compilation?.packages ?? [], ...task.bundling?.packages ?? []]) {

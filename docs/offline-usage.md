@@ -83,6 +83,8 @@ partial 优先于“没有匹配实例”的退出码。未知报告不会输出
 
 新材料的 trace_diagnostics 还保留紧凑编码、字符串定义数和 worker 父侧结束线索。worker_lifecycle 的创建身份、父线程引用和 worker_end 的解释必须一致；缺 footer 的事实不能被父侧正常退出覆盖。旧材料缺少这些可选字段时保持原有缺口，不补读项目推测原因。详细事实见 usage.md / usage.json，离线包查询仍按各来源健康度解释包记录。
 
+v5 另保存 budget、channels 和父 footer 的 worker_states，区分明细耗尽、worker 历史耗尽和 worker 数量/入口字节遗漏。离线读取核对总额度、事件计数、原因、创建身份和最终状态与保留历史的一致性；缺父 footer 时拒绝附带最终状态。worker_end.state_source 明确标出 parent_footer 来源，但仍不能补齐 worker 自己的 footer。旧材料没有这些字段时按未保存处理，见 [诊断预算](diagnostic-budgets.md)。
+
 ## 可运行样例与验收
 
 ```sh

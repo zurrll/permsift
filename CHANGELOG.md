@@ -3,6 +3,7 @@
 ## Unreleased — 整体重构第一至六轮、安装接入修复与第七轮首个交付
 
 - 修正紧凑日志测试的单机压缩率门槛，保留完整还原与日志更小的检查。CI 默认完整集成分到两个 macOS 作业，原 sandbox 状态聚合两组结果；Node 22/24 独立完成。18 项扩展准备/场景命令迁至可选择的手动工作流，参数、独有检查及证据保留，见 docs/ci-validation.md。
+- node-module-load-v5 在原 10,000 事件 / 2 MB 内分配 worker 创建、历史和 footer 额度。明细或历史耗尽后，已跟踪 worker 的最终 API 状态仍可保留，来源及遗漏原因写入报告；缺 worker footer 继续 incomplete。损坏状态/计数拒绝提升，旧材料可读，本轮零 execa 执行，见 docs/diagnostic-budgets.md。
 - 新增显式无路径 exit_code: 0 成功条件，贯通配置、执行、任务身份、采用及复验；文件清理/保存/诊断只处理文件条件，约定变更仍要求审阅。
 - 普通 node_modules/.cache 目录记为辅助范围，不再制造未知包缺口；原始模块采集与安装归属分别表达。node-module-load-v3 保存具体 trace 上限/写入原因，读回区分计数不一致、缺 footer 和历史原因未保存。
 - 扩展离线 inspect --package，保存并校验各安装实例的声明关系、有限根路径、入口及文件分类摘要，复用已有执行前清单；旧材料明确 not_saved，不补读当前项目，不输出无用包或删包结论。
